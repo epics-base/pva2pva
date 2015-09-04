@@ -8,10 +8,13 @@ include $(TOP)/configure/CONFIG
 PROD_HOST = p2p
 
 
-p2p_SRCS +=
+p2p_SRCS += main.cpp
+p2p_SRCS += server.cpp
+p2p_SRCS += client.cpp
+p2p_SRCS += chancache.cpp
+p2p_SRCS += channel.cpp
 
-#p2p_LIBS += xxx
-p2p_LIBS += $(EPICS_BASE_HOST_LIBS)
+p2p_LIBS += pvAccess pvData Com
 
 #===========================
 
