@@ -37,7 +37,7 @@ GWChannel::message(std::string const & message, pvd::MessageType messageType)
 std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>
 GWChannel::getProvider()
 {
-    return entry->cache->server;
+    return entry->cache->server.lock();
 }
 
 std::string
