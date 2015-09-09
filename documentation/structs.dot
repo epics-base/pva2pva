@@ -1,0 +1,31 @@
+digraph {
+  serv [label="ServerContextImpl"];
+  gwprov [label="GWServerChannelProvider"];
+  cache [label="ChannelCache"];
+  entry [label="ChannelCacheEntry"];
+  clichan [label="InternalChannelImpl"];
+  gwchan [label="GWChannel"];
+  creq [label="CRequester"];
+  servreq [label="ServerChannelRequesterImpl"];
+  servchan [label="ServerChannelImpl"];
+
+  serv -> gwprov [color=red,label="N"];
+
+  gwprov -> cache [color=red,label="1"];
+
+  cache -> entry [color=green,label="N"];
+  cache -> gwprov [color=blue,label="1"];
+
+  entry -> cache [color=blue,label="1"];
+  entry -> clichan [color=red,label="1"];
+  entry -> gwchan [color=blue,label="N"];
+
+  clichan -> creq [color=red,label="1"];
+
+  creq -> entry [color=blue,label="1"];
+
+  gwchan -> entry [color=red,label="1"];
+  gwchan -> servreq [color=red,label="1"];
+
+  servchan -> gwchan [color=red,label="1"];
+}

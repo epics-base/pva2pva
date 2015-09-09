@@ -32,22 +32,47 @@ If no connected entry exists, then the request is failed.
 
 Structure associations
 
-ServerChannelProvider 1->1 ChannelCache  (composed)
+```c
 
-ChannelCache 1->N ChannelCacheEntry  (map<shared_ptr<E> >)
-ChannelCache :: cacheLock
+struct ServerContextImpl {
+  vector<shared_ptr<ChannelProvider> > providers; // GWServerChannelProvider
+};
 
-ChannelCacheEntry 1->1 ChannelCache (C*)
-ChannelCacheEntry 1->1 Channel (PVA Client) (shared_ptr<C>)
+struct GWServerChannelProvider : public pva::ChannelProvider {
+  ChannelCache cache;
+};
 
-Channel (PVA Client) 1->1 CRequester (shared_ptr<R>)
-Channel :: lock
+struct ChannelCache {
+  weak_pointer<ChannelProvider> server;
+  map<string, shared_ptr<ChannelCacheEntry> > entries;
 
-CRequester 1->1 ChannelCacheEntry (weak_ptr<E>)
+  epicsMutex cacheLock; // guards entries
+};
 
-ChannelCacheEntry 1->N GWChannel  (std<C*>)
+struct ChannelCacheEntry {
+  ChannelCache * const cache;
+  shared_ptr<Channel> channel; // InternalChannelImpl
+  set<GWChannel*> interested;
+};
 
-GWChannel 1->1 ChannelCacheEntry  (shared_ptr<E>)
+struct InternalChannelImpl { // PVA client channel
+  shared_ptr<ChannelRequester> requester; // ChannelCacheEntry::CRequester
+};
+
+struct ChannelCacheEntry::CRequester {
+  weak_ptr<ChannelCacheEntry> chan;
+};
+
+struct GWChannel {
+  shared_ptr<ChannelCacheEntry> entry;
+  shared_ptr<ChannelRequester> requester; // pva::ServerChannelRequesterImpl
+};
+
+struct pva::ServerChannelImpl : public pva::ServerChannel
+{
+    shared_ptr<Channel> channel; // GWChannel
+};
+```
 
 
 
