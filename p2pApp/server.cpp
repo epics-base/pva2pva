@@ -37,6 +37,8 @@ struct GWServerChannelProvider : public
         return "GWServer";
     }
 
+    // Called from UDP search thread with no locks held
+    // Called from TCP threads (for search w/ TCP)
     virtual pva::ChannelFind::shared_pointer channelFind(std::string const & channelName,
                                              pva::ChannelFindRequester::shared_pointer const & channelFindRequester)
     {

@@ -30,7 +30,7 @@ When a channel create request is received, the channel cache is checked.
 If no connected entry exists, then the request is failed.
 
 
-Structure associations
+Structure associations and ownership
 
 ```c
 
@@ -74,6 +74,33 @@ struct pva::ServerChannelImpl : public pva::ServerChannel
 };
 ```
 
+Threading and Locking
 
+ServerContextImpl
+  BeaconServerStatusProvider ?
+
+  2x BlockingUDPTransport (bcast and mcast, one thread each)
+    calls ChannelProvider::channelFind with no locks held
+
+  BlockingTCPAcceptor
+    BlockingServerTCPTransportCodec -> BlockingAbstractCodec (send and recv threads)
+      ServerResponseHandler
+        calls ChannelProvider::channelFind
+        calls ChannelProvider::createChannel
+        calls Channel::create*
+
+InternalClientContextImpl
+
+  2x BlockingUDPTransport (bcast listener and ucast tx/rx, one thread each)
+
+  BlockingTCPConnector
+    BlockingClientTCPTransportCodec -> BlockingSocketAbstractCodec (send and recv threads)
+      ClientResponseHandler
+        calls MonitorRequester::monitorEvent with MonitorStrategyQueue::m_mutex locked
+
+TODO
 
 ServerChannelRequesterImpl::channelStateChange() - placeholder, needs implementation
+
+
+the send queue in BlockingAbstractCodec has no upper bound
