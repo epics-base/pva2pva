@@ -52,14 +52,14 @@ static void call1(const iocshArgBuf *args)
 
 
 template<void (*fn)()>
-void iocshRegister0(const char *name)
+void iocshRegister(const char *name)
 {
     detail::iocshFuncInfo<0> *info = new detail::iocshFuncInfo<0>(name);
     iocshRegister(&info->def, &detail::call0<fn>);
 }
 
 template<typename T, void (*fn)(T)>
-void iocshRegister1(const char *name, const char *arg1name)
+void iocshRegister(const char *name, const char *arg1name)
 {
     detail::iocshFuncInfo<1> *info = new detail::iocshFuncInfo<1>(name);
     info->argnames[0] = arg1name;

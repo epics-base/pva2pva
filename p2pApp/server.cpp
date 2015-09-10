@@ -106,6 +106,8 @@ struct GWServerChannelProvider : public
         return createChannel(channelName, channelRequester, priority, "foobar");
     }
 
+    // The return value of this function is ignored
+    // The newly created channel is given to the ChannelRequester
     virtual pva::Channel::shared_pointer createChannel(std::string const & channelName,
                                                        pva::ChannelRequester::shared_pointer const & channelRequester,
                                                        short priority, std::string const & address)
@@ -302,9 +304,9 @@ void registerGWServerIocsh()
     GWServerFactory.reset(new GWServerChannelProviderFactory);
     pva::registerChannelProviderFactory(GWServerFactory);
 
-    iocshRegister0<&startServer>("gwstart");
-    iocshRegister0<&stopServer>("gwstop");
-    iocshRegister1<int, &statusServer>("gwstatus", "level");
+    iocshRegister<&startServer>("gwstart");
+    iocshRegister<&stopServer>("gwstop");
+    iocshRegister<int, &statusServer>("gwstatus", "level");
 
 }
 
