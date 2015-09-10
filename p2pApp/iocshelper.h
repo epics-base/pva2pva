@@ -11,12 +11,19 @@ template<typename T>
 struct getarg {};
 template<> struct getarg<int> {
     static int op(const iocshArgBuf& a) { return a.ival; }
+    enum { argtype = iocshArgInt };
 };
 template<> struct getarg<double> {
     static double op(const iocshArgBuf& a) { return a.dval; }
+    enum { argtype = iocshArgDouble };
 };
 template<> struct getarg<char*> {
     static char* op(const iocshArgBuf& a) { return a.sval; }
+    enum { argtype = iocshArgString };
+};
+template<> struct getarg<const char*> {
+    static const char* op(const iocshArgBuf& a) { return a.sval; }
+    enum { argtype = iocshArgString };
 };
 
 
@@ -64,6 +71,7 @@ void iocshRegister(const char *name, const char *arg1name)
     detail::iocshFuncInfo<1> *info = new detail::iocshFuncInfo<1>(name);
     info->argnames[0] = arg1name;
     info->args[0].name = info->argnames[0].c_str();
+    info->args[0].type = (iocshArgType)detail::getarg<T>::argtype;
     iocshRegister(&info->def, &detail::call1<T, fn>);
 }
 

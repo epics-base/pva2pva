@@ -255,6 +255,10 @@ void statusServer(int lvl)
 {
     try{
         pva::ServerContextImpl::shared_pointer ctx(gblctx);
+        if(!ctx) {
+            std::cout<<"Not running\n";
+            return;
+        }
 
         const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
 
@@ -294,6 +298,52 @@ void statusServer(int lvl)
         std::cerr<<"Error: "<<e.what()<<"\n";
     }
 }
+
+void dropChannel(const char *chan)
+{
+    if(!chan) return;
+    try {
+        pva::ServerContextImpl::shared_pointer ctx(gblctx);
+        if(!ctx) {
+            std::cout<<"Not running\n";
+            return;
+        }
+        std::cout<<"Find and force drop channel '"<<chan<<"'\n";
+
+        const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
+
+        for(size_t i=0; i<prov.size(); i++)
+        {
+            pva::ChannelProvider* p = prov[i].get();
+            if(!p) continue;
+            GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
+            if(!scp) continue;
+
+            ChannelCacheEntry::shared_pointer entry;
+
+            // find the channel, if it's there
+            {
+                Guard G(scp->cache.cacheLock);
+
+                ChannelCache::entries_t::iterator it = scp->cache.entries.find(chan);
+                if(it==scp->cache.entries.end())
+                    continue;
+
+                std::cout<<"Found in provider "<<p->getProviderName()<<"\n";
+
+                entry = it->second;
+                scp->cache.entries.erase(it); // drop out of cache
+            }
+
+            entry->channel->destroy(); // trigger client side disconnect
+        }
+
+        std::cout<<"Done\n";
+    }catch(std::exception& e){
+        std::cerr<<"Error: "<<e.what()<<"\n";
+    }
+}
+
 } // namespace
 
 static
@@ -307,6 +357,7 @@ void registerGWServerIocsh()
     iocshRegister<&startServer>("gwstart");
     iocshRegister<&stopServer>("gwstop");
     iocshRegister<int, &statusServer>("gwstatus", "level");
+    iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
 
 }
 
