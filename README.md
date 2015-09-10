@@ -104,3 +104,26 @@ ServerChannelRequesterImpl::channelStateChange() - placeholder, needs implementa
 
 
 the send queue in BlockingAbstractCodec has no upper bound
+
+
+
+Monitor
+
+ServerChannelImpl calls GWChannel::createMonitor with a MonitorRequester which is ServerMonitorRequesterImpl
+
+The MonitorRequester is given a Monitor which is GWMonitor
+
+GWChannel calls InternalChannelImpl::createMonitor with a GWMonitorRequester
+
+GWMonitorRequester is given a Monitor which is ChannelMonitorImpl
+
+Updates originate from the client side, entering as an argument when GWMonitorRequester::monitorEvent is called,
+and exiting to the server when passed as an argument of a call to ServerMonitorRequesterImpl::monitorEvent.
+
+When called, ServerMonitorRequesterImpl::monitorEvent enqueues itself for transmission.
+The associated TCP sender thread later calls ServerMonitorRequesterImpl::send(),
+which calls GWMonitor::poll() to de-queue an event, which it encodes to the senders bytebuffer.
+It then reschedules itself.
+
+
+ServerMonitorRequesterImpl::monitorEvent is a no-op???
