@@ -1,0 +1,652 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Terms
+\end_layout
+
+\begin_layout Description
+GW Gateway
+\end_layout
+
+\begin_layout Description
+CLI An arbitrary PVAccess client (end user or another gateway)
+\end_layout
+
+\begin_layout Description
+GWS Gateway server side (CLI communicates with this)
+\end_layout
+
+\begin_layout Description
+GWC Gateway client side (SRV communicates with this)
+\end_layout
+
+\begin_layout Description
+SRV An arbitrary PVAccess server (may be another gateway)
+\end_layout
+
+\begin_layout Section
+Goals/Features
+\end_layout
+
+\begin_layout Standard
+Identified features and design goals.
+\end_layout
+
+\begin_layout Paragraph
+De-duplication
+\end_layout
+
+\begin_layout Standard
+of sockets and data to reduce overall resource use.
+\end_layout
+
+\begin_layout Paragraph
+Policies
+\end_layout
+
+\begin_layout Standard
+for access.
+ This include access control (whether an operation is permitted) and administrat
+ive limits (bound per-client resource usage).
+\end_layout
+
+\begin_layout Section
+Theory of Operation
+\end_layout
+
+\begin_layout Subsection
+Name resolution/socket setup
+\end_layout
+
+\begin_layout Standard
+Use of periodically re-sent UDP messages for name search permits an asynchronous
+ mode of operation for name resolution and socket (circuit) setup.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "language={C++}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+struct ChannelCacheEntry {
+\end_layout
+
+\begin_layout Plain Layout
+
+	string name;  // key
+\end_layout
+
+\begin_layout Plain Layout
+
+	int priority; // key
+\end_layout
+
+\begin_layout Plain Layout
+
+	unsigned refcount; // implicily via.
+ shared_ptr
+\end_layout
+
+\begin_layout Plain Layout
+
+	bool searched;
+\end_layout
+
+\begin_layout Plain Layout
+
+	shared_ptr<Channel> chanGWC;
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+A cache of GWC Channels
+\end_layout
+
+\begin_layout Standard
+index by name and priority (the parameters of the createChannel message)
+ is maintained.
+ Entries in this ChannelCache have an associated GWC Channel, and a garbage
+ cleanup flag.
+\end_layout
+
+\begin_layout Standard
+When GWS receives a new CLI search request message a lookup is made to the
+ ChannelCache which has three possible outcomes (see figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:name-search"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename name-search.msc
+	width 3in
+	height 2in
+	keepAspectRatio
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+CLI name search outcomes
+\end_layout
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:name-search"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+Miss There is no entry in the cache.
+ A new entry is created.
+ The new GWC Channel begins the search/connect process.
+ No reply to CLI is made.
+\end_layout
+
+\begin_layout Description
+Not
+\begin_inset space ~
+\end_inset
+
+Conn An entry exists, but the associated GWC Channel is not yet connected.No
+ reply to CLI is made.
+\end_layout
+
+\begin_layout Description
+Hit There is an entry with a connected GWC Channel.
+ A positive search reply is sent to CLI.
+\end_layout
+
+\begin_layout Standard
+Handling of TCP channelCreate messages by GWS is similar except that a negative
+ reply is sent for Miss and Not Conn outcomes.
+\end_layout
+
+\begin_layout Paragraph
+A reference count
+\end_layout
+
+\begin_layout Standard
+is maintained by each ChannelCache entry for the GWS channels using each
+ GWC channel.
+ However, an entry should not be immediatly removed when the ref.
+ count drops to zero.
+ Instead it should be kept for some time to allow it to be found by for
+ future CLI search requests.
+\end_layout
+
+\begin_layout Standard
+Each ChannelCache entry should also have a boolean flag which is set on
+ creation, and re-set whenever it is looked up.
+ A periodic cleanup task should run which removes all entries with this
+ flag cleared, and zero ref.
+ count.
+ Each time it run, the cleanup task should clear the flag of any entry not
+ removed.
+\end_layout
+
+\begin_layout Standard
+This should ensure that entries not used by a GWS channel are eventually
+ removed (GWC Channel closed) when no client is searching for them.
+\end_layout
+
+\begin_layout Paragraph
+Ownership of an active GWC Channel
+\end_layout
+
+\begin_layout Standard
+is shared by several active GWS channels, and a ChannelCache entry as shown
+ in figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:clichanown"
+
+\end_inset
+
+.
+ Red arrows represent strong ownership and blue weak ownership.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+in general 
+\begin_inset Graphics
+	filename structs.dot
+	width 4in
+	height 3in
+	keepAspectRatio
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+GWC Channel ownership
+\end_layout
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:clichanown"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Notification of loss of a GWC Channel
+\end_layout
+
+\begin_layout Standard
+should result in the disconnection of any associated GWS Channels, and the
+ immediate removal of the associated ChannelCache entry.
+\end_layout
+
+\begin_layout Subsection
+Get/Put/RPC/...
+ operations
+\end_layout
+
+\begin_layout Standard
+For operations other than Monitor, the timing of the client request can
+ effect the results.
+ No caching or de-duplication can be done without special knowedge about
+ the intended behavour of CLI and SRV.
+ Therefore, by default these operations a pass through the GW without de-duplica
+tion.
+\end_layout
+
+\begin_layout Subsection
+Monitor operations
+\end_layout
+
+\begin_layout Standard
+Each ChannelCache entry will also include a MonitorCache.
+ This cache is indexed by the pvrequest given with the corresponding monitorCrea
+te operation.
+ As a pvrequest may contain arbitrary data, two pvrequests may not be compared
+ for anything other than exact equality without special knowledge.
+ Therefore, by default MonitorCache hits are only generated when the CLI
+ provides a pvrequest which exactly matches the MonitorCache entry.
+\end_layout
+
+\begin_layout Standard
+Each MonitorCache entry should also include the most recent (last) value
+ received by the GWC so that this may be returned immediately for new GWS
+ subscriptions.
+\end_layout
+
+\begin_layout Standard
+A list of GWS consumers (interested in event data) will also be maintained.
+ Each new event data value is passed into the MonitorRequester of each consumer.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "language={C++}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+struct MonitorCacheEntry {
+\end_layout
+
+\begin_layout Plain Layout
+
+	PVField request; // key
+\end_layout
+
+\begin_layout Plain Layout
+
+	weak_ptr<ChannelCacheEntry> chan;
+\end_layout
+
+\begin_layout Plain Layout
+
+	unsigned refcount; // implicily via.
+ shared_ptr
+\end_layout
+
+\begin_layout Plain Layout
+
+	shared_ptr<Monitor> mon;
+\end_layout
+
+\begin_layout Plain Layout
+
+	PVField lastval;
+\end_layout
+
+\begin_layout Plain Layout
+
+	list<MonitorConsumer*> consumers;
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\begin_layout Plain Layout
+
+struct MonitorConsumer {
+\end_layout
+
+\begin_layout Plain Layout
+
+	shared_ptr<MonitorRequester> queueGWS;
+\end_layout
+
+\begin_layout Plain Layout
+
+	shared_ptr<MonitorCacheEntry> entry;
+\end_layout
+
+\begin_layout Plain Layout
+
+	bool GC;
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As with ChannelCache, a MonitorCache entry should not be removed immediately
+ when its ref.
+ count reaches zero.
+ Instead unreferenced entries should be periodically closed in the same
+ fashion (perhaps as part of) the periodica ChannelCache cleanup.
+\end_layout
+
+\begin_layout Section
+Channel Transmit Queueing
+\end_layout
+
+\begin_layout Standard
+A major potential pitfall of de-duplication (and connection sharing in general)
+ is the handling and prioritization (or lack thereof) of traffic on different
+ channels/operations.
+ For example, monitoring a single high data rate PV can cause other operations
+ to experience larger latency.
+ One way to mitigate this, in part, is to introduce some 
+\begin_inset Quotes eld
+\end_inset
+
+fairness
+\begin_inset Quotes erd
+\end_inset
+
+ to the circuit/Transport transmit message queue.
+ 
+\end_layout
+
+\begin_layout Standard
+Instead of a simple FIFO fed by all Channels, give each channel a FIFO.
+ The task which dequeues would do by taking from each FIFO in turn in a
+ round robin.
+ This should prevent the overall latency through the queue from being dominated
+ by one fast PV.
+\end_layout
+
+\begin_layout Standard
+However, this is only a partial solution as large PVs will still intoduce
+ latency in proportion to the individual data size.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+queue = [A, A, B, A, B, C, C, A, A, B]
+\end_layout
+
+\begin_layout Plain Layout
+
+sort_fair() # [[A, A, A, A, A], [B, B, B], [C, C]]
+\end_layout
+
+\begin_layout Plain Layout
+
+queue == [A, B, C, A, B, C, A, B, A, A]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Loop avoidance
+\end_layout
+
+\begin_layout Standard
+Another potential pitfall inherent in using UDP broadcasts for name resolution
+ is the possibility of loops should GWS receive search requests from GWC.
+ This can be avoided provided that GWS is aware of the set of endpoints
+ that GWC uses to send requests, and ignores an requests from them.
+\end_layout
+
+\begin_layout Section
+Policies
+\end_layout
+
+\begin_layout Standard
+Along with de-duplication, enforcement of administrative policies is the
+ major fuction of a GW.
+ Areas of policy include: access control, resource limits, and queuing behavour.
+\end_layout
+
+\begin_layout Subsection
+Access Control
+\end_layout
+
+\begin_layout Standard
+In order to share GWC channels, the GW will make all access control decisions.
+ Authentication information provided by CLI is 
+\series bold
+never
+\series default
+ forwarded to SRV.
+ Instead, the GWs own authentication information is sent to SRV.
+\end_layout
+
+\begin_layout Standard
+Access control needs to be configurable on a per-PV, per-operation basis.
+ This typically takes the form of an Access Control List, where rules are
+ traversed in some order.
+ Each rule makes some decision to Allow, Deny, or Pass.
+\end_layout
+
+\begin_layout Standard
+To allow the flexibility, a rule may subscribe to several PVs and use the
+ values obtained, in addition to client provided informatiion and static
+ configuration, to make decision.
+\end_layout
+
+\begin_layout Subsection
+Administrative Limits
+\end_layout
+
+\begin_layout Standard
+A number of administrative limits should also be provided to limit the resource
+ usage of potentially misbehaving clients including:
+\end_layout
+
+\begin_layout Itemize
+Max # of clients
+\end_layout
+
+\begin_layout Itemize
+Max # of channels per client
+\end_layout
+
+\begin_layout Itemize
+Max # of concurrent operations, for each operation type
+\end_layout
+
+\begin_layout Itemize
+Max # monitor queue depth
+\end_layout
+
+\begin_layout Standard
+Such limits could be made hard (fail further requests) or soft (log and
+ allow).
+\end_layout
+
+\begin_layout Subsection
+Queueing
+\end_layout
+
+\begin_layout Standard
+At a minimum, the default and max queue sizes should be settable by policy.
+ Additionally, a choice of algorithms could be provided to decide which
+ entries to drop when the queue overflows.
+\end_layout
+
+\end_body
+\end_document

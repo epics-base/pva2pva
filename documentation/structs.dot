@@ -13,7 +13,7 @@ digraph {
 
   gwprov -> cache [color=red,label="1"];
 
-  cache -> entry [color=green,label="N"];
+  cache -> entry [color=red,label="N"];
   cache -> gwprov [color=blue,label="1"];
 
   entry -> cache [color=blue,label="1"];
