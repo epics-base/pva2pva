@@ -1,8 +1,9 @@
 #include <stdio.h>
 
+#include <epicsAtomic.h>
+
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
-
 
 #define epicsExportSharedSymbols
 #include "pva2pva.h"
@@ -12,9 +13,13 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
+size_t ChannelCacheEntry::num_instances;
+
 ChannelCacheEntry::ChannelCacheEntry(ChannelCache* c, const std::string& n)
     :channelName(n), cache(c), dropPoke(true)
-{}
+{
+    epicsAtomicIncrSizeT(&num_instances);
+}
 
 ChannelCacheEntry::~ChannelCacheEntry()
 {
@@ -22,6 +27,7 @@ ChannelCacheEntry::~ChannelCacheEntry()
     std::cout<<"Destroy client channel for '"<<channelName<<"'\n";
     if(channel.get())
         channel->destroy(); // calls channelStateChange() w/ DESTROY
+    epicsAtomicDecrSizeT(&num_instances);
 }
 
 std::string
@@ -58,7 +64,7 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
             <<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
 
 
-    ChannelCacheEntry::interested_t interested;
+    ChannelCacheEntry::interested_t::vector_type interested;
 
     // fanout notification
 
@@ -79,13 +85,14 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
             break;
         }
 
-        interested = chan->interested; // Copy to allow unlock during callback
+        interested = chan->interested.lock_vector(); // Copy to allow unlock during callback
     }
 
-    for(ChannelCacheEntry::interested_t::const_iterator it=interested.begin(), end=interested.end();
+    for(ChannelCacheEntry::interested_t::vector_type::const_iterator
+        it=interested.begin(), end=interested.end();
         it!=end; ++it)
     {
-        (*it)->requester->channelStateChange((*it)->shared_from_this(), connectionState);
+        (*it)->requester->channelStateChange(*it, connectionState);
     }
 }
 

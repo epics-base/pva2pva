@@ -12,6 +12,7 @@ p2p_SRCS += main.cpp
 p2p_SRCS += server.cpp
 p2p_SRCS += client.cpp
 p2p_SRCS += chancache.cpp
+p2p_SRCS += moncache.cpp
 p2p_SRCS += channel.cpp
 
 p2p_LIBS += pvAccess pvData Com

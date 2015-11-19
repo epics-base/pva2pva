@@ -4,23 +4,84 @@
 #include <string>
 #include <map>
 #include <set>
+#include <deque>
 
 #include <epicsMutex.h>
 #include <epicsTimer.h>
 
 #include <pv/pvAccess.h>
 
+#include "weakmap.h"
+#include "weakset.h"
+
 struct ChannelCache;
+struct ChannelCacheEntry;
+struct MonitorUser;
 struct GWChannel;
+
+struct MonitorCacheEntry : public epics::pvData::MonitorRequester
+{
+    POINTER_DEFINITIONS(MonitorCacheEntry);
+    static size_t num_instances;
+
+    typedef std::vector<epicsUInt8> pvrequest_t;
+    pvrequest_t key;
+
+    ChannelCacheEntry * const chan;
+
+    epics::pvData::StructureConstPtr typedesc;
+    epics::pvData::PVStructure::shared_pointer lastval;
+    epics::pvData::MonitorPtr mon;
+    epics::pvData::Status startresult;
+
+    typedef weak_set<MonitorUser> interested_t;
+    interested_t interested;
+
+    MonitorCacheEntry(ChannelCacheEntry *ent);
+    virtual ~MonitorCacheEntry();
+
+    virtual void monitorConnect(epics::pvData::Status const & status,
+                                epics::pvData::MonitorPtr const & monitor,
+                                epics::pvData::StructureConstPtr const & structure);
+    virtual void monitorEvent(epics::pvData::MonitorPtr const & monitor);
+    virtual void unlisten(epics::pvData::MonitorPtr const & monitor);
+
+    virtual std::string getRequesterName();
+    virtual void message(std::string const & message, epics::pvData::MessageType messageType);
+};
+
+struct MonitorUser : public epics::pvData::Monitor
+{
+    POINTER_DEFINITIONS(MonitorUser);
+    static size_t num_instances;
+    weak_pointer weakref;
+
+    MonitorCacheEntry::shared_pointer entry;
+    epics::pvData::MonitorRequester::weak_pointer req;
+
+    bool running;
+
+    std::deque<epics::pvData::MonitorElementPtr> filled, empty;
+    std::set<epics::pvData::MonitorElementPtr> inuse;
+
+    MonitorUser(const MonitorCacheEntry::shared_pointer&);
+    virtual ~MonitorUser();
+
+    virtual void destroy();
+
+    virtual epics::pvData::Status start();
+    virtual epics::pvData::Status stop();
+    virtual epics::pvData::MonitorElementPtr poll();
+    virtual void release(epics::pvData::MonitorElementPtr const & monitorElement);
+
+    virtual std::string getRequesterName();
+    virtual void message(std::string const & message, epics::pvData::MessageType messageType);
+};
 
 struct ChannelCacheEntry
 {
     POINTER_DEFINITIONS(ChannelCacheEntry);
-
-    struct Update {
-        virtual ~Update()=0;
-        virtual void channelStateChange(epics::pvAccess::Channel::ConnectionState connectionState) = 0;
-    };
+    static size_t num_instances;
 
     const std::string channelName;
     ChannelCache * const cache;
@@ -30,8 +91,12 @@ struct ChannelCacheEntry
 
     bool dropPoke;
 
-    typedef std::set<GWChannel*> interested_t;
+    typedef weak_set<GWChannel> interested_t;
     interested_t interested;
+
+    typedef MonitorCacheEntry::pvrequest_t pvrequest_t;
+    typedef weak_value_map<pvrequest_t, MonitorCacheEntry> mon_entries_t;
+    mon_entries_t mon_entries;
 
     ChannelCacheEntry(ChannelCache*, const std::string& n);
     virtual ~ChannelCacheEntry();

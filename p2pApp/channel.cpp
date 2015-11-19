@@ -1,25 +1,27 @@
 
+#include <epicsAtomic.h>
+
 #define epicsExportSharedSymbols
+#include "helper.h"
 #include "pva2pva.h"
 #include "channel.h"
 
 namespace pva = epics::pvAccess;
 namespace pvd = epics::pvData;
 
+size_t GWChannel::num_instances;
+
 GWChannel::GWChannel(ChannelCacheEntry::shared_pointer e,
-                     epics::pvAccess::ChannelRequester::shared_pointer r)
+                     pva::ChannelRequester::shared_pointer r)
     :entry(e)
     ,requester(r)
 {
-    Guard G(entry->cache->cacheLock);
-    entry->interested.insert(this);
+    epicsAtomicIncrSizeT(&num_instances);
 }
 
 GWChannel::~GWChannel()
 {
-    Guard G(entry->cache->cacheLock);
-    entry->interested.erase(this);
-    std::cout<<"GWChannel dtor '"<<entry->channelName<<"'\n";
+    epicsAtomicDecrSizeT(&num_instances);
 }
 
 std::string
@@ -34,7 +36,26 @@ GWChannel::message(std::string const & message, pvd::MessageType messageType)
     std::cout<<"message to client about '"<<entry->channelName<<"' : "<<message<<"\n";
 }
 
-std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>
+void
+GWChannel::destroy()
+{
+    std::cout<<__PRETTY_FUNCTION__<<"\n";
+    // Client closes channel. Release our references,
+    // won't
+    shared_pointer self(weakref);
+    {
+        Guard G(entry->cache->cacheLock);
+        // remove ourselves before releasing our reference to prevent "stale" pointers.
+        // Poke the cache so that this channel is held open for a while longer
+        // in case this client reconnects shortly.
+        entry->dropPoke = true;
+        entry->interested.erase(self);
+    }
+    requester.reset();
+    entry.reset();
+}
+
+std::tr1::shared_ptr<pva::ChannelProvider>
 GWChannel::getProvider()
 {
     return entry->cache->server.lock();
@@ -43,7 +64,8 @@ GWChannel::getProvider()
 std::string
 GWChannel::getRemoteAddress()
 {
-    return "foobar";
+    // pass through address of origin server (information leak?)
+    return entry->channel->getRemoteAddress();
 }
 
 pva::Channel::ConnectionState
@@ -58,7 +80,7 @@ GWChannel::getChannelName()
     return entry->channelName;
 }
 
-std::tr1::shared_ptr<epics::pvAccess::ChannelRequester>
+std::tr1::shared_ptr<pva::ChannelRequester>
 GWChannel::getChannelRequester()
 {
     return requester;
@@ -72,73 +94,137 @@ GWChannel::isConnected()
 
 
 void
-GWChannel::getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,
+GWChannel::getField(pva::GetFieldRequester::shared_pointer const & requester,
                             std::string const & subField)
 {
     //TODO: cache for top level field?
-    std::cout<<"getField for "<<entry->channelName<<" "<<subField<<"\n";
+    std::cout<<"getField for "<<entry->channelName<<" '"<<subField<<"'\n";
     entry->channel->getField(requester, subField);
 }
 
-epics::pvAccess::AccessRights
-GWChannel::getAccessRights(epics::pvData::PVField::shared_pointer const & pvField)
+pva::AccessRights
+GWChannel::getAccessRights(pvd::PVField::shared_pointer const & pvField)
 {
     return entry->channel->getAccessRights(pvField);
 }
 
-epics::pvAccess::ChannelProcess::shared_pointer
+pva::ChannelProcess::shared_pointer
 GWChannel::createChannelProcess(
-        epics::pvAccess::ChannelProcessRequester::shared_pointer const & channelProcessRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
+        pva::ChannelProcessRequester::shared_pointer const & channelProcessRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
 {
     return entry->channel->createChannelProcess(channelProcessRequester, pvRequest);
 }
 
-epics::pvAccess::ChannelGet::shared_pointer
+pva::ChannelGet::shared_pointer
 GWChannel::createChannelGet(
-        epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
+        pva::ChannelGetRequester::shared_pointer const & channelGetRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
 {
     return entry->channel->createChannelGet(channelGetRequester, pvRequest);
 }
 
-epics::pvAccess::ChannelPut::shared_pointer
+pva::ChannelPut::shared_pointer
 GWChannel::createChannelPut(
-        epics::pvAccess::ChannelPutRequester::shared_pointer const & channelPutRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
+        pva::ChannelPutRequester::shared_pointer const & channelPutRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
 {
     return entry->channel->createChannelPut(channelPutRequester, pvRequest);
 }
 
-epics::pvAccess::ChannelPutGet::shared_pointer
+pva::ChannelPutGet::shared_pointer
 GWChannel::createChannelPutGet(
-        epics::pvAccess::ChannelPutGetRequester::shared_pointer const & channelPutGetRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
+        pva::ChannelPutGetRequester::shared_pointer const & channelPutGetRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
 {
     return entry->channel->createChannelPutGet(channelPutGetRequester, pvRequest);
 }
 
-epics::pvAccess::ChannelRPC::shared_pointer
+pva::ChannelRPC::shared_pointer
 GWChannel::createChannelRPC(
-        epics::pvAccess::ChannelRPCRequester::shared_pointer const & channelRPCRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
+        pva::ChannelRPCRequester::shared_pointer const & channelRPCRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
 {
     return entry->channel->createChannelRPC(channelRPCRequester, pvRequest);
 }
 
-epics::pvData::Monitor::shared_pointer
-GWChannel::createMonitor(
-        epics::pvData::MonitorRequester::shared_pointer const & monitorRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
-{
-    //TODO de-dup monitors
-    return entry->channel->createMonitor(monitorRequester, pvRequest);
+namespace {
+struct noclean {
+    void operator()(MonitorCacheEntry *) {}
+};
 }
 
-epics::pvAccess::ChannelArray::shared_pointer
+pvd::Monitor::shared_pointer
+GWChannel::createMonitor(
+        pvd::MonitorRequester::shared_pointer const & monitorRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
+{
+    std::cout<<__PRETTY_FUNCTION__<<"\n";
+    ChannelCacheEntry::pvrequest_t ser;
+    // serialize request struct to string using host byte order (only used for local comparison)
+    pvd::serializeToVector(pvRequest.get(), EPICS_BYTE_ORDER, ser);
+
+    MonitorCacheEntry::shared_pointer ent;
+    MonitorUser::shared_pointer mon;
+
+    pvd::Status startresult;
+    pvd::StructureConstPtr typedesc;
+
+    try {
+        Guard G(entry->cache->cacheLock);
+
+        ent = entry->mon_entries.find(ser);
+        if(!ent) {
+            ent.reset(new MonitorCacheEntry(entry.get()));
+            entry->mon_entries[ser] = ent;
+
+            // Create upstream monitor
+            // This would create a strong ref. loop between ent and ent->mon.
+            // Instead we get clever and pass a "fake" strong ref, which simply
+            // checks to see that it will out-live the object.
+            MonitorCacheEntry::shared_pointer fakereal(ent.get(), noclean());
+
+            ent->mon = entry->channel->createMonitor(fakereal, pvRequest);
+
+            ent->key.swap(ser); // no copy
+
+            std::cout<<"Monitor cache "<<entry->channelName<<" Miss\n";
+        } else {
+            std::cout<<"Monitor cache "<<entry->channelName<<" Hit\n";
+        }
+
+        mon.reset(new MonitorUser(ent));
+        ent->interested.insert(mon);
+        mon->weakref = mon;
+        mon->req = monitorRequester;
+        typedesc = ent->typedesc;
+        startresult = ent->startresult;
+
+    } catch(std::exception& e) {
+        mon.reset();
+        std::cerr<<"Exception in "<<__PRETTY_FUNCTION__<<"\n"
+                   "is "<<e.what()<<"\n";
+        pvd::Status oops(pvd::Status::STATUSTYPE_FATAL, "Error during GWChannel setup");
+        startresult = oops;
+        monitorRequester->monitorConnect(oops, mon, typedesc);
+        return mon;
+    }
+
+    // unlock for callback
+
+    if(typedesc || !startresult.isSuccess()) {
+        // upstream monitor already connected, or never will be,
+        // so connect immeidately
+        monitorRequester->monitorConnect(pvd::Status::Ok, mon, typedesc);
+    }
+
+    return mon;
+}
+
+pva::ChannelArray::shared_pointer
 GWChannel::createChannelArray(
-        epics::pvAccess::ChannelArrayRequester::shared_pointer const & channelArrayRequester,
-        epics::pvData::PVStructure::shared_pointer const & pvRequest)
+        pva::ChannelArrayRequester::shared_pointer const & channelArrayRequester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
 {
     return entry->channel->createChannelArray(channelArrayRequester, pvRequest);
 }

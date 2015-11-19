@@ -5,9 +5,12 @@
 
 #include "chancache.h"
 
-struct GWChannel : public epics::pvAccess::Channel,
-        std::tr1::enable_shared_from_this<GWChannel>
+struct GWChannel : public epics::pvAccess::Channel
 {
+    POINTER_DEFINITIONS(GWChannel);
+    static size_t num_instances;
+    weak_pointer weakref;
+
     ChannelCacheEntry::shared_pointer entry;
     epics::pvAccess::ChannelRequester::shared_pointer requester;
 
@@ -21,7 +24,7 @@ struct GWChannel : public epics::pvAccess::Channel,
     virtual void message(std::string const & message, epics::pvData::MessageType messageType);
 
     // for Destroyable
-    virtual void destroy(){}
+    virtual void destroy();
 
     // for Channel
     virtual std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> getProvider();

@@ -1,10 +1,12 @@
 #include <stdio.h>
 
+#include <epicsAtomic.h>
+
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
 
-
 #define epicsExportSharedSymbols
+#include "helper.h"
 #include "pva2pva.h"
 #include "iocshelper.h"
 #include "chancache.h"
@@ -55,9 +57,8 @@ struct GWServerChannelProvider : public
             std::string newName;
 
             // rewrite name
-            newName.reserve(channelName.size());
-            newName = "y";
-            newName.append(channelName.begin()+1, channelName.end());
+            newName = channelName;
+            newName[0] = 'y';
 
             Guard G(cache.cacheLock);
 
@@ -112,16 +113,15 @@ struct GWServerChannelProvider : public
                                                        pva::ChannelRequester::shared_pointer const & channelRequester,
                                                        short priority, std::string const & address)
     {
-        pva::Channel::shared_pointer ret;
+        GWChannel::shared_pointer ret;
         std::string newName;
 
         if(!channelName.empty() && channelName[0]=='x')
         {
 
             // rewrite name
-            newName.reserve(channelName.size());
-            newName = "y";
-            newName.append(channelName.begin()+1, channelName.end());
+            newName = channelName;
+            newName[0] = 'y';
 
             Guard G(cache.cacheLock);
 
@@ -129,6 +129,8 @@ struct GWServerChannelProvider : public
             if(it!=cache.entries.end() && it->second->channel->isConnected())
             {
                 ret.reset(new GWChannel(it->second, channelRequester));
+                it->second->interested.insert(ret);
+                ret->weakref = ret;
             }
         }
 
@@ -141,7 +143,7 @@ struct GWServerChannelProvider : public
             channelRequester->channelCreated(pvd::Status::Ok, ret);
         }
 
-        return ret;
+        return ret; // ignored by caller
     }
 
     virtual void configure(epics::pvData::PVStructure::shared_pointer /*configuration*/) {
@@ -344,6 +346,78 @@ void dropChannel(const char *chan)
     }
 }
 
+void show_cnt(const char *name, const size_t& live, const size_t& reach) {
+    ptrdiff_t delta = ptrdiff_t(live)-ptrdiff_t(reach);
+    std::cout<<name<<" live: "<<live
+            <<" reachable: "<<reach
+            <<" delta: "<<delta<<"\n";
+}
+
+void refCheck(int lvl)
+{
+    try{
+        std::cout<<"GW instances reference counts.\n"
+                   "Note: small inconsistencies (positive and negative) are normal due to locking.\n"
+                   "      Actual leaks will manifest as a sustained increases.\n";
+        pva::ServerContextImpl::shared_pointer ctx(gblctx);
+        if(!ctx) {
+            std::cout<<"Not running\n";
+            return;
+        }
+
+        const AUTO_REF(prov, ctx->getChannelProviders());
+
+        size_t chan_count = 0, mon_count = 0, mon_user_count = 0;
+
+        if(lvl>0) std::cout<<"Server has "<<prov.size()<<" providers\n";
+
+        for(size_t i=0; i<prov.size(); i++)
+        {
+            pva::ChannelProvider* p = prov[i].get();
+            if(!p) continue;
+            GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
+            if(!scp) continue;
+
+            {
+                Guard G(scp->cache.cacheLock);
+                AUTO_REF(entries, scp->cache.entries);
+
+                if(lvl>0) std::cout<<" Cache has "<<scp->cache.entries.size()<<" channels\n";
+
+                chan_count += entries.size();
+
+                FOREACH(it, end, entries)
+                {
+                    AUTO_VAL(M, it->second->mon_entries.lock_vector());
+
+                    if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
+                                      <<" has "<<M.size()<<" Client Monitors\n";
+
+                    mon_count += M.size();
+                    FOREACH(it2, end2, M)
+                    {
+                        AUTO_REF(W, it2->second->interested);
+                        if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
+                        mon_user_count += W.size();
+                    }
+                }
+            }
+        }
+
+        size_t chan_latch = epicsAtomicGetSizeT(&ChannelCacheEntry::num_instances),
+               mon_latch = epicsAtomicGetSizeT(&MonitorCacheEntry::num_instances),
+               mon_user_latch = epicsAtomicGetSizeT(&MonitorUser::num_instances);
+
+        std::cout<<"GWChannel live: "<<epicsAtomicGetSizeT(&GWChannel::num_instances)<<"\n";
+        show_cnt("ChannelCacheEntry",chan_latch,chan_count);
+        show_cnt("MonitorCacheEntry",mon_latch,mon_count);
+        show_cnt("MonitorUser",mon_user_latch,mon_user_count);
+
+    }catch(std::exception& e){
+        std::cerr<<"Error: "<<e.what()<<"\n";
+    }
+}
+
 } // namespace
 
 static
@@ -358,6 +432,7 @@ void registerGWServerIocsh()
     iocshRegister<&stopServer>("gwstop");
     iocshRegister<int, &statusServer>("gwstatus", "level");
     iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
+    iocshRegister<int, &refCheck>("gwref", "level");
 
 }
 
