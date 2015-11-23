@@ -9,9 +9,9 @@
 \language_package default
 \inputencoding auto
 \fontencoding global
-\font_roman default
-\font_sans default
-\font_typewriter default
+\font_roman lmodern
+\font_sans lmss
+\font_typewriter lmtt
 \font_math auto
 \font_default_family default
 \use_non_tex_fonts false
@@ -20,13 +20,24 @@
 \font_sf_scale 100
 \font_tt_scale 100
 \graphics default
-\default_output_format default
+\default_output_format pdf2
 \output_sync 0
 \bibtex_command default
 \index_command default
 \paperfontsize default
-\use_hyperref false
-\papersize default
+\spacing single
+\use_hyperref true
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder true
+\pdf_colorlinks true
+\pdf_backref false
+\pdf_pdfusetitle true
+\pdf_quoted_options "linkcolor=blue,citecolor=blue"
+\papersize letterpaper
 \use_geometry false
 \use_package amsmath 1
 \use_package amssymb 1
@@ -51,8 +62,8 @@
 \shortcut idx
 \color #008000
 \end_index
-\secnumdepth 3
-\tocdepth 3
+\secnumdepth 2
+\tocdepth 2
 \paragraph_separation indent
 \paragraph_indentation default
 \quotes_language english
@@ -68,8 +79,112 @@
 
 \begin_body
 
+\begin_layout Title
+PVAccess Gateway Design
+\end_layout
+
+\begin_layout Author
+Michael Davidsaver
+\end_layout
+
+\begin_layout Date
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+today
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Scope
+\end_layout
+
+\begin_layout Standard
+A PVAccess gateway will act as a 
+\begin_inset Quotes eld
+\end_inset
+
+switch
+\begin_inset Quotes erd
+\end_inset
+
+ to route PVA traffic between IP subnets.
+ The primary use cases for a gateway are: 1) de-duplicate data when many
+ PVA clients make a similar request to limit the load on the PVA server
+ handling this request.
+ And 2) to provide the mechanisms to implement site specific access control
+ policies specifying which requests are permitted.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename parts.dia
+	height 1in
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Gateway Components
+\end_layout
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:parts"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Terms
+\end_layout
+
+\begin_layout Description
+IP Internet Protocol (v4 and/or v6)
+\end_layout
+
+\begin_layout Description
+PV Process Variable.
+ Addressable unit in PVA.
+ A character string.
+\end_layout
+
+\begin_layout Description
+PVA PVAccess network protocol
 \end_layout
 
 \begin_layout Description
@@ -90,6 +205,27 @@ GWC Gateway client side (SRV communicates with this)
 
 \begin_layout Description
 SRV An arbitrary PVAccess server (may be another gateway)
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:parts"
+
+\end_inset
+
+ shows the relationships between the CLI, GWS, GWC, and SRV actors.
+ The 
+\begin_inset Quotes eld
+\end_inset
+
+Gateway
+\begin_inset Quotes erd
+\end_inset
+
+ consists of the GWS, GWC, and the logic which sits between them.
+ 
 \end_layout
 
 \begin_layout Section
@@ -113,9 +249,34 @@ Policies
 \end_layout
 
 \begin_layout Standard
-for access.
- This include access control (whether an operation is permitted) and administrat
-ive limits (bound per-client resource usage).
+to permit or deny individual requests.
+ This include access control policy (ie.
+ client 
+\begin_inset Quotes eld
+\end_inset
+
+X
+\begin_inset Quotes erd
+\end_inset
+
+ may not access resource 
+\begin_inset Quotes eld
+\end_inset
+
+Y
+\begin_inset Quotes erd
+\end_inset
+
+) and administrative limits to bound per-client resource usage (ie.
+ a client may have only 15 concurrent 
+\begin_inset Quotes eld
+\end_inset
+
+gets
+\begin_inset Quotes erd
+\end_inset
+
+ in progress).
 \end_layout
 
 \begin_layout Section
@@ -127,8 +288,9 @@ Name resolution/socket setup
 \end_layout
 
 \begin_layout Standard
-Use of periodically re-sent UDP messages for name search permits an asynchronous
- mode of operation for name resolution and socket (circuit) setup.
+Use of periodically re-sent UDP messages by PVA for name search permits
+ an asynchronous mode of operation for name resolution and socket (circuit)
+ setup.
 \end_layout
 
 \begin_layout Standard
@@ -260,18 +422,21 @@ Not
 \begin_inset space ~
 \end_inset
 
-Conn An entry exists, but the associated GWC Channel is not yet connected.No
- reply to CLI is made.
+Conn An entry exists, but the associated GWC Channel is not yet connected.
+ No further action is taken.
+ No reply to CLI is made.
 \end_layout
 
 \begin_layout Description
-Hit There is an entry with a connected GWC Channel.
+Hit An entry exists with a connected GWC Channel.
  A positive search reply is sent to CLI.
 \end_layout
 
 \begin_layout Standard
 Handling of TCP channelCreate messages by GWS is similar except that a negative
  reply is sent for Miss and Not Conn outcomes.
+ A negative reply to a channelCreate message by CLI will cause it to restart
+ the name search phase.
 \end_layout
 
 \begin_layout Paragraph
@@ -279,27 +444,26 @@ A reference count
 \end_layout
 
 \begin_layout Standard
-is maintained by each ChannelCache entry for the GWS channels using each
- GWC channel.
- However, an entry should not be immediatly removed when the ref.
+is maintained by each ChannelCache entry for the GWS channels using the
+ associated GWC channel.
+ However, an entry should not be immediately removed when its ref.
  count drops to zero.
- Instead it should be kept for some time to allow it to be found by for
- future CLI search requests.
+ Instead it should be kept for some time so that it may be found by future
+ CLI search requests.
 \end_layout
 
 \begin_layout Standard
-Each ChannelCache entry should also have a boolean flag which is set on
- creation, and re-set whenever it is looked up.
+Each ChannelCache entry will have a boolean flag which is set on creation,
+ and re-set whenever it is found by a name lookup (Miss or Not Conn).
  A periodic cleanup task should run which removes all entries with this
- flag cleared, and zero ref.
+ flag cleared and a zero ref.
  count.
- Each time it run, the cleanup task should clear the flag of any entry not
- removed.
+ Each time it run, the cleanup task clears the flag of any entry not removed.
 \end_layout
 
 \begin_layout Standard
-This should ensure that entries not used by a GWS channel are eventually
- removed (GWC Channel closed) when no client is searching for them.
+This should ensure that unused entries are eventually removed when no client
+ is searching for them.
 \end_layout
 
 \begin_layout Paragraph
@@ -343,7 +507,7 @@ in general
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-GWC Channel ownership
+GW Channel ownership
 \end_layout
 
 \end_inset
@@ -374,6 +538,12 @@ Notification of loss of a GWC Channel
 \begin_layout Standard
 should result in the disconnection of any associated GWS Channels, and the
  immediate removal of the associated ChannelCache entry.
+ This allows the ref.
+ count for an entry to fall to zero once all GWS Channels close.
+\end_layout
+
+\begin_layout Standard
+All pending operations associated with this channel will also be canceled.
 \end_layout
 
 \begin_layout Subsection
@@ -384,10 +554,10 @@ Get/Put/RPC/...
 \begin_layout Standard
 For operations other than Monitor, the timing of the client request can
  effect the results.
- No caching or de-duplication can be done without special knowedge about
- the intended behavour of CLI and SRV.
- Therefore, by default these operations a pass through the GW without de-duplica
-tion.
+ No caching or de-duplication can be done without special knowledge about
+ the intended behavior of CLI and SRV.
+ Therefore, by default these operations pass through the GW without de-duplicati
+on.
 \end_layout
 
 \begin_layout Subsection
@@ -405,9 +575,8 @@ te operation.
 \end_layout
 
 \begin_layout Standard
-Each MonitorCache entry should also include the most recent (last) value
- received by the GWC so that this may be returned immediately for new GWS
- subscriptions.
+Each MonitorCache entry should also keep the most recent value received
+ by the GWC so that this may be returned immediately for new GWS subscriptions.
 \end_layout
 
 \begin_layout Standard
@@ -492,24 +661,26 @@ struct MonitorConsumer {
 
 \end_layout
 
+\begin_layout Paragraph
+A reference count
+\end_layout
+
 \begin_layout Standard
-As with ChannelCache, a MonitorCache entry should not be removed immediately
- when its ref.
- count reaches zero.
- Instead unreferenced entries should be periodically closed in the same
- fashion (perhaps as part of) the periodica ChannelCache cleanup.
+is maintained for each MonitorCacheEntry, which will be closed as soon as
+ its ref.
+ count falls to zero.
 \end_layout
 
 \begin_layout Section
-Channel Transmit Queueing
+Channel Transmit Queuing
 \end_layout
 
 \begin_layout Standard
-A major potential pitfall of de-duplication (and connection sharing in general)
- is the handling and prioritization (or lack thereof) of traffic on different
- channels/operations.
- For example, monitoring a single high data rate PV can cause other operations
- to experience larger latency.
+A major potential pitfall of connection/socket sharing for distinct sub-channels
+ (PVA Channels) is the handling of prioritization (or lack thereof) of traffic
+ for different sub-channels.
+ For example, monitoring a single high data rate PV can cause other PVA
+ Channels to experience higher latency.
  One way to mitigate this, in part, is to introduce some 
 \begin_inset Quotes eld
 \end_inset
@@ -523,36 +694,80 @@ fairness
 \end_layout
 
 \begin_layout Standard
-Instead of a simple FIFO fed by all Channels, give each channel a FIFO.
- The task which dequeues would do by taking from each FIFO in turn in a
- round robin.
+Instead of a simple FIFO fed by all Channels, each channel given a FIFO.
+ The task which dequeues would do so by taking from each FIFO in turn in
+ a round robin.
  This should prevent the overall latency through the queue from being dominated
  by one fast PV.
 \end_layout
 
 \begin_layout Standard
-However, this is only a partial solution as large PVs will still intoduce
- latency in proportion to the individual data size.
+However, this is only a partial solution as PVs with a large data size can
+ still introduce latency in proportion to this size.
+\end_layout
+
+\begin_layout Standard
+For example, data updates from three source (A, B, and C) are added in one
+ order (line 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "line:queue1"
+
+\end_inset
+
+).
+ The 
+\begin_inset Quotes eld
+\end_inset
+
+fair
+\begin_inset Quotes erd
+\end_inset
+
+ queuing algorithm internally maintains a list of lists (line 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "line:queue2"
+
+\end_inset
+
+).
+ Round robin dequeuing from this list of lists gives the a different ordering
+ as seen on line 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "line:queue3"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
 \begin_inset listings
+lstparams "language=Python,numbers=left,escapechar={|}"
 inline false
 status open
 
 \begin_layout Plain Layout
 
-queue = [A, A, B, A, B, C, C, A, A, B]
+queue = [A, A, B, A, B, C, C, A, A, B]|
+\backslash
+label{line:queue1}|
 \end_layout
 
 \begin_layout Plain Layout
 
-sort_fair() # [[A, A, A, A, A], [B, B, B], [C, C]]
+sort_fair(queue) # [[A, A, A, A, A], [B, B, B], [C, C]]|
+\backslash
+label{line:queue2}|
 \end_layout
 
 \begin_layout Plain Layout
 
-queue == [A, B, C, A, B, C, A, B, A, A]
+queue == [A, B, C, A, B, C, A, B, A, A]|
+\backslash
+label{line:queue3}|
 \end_layout
 
 \end_inset
@@ -576,9 +791,9 @@ Policies
 \end_layout
 
 \begin_layout Standard
-Along with de-duplication, enforcement of administrative policies is the
- major fuction of a GW.
- Areas of policy include: access control, resource limits, and queuing behavour.
+Along with de-duplication, enforcement of administrative policies is a major
+ function of a GW.
+ Areas of policy include: access control, resource limits, and queuing behavior.
 \end_layout
 
 \begin_layout Subsection
@@ -592,20 +807,20 @@ In order to share GWC channels, the GW will make all access control decisions.
 never
 \series default
  forwarded to SRV.
- Instead, the GWs own authentication information is sent to SRV.
+ Instead, the GW's own authentication information is sent to SRV.
 \end_layout
 
 \begin_layout Standard
-Access control needs to be configurable on a per-PV, per-operation basis.
- This typically takes the form of an Access Control List, where rules are
- traversed in some order.
- Each rule makes some decision to Allow, Deny, or Pass.
+Access control needs to be configurable on a per-PV and per-operation basis.
+ In similar contexts this typically takes the form of an Access Control
+ List, where rules are traversed in some order.
+ Each rule makes a decision to Allow, Deny, or Pass to the next rule.
 \end_layout
 
 \begin_layout Standard
-To allow the flexibility, a rule may subscribe to several PVs and use the
- values obtained, in addition to client provided informatiion and static
- configuration, to make decision.
+To allow dynamic policies, a rule may itself subscribe to several PVs and
+ use the values obtained, in addition to client provided information and
+ static configuration, to make a decision.
 \end_layout
 
 \begin_layout Subsection
@@ -613,12 +828,12 @@ Administrative Limits
 \end_layout
 
 \begin_layout Standard
-A number of administrative limits should also be provided to limit the resource
- usage of potentially misbehaving clients including:
+A number of configurable administrative limits should also be provided to
+ limit the resource usage of potentially misbehaving clients including:
 \end_layout
 
 \begin_layout Itemize
-Max # of clients
+Max # of clients for GWS
 \end_layout
 
 \begin_layout Itemize
@@ -639,13 +854,13 @@ Such limits could be made hard (fail further requests) or soft (log and
 \end_layout
 
 \begin_layout Subsection
-Queueing
+Queuing
 \end_layout
 
 \begin_layout Standard
 At a minimum, the default and max queue sizes should be settable by policy.
  Additionally, a choice of algorithms could be provided to decide which
- entries to drop when the queue overflows.
+ entries to drop when a queue overflows.
 \end_layout
 
 \end_body
