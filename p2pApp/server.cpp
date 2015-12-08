@@ -371,7 +371,7 @@ void statusServer(int lvl, const char *chanexpr)
                         size_t nempty, nfilled, nused, total;
                         bool isrunning;
                         {
-                            Guard G(scp->cache.cacheLock);
+                            Guard G(MU.queueLock);
 
                             nempty = MU.empty.size();
                             nfilled = MU.filled.size();
