@@ -62,6 +62,8 @@ struct MonitorUser : public epics::pvData::Monitor
     MonitorCacheEntry::shared_pointer entry;
     epics::pvData::MonitorRequester::weak_pointer req;
 
+    // guards queues and member variables
+    epicsMutex queueLock;
     bool running;
     size_t nwakeups; // # of monitorEvent() calls to req
     size_t nevents;  // total # events queued

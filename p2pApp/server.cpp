@@ -369,16 +369,19 @@ void statusServer(int lvl, const char *chanexpr)
                         MonitorUser& MU = **it3;
 
                         size_t nempty, nfilled, nused, total;
+                        bool isrunning;
                         {
                             Guard G(scp->cache.cacheLock);
 
                             nempty = MU.empty.size();
                             nfilled = MU.filled.size();
                             nused = MU.inuse.size();
+                            isrunning = MU.running;
                         }
                         total = nempty + nfilled + nused;
 
-                        std::cout<<"    Server monitor buffer "<<nfilled<<"/"<<total
+                        std::cout<<"    Server monitor"<<(isrunning?"":" Paused")
+                                 <<" buffer "<<nfilled<<"/"<<total
                                  <<" out "<<nused<<"/"<<total
                                  <<" "<<epicsAtomicGetSizeT(&MU.nwakeups)<<" wakeups "
                                  <<epicsAtomicGetSizeT(&MU.nevents)<<" events "
