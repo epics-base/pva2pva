@@ -56,7 +56,7 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
     if(!startresult.isSuccess())
         std::cout<<"upstream monitor start() fails\n";
 
-    //TODO: hold a shared_ptr to 'this' incase all MonitorUsers are destroy()d in a callback
+    shared_pointer self(weakref); // keeps us alive all MonitorUsers are destroy()ed
 
     for(interested_t::vector_type::const_iterator it = tonotify.begin(),
         end = tonotify.end(); it!=end; ++it)
@@ -92,7 +92,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
     pvd::MonitorElementPtr update;
 
-    //TODO: hold a shared_ptr to 'this' incase all MonitorUsers are destroy()d in a callback
+    shared_pointer self(weakref); // keeps us alive all MonitorUsers are destroy()ed
 
     while((update=monitor->poll()))
     {

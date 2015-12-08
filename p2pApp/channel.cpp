@@ -163,7 +163,8 @@ GWChannel::createMonitor(
             ment = entry->mon_entries.find(ser);
             if(!ment) {
                 ment.reset(new MonitorCacheEntry(entry.get()));
-                entry->mon_entries[ser] = ment;
+                entry->mon_entries[ser] = ment; // ref. wrapped
+                ment->weakref = ment;
 
                 // Create upstream monitor
                 // This would create a strong ref. loop between ent and ent->mon.

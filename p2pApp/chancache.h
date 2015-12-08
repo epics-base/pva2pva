@@ -23,6 +23,7 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
 {
     POINTER_DEFINITIONS(MonitorCacheEntry);
     static size_t num_instances;
+    weak_pointer weakref;
 
     ChannelCacheEntry * const chan;
 
