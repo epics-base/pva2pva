@@ -24,7 +24,6 @@ MonitorCacheEntry::~MonitorCacheEntry()
     M.swap(mon);
     if(M) {
         M->destroy();
-        std::cout<<__PRETTY_FUNCTION__<<" destroy client monitor\n";
     }
     epicsAtomicDecrSizeT(&num_instances);
 }
@@ -34,7 +33,6 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
                                   pvd::MonitorPtr const & monitor,
                                   pvd::StructureConstPtr const & structure)
 {
-    printf("Called %s %p %p\n", __PRETTY_FUNCTION__, monitor.get(), mon.get());
     assert(monitor==mon);
 
     interested_t::vector_type tonotify;
@@ -53,11 +51,8 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
         tonotify = interested.lock_vector();
     }
 
-    if(!startresult.isSuccess()) {
+    if(!startresult.isSuccess())
         std::cout<<"upstream monitor start() fails\n";
-    } else {
-        std::cout<<"upstream monitor start() begins\n";
-    }
 
     for(interested_t::vector_type::const_iterator it = tonotify.begin(),
         end = tonotify.end(); it!=end; ++it)
@@ -78,7 +73,6 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
 void
 MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 {
-    printf("Called %s %p %p\n", __PRETTY_FUNCTION__, monitor.get(), mon.get());
     /* PVA is being tricky, the Monitor* passed to monitorConnect()
      * isn't the same one we see here!
      * The original was a ChannelMonitorImpl, we now see a MonitorStrategyQueue
@@ -96,7 +90,6 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
     while((update=mon->poll()))
     {
         lastval = update->pvStructurePtr;
-        std::cout<<" Poll event\n";
 
         AUTO_VAL(tonotify, interested.lock_vector()); // TODO: avoid copy, iterate w/ lock
 
@@ -117,8 +110,6 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                 usr->filled.push_back(elem);
                 usr->empty.pop_front();
 
-                std::cout<<"  Dispatch to "<<usr<<" "
-                        <<usr->filled.size()<<"/"<<usr->empty.size()<<" "<<(int)usr->running<<"\n";
             }
 
             if(usr->filled.size()==1)
@@ -133,7 +124,6 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 void
 MonitorCacheEntry::unlisten(pvd::MonitorPtr const & monitor)
 {
-    printf("Called %s\n", __PRETTY_FUNCTION__);
     pvd::Monitor::shared_pointer M;
     M.swap(mon);
     if(M) {
@@ -171,7 +161,6 @@ MonitorUser::~MonitorUser()
 void
 MonitorUser::destroy()
 {
-    printf("Called %s\n", __PRETTY_FUNCTION__);
     Guard G(entry->chan->cache->cacheLock);
     running = false;
     req.reset();
@@ -180,7 +169,6 @@ MonitorUser::destroy()
 pvd::Status
 MonitorUser::start()
 {
-    printf("Called %s\n", __PRETTY_FUNCTION__);
     pvd::MonitorRequester::shared_pointer req;
     bool doEvt = false;
     {
@@ -221,7 +209,6 @@ MonitorUser::start()
 pvd::Status
 MonitorUser::stop()
 {
-    printf("Called %s\n", __PRETTY_FUNCTION__);
     Guard G(entry->chan->cache->cacheLock);
     running = false;
     return pvd::Status::Ok;
@@ -230,25 +217,20 @@ MonitorUser::stop()
 pvd::MonitorElementPtr
 MonitorUser::poll()
 {
-    printf("Called %s\n", __PRETTY_FUNCTION__);
     Guard G(entry->chan->cache->cacheLock);
     pvd::MonitorElementPtr ret;
-    std::cout<<" Poll "<<this<<" "<<filled.size()<<"/"<<empty.size()<<"\n";
     if(!filled.empty()) {
         ret = filled.front();
         inuse.insert(ret); // track which ones are out for client use
         filled.pop_front();
         //TODO: track lost buffers w/ wrapped shared_ptr?
     }
-    std::cout<<" yields "<<this<<" "<<ret<<"\n";
     return ret;
 }
 
 void
 MonitorUser::release(pvd::MonitorElementPtr const & monitorElement)
 {
-    printf("Called %s\n", __PRETTY_FUNCTION__);
-    std::cout<<" Release "<<this<<" "<<monitorElement<<"\n";
     Guard G(entry->chan->cache->cacheLock);
     //TODO: ifdef DEBUG? (only track inuse when debugging?)
     std::set<epics::pvData::MonitorElementPtr>::iterator it = inuse.find(monitorElement);
