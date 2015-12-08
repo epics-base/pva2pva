@@ -150,6 +150,21 @@ void testWeakMap2()
     testOk1(!!ptr);
 }
 
+static
+void testWeakLock()
+{
+    typedef weak_value_map<int,int> map_type;
+    map_type::value_pointer ptr;
+    map_type map;
+
+    {
+        map_type::guard_type G(map.mutex());
+
+        ptr.reset(new int(42));
+        map[4] = ptr;
+    }
+}
+
 } // namespace
 
 MAIN(testweak)
@@ -160,5 +175,6 @@ MAIN(testweak)
     testWeakSetInvalid();
     testWeakMap1();
     testWeakMap2();
+    testWeakLock();
     return testDone();
 }

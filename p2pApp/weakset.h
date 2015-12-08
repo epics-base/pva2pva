@@ -191,8 +191,8 @@ public:
     //! Access to the weak_set internal lock
     //! for use with batch operations.
     //! @warning Use caution when swap()ing while holding this lock!
-    inline guard_type lock() const {
-        return guard_type(m_data->mutex);
+    inline epicsMutex& mutex() const {
+        return m_data->mutex;
     }
 
 };
