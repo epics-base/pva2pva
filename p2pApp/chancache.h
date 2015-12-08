@@ -29,6 +29,8 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
 
     ChannelCacheEntry * const chan;
     bool done;
+    size_t nwakeups; // # of upstream monitorEvent() calls
+    size_t nevents;  // # of upstream events poll()'d
 
     epics::pvData::StructureConstPtr typedesc;
     epics::pvData::PVStructure::shared_pointer lastval;
@@ -61,6 +63,9 @@ struct MonitorUser : public epics::pvData::Monitor
     epics::pvData::MonitorRequester::weak_pointer req;
 
     bool running;
+    size_t nwakeups; // # of monitorEvent() calls to req
+    size_t nevents;  // total # events queued
+    size_t ndropped; // # of events drop because our queue was full
 
     std::deque<epics::pvData::MonitorElementPtr> filled, empty;
     std::set<epics::pvData::MonitorElementPtr> inuse;

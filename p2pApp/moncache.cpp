@@ -14,6 +14,8 @@ size_t MonitorUser::num_instances;
 MonitorCacheEntry::MonitorCacheEntry(ChannelCacheEntry *ent)
     :chan(ent)
     ,done(false)
+    ,nwakeups(0)
+    ,nevents(0)
 {
     epicsAtomicIncrSizeT(&num_instances);
 }
@@ -82,14 +84,18 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
     assert(monitor==mon || !lastval);
     if(!lastval)
         mon = monitor;
+    epicsUInt32 cntpoll = 0;
 
     //TODO: dequeue and requeue strategy code goes here
+    epicsAtomicIncrSizeT(&nwakeups);
 
     pvd::MonitorElementPtr update;
 
     while((update=mon->poll()))
     {
+        cntpoll++;
         lastval = update->pvStructurePtr;
+        epicsAtomicIncrSizeT(&nevents);
 
         AUTO_VAL(tonotify, interested.lock_vector()); // TODO: avoid copy, iterate w/ lock
 
@@ -100,8 +106,10 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
             {
                 Guard G(chan->cache->cacheLock); // TODO: more granular lock
-                if(!usr->running || usr->empty.empty())
+                if(!usr->running || usr->empty.empty()) {
+                    epicsAtomicIncrSizeT(&usr->ndropped);
                     continue;
+                }
 
                 pvd::MonitorElementPtr elem(usr->empty.front());
                 elem->pvStructurePtr = update->pvStructurePtr;
@@ -109,11 +117,13 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                 elem->changedBitSet = update->changedBitSet;
                 usr->filled.push_back(elem);
                 usr->empty.pop_front();
-
+                epicsAtomicIncrSizeT(&usr->nevents);
             }
 
-            if(usr->filled.size()==1)
+            if(usr->filled.size()==1) {
+                epicsAtomicIncrSizeT(&usr->nwakeups);
                 req->monitorEvent(*it); // notify when first item added to empty queue
+            }
         }
 
         mon->release(update);
@@ -148,6 +158,8 @@ MonitorCacheEntry::message(std::string const & message, pvd::MessageType message
 MonitorUser::MonitorUser(const MonitorCacheEntry::shared_pointer &e)
     :entry(e)
     ,running(false)
+    ,nevents(0)
+    ,ndropped(0)
 {
     epicsAtomicIncrSizeT(&num_instances);
 }

@@ -312,13 +312,13 @@ void statusServer(int lvl)
                          <<"' used by "<<nsrv<<" Server channel(s) with "
                          <<nmon<<" unique subscription(s)\n";
 
-                std::cout<<"  "<<nmon<<" "<<mons.size()<<"\n";
                 if(lvl<=1)
                     continue;
 
                 FOREACH(it2, end2, mons) {
                     MonitorCacheEntry& ME =  *it2->second;
 
+                    MonitorCacheEntry::interested_t::vector_type usrs;
                     size_t nsrvmon;
                     bool hastype, hasdata, isdone;
                     {
@@ -328,13 +328,41 @@ void statusServer(int lvl)
                         hastype = !!ME.typedesc;
                         hasdata = !!ME.lastval;
                         isdone = ME.done;
+
+                        if(lvl>2)
+                            usrs = ME.interested.lock_vector();
                     }
 
                     // TODO: how to describe pvRequest in a compact way...
                     std::cout<<"  Client Monitor used by "<<nsrvmon<<" Server monitors, "
                              <<"Has "<<(hastype?"":"not ")
                              <<"opened, Has "<<(hasdata?"":"not ")
-                             <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n";
+                             <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n"
+                               "    "<<      epicsAtomicGetSizeT(&ME.nwakeups)<<" wakeups "
+                             <<epicsAtomicGetSizeT(&ME.nevents)<<" events\n";
+
+                    if(lvl<=2)
+                        continue;
+
+                    FOREACH(it3, end3, usrs) {
+                        MonitorUser& MU = **it3;
+
+                        size_t nempty, nfilled, nused, total;
+                        {
+                            Guard G(scp->cache.cacheLock);
+
+                            nempty = MU.empty.size();
+                            nfilled = MU.filled.size();
+                            nused = MU.inuse.size();
+                        }
+                        total = nempty + nfilled + nused;
+
+                        std::cout<<"    Server monitor buffer "<<nfilled<<"/"<<total
+                                 <<" out "<<nused<<"/"<<total
+                                 <<" "<<epicsAtomicGetSizeT(&MU.nwakeups)<<" wakeups "
+                                 <<epicsAtomicGetSizeT(&MU.nevents)<<" events "
+                                 <<epicsAtomicGetSizeT(&MU.ndropped)<<" drops\n";
+                    }
                 }
             }
         }
