@@ -24,10 +24,13 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
     POINTER_DEFINITIONS(MonitorCacheEntry);
     static size_t num_instances;
 
-    typedef std::vector<epicsUInt8> pvrequest_t;
-    pvrequest_t key;
-
     ChannelCacheEntry * const chan;
+
+    // to avoid yet another mutex borrow interested.mutex() for our members
+    inline epicsMutex& mutex() const { return interested.mutex(); }
+
+    typedef std::vector<epicsUInt8> pvrequest_t;
+
     bool done;
     size_t nwakeups; // # of upstream monitorEvent() calls
     size_t nevents;  // # of upstream events poll()'d

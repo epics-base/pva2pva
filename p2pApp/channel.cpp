@@ -150,41 +150,44 @@ GWChannel::createMonitor(
     // serialize request struct to string using host byte order (only used for local comparison)
     pvd::serializeToVector(pvRequest.get(), EPICS_BYTE_ORDER, ser);
 
-    MonitorCacheEntry::shared_pointer ent;
+    MonitorCacheEntry::shared_pointer ment;
     MonitorUser::shared_pointer mon;
 
     pvd::Status startresult;
     pvd::StructureConstPtr typedesc;
 
     try {
-        Guard G(entry->cache->cacheLock);
+        {
+            Guard G(entry->cache->cacheLock);
 
-        ent = entry->mon_entries.find(ser);
-        if(!ent) {
-            ent.reset(new MonitorCacheEntry(entry.get()));
-            entry->mon_entries[ser] = ent;
+            ment = entry->mon_entries.find(ser);
+            if(!ment) {
+                ment.reset(new MonitorCacheEntry(entry.get()));
+                entry->mon_entries[ser] = ment;
 
-            // Create upstream monitor
-            // This would create a strong ref. loop between ent and ent->mon.
-            // Instead we get clever and pass a "fake" strong ref.
-            // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
-            MonitorCacheEntry::shared_pointer fakereal(ent.get(), noclean());
+                // Create upstream monitor
+                // This would create a strong ref. loop between ent and ent->mon.
+                // Instead we get clever and pass a "fake" strong ref.
+                // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
+                MonitorCacheEntry::shared_pointer fakereal(ment.get(), noclean());
 
-            ent->mon = entry->channel->createMonitor(fakereal, pvRequest);
+                ment->mon = entry->channel->createMonitor(fakereal, pvRequest);
 
-            ent->key.swap(ser); // no copy
-
-            std::cout<<"Monitor cache "<<entry->channelName<<" Miss\n";
-        } else {
-            std::cout<<"Monitor cache "<<entry->channelName<<" Hit\n";
+                std::cout<<"Monitor cache "<<entry->channelName<<" Miss\n";
+            } else {
+                std::cout<<"Monitor cache "<<entry->channelName<<" Hit\n";
+            }
         }
 
-        mon.reset(new MonitorUser(ent));
-        ent->interested.insert(mon);
+        Guard G(ment->mutex());
+
+        mon.reset(new MonitorUser(ment));
+        ment->interested.insert(mon);
         mon->weakref = mon;
         mon->req = monitorRequester;
-        typedesc = ent->typedesc;
-        startresult = ent->startresult;
+
+        typedesc = ment->typedesc;
+        startresult = ment->startresult;
 
     } catch(std::exception& e) {
         mon.reset();

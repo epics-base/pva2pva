@@ -39,7 +39,7 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
 
     interested_t::vector_type tonotify;
     {
-        Guard G(chan->cache->cacheLock);
+        Guard G(mutex());
         typedesc = structure;
 
         if(status.isSuccess()) {
@@ -55,6 +55,8 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
 
     if(!startresult.isSuccess())
         std::cout<<"upstream monitor start() fails\n";
+
+    //TODO: hold a shared_ptr to 'this' incase all MonitorUsers are destroy()d in a callback
 
     for(interested_t::vector_type::const_iterator it = tonotify.begin(),
         end = tonotify.end(); it!=end; ++it)
@@ -89,6 +91,8 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
     epicsAtomicIncrSizeT(&nwakeups);
 
     pvd::MonitorElementPtr update;
+
+    //TODO: hold a shared_ptr to 'this' incase all MonitorUsers are destroy()d in a callback
 
     while((update=monitor->poll()))
     {
@@ -179,7 +183,7 @@ void
 MonitorUser::destroy()
 {
     {
-        Guard G(entry->chan->cache->cacheLock);
+        Guard G(queueLock);
         running = false;
     }
 }
@@ -195,7 +199,7 @@ MonitorUser::start()
     pvd::PVStructurePtr lval;
     pvd::StructureConstPtr typedesc;
     {
-        Guard G(entry->chan->cache->cacheLock);
+        Guard G(entry->mutex());
 
         if(!entry->startresult.isSuccess())
             return entry->startresult;

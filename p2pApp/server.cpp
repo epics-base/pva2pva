@@ -343,7 +343,7 @@ void statusServer(int lvl, const char *chanexpr)
                     size_t nsrvmon;
                     bool hastype, hasdata, isdone;
                     {
-                        Guard G(scp->cache.cacheLock);
+                        Guard G(ME.mutex());
 
                         nsrvmon = ME.interested.size();
                         hastype = !!ME.typedesc;
