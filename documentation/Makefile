@@ -3,6 +3,7 @@ DOT+=structs.dot
 
 MSC+=name-search.msc
 MSC+=basic.msc
+MSC+=monitor-normal.msc
 
 PNG+=$(DOT:%.dot=%.png)
 PNG+=$(MSC:%.msc=%.png)
