@@ -80,10 +80,9 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
      * The original was a ChannelMonitorImpl, we now see a MonitorStrategyQueue
      * owned by the original, which delegates deserialization and accumulation
      * of deltas into complete events for us.
+     * However, we don't want to keep the MonitorStrategyQueue as it's
+     * destroy() method is a no-op!
      */
-    assert(monitor==mon || !lastval);
-    if(!lastval)
-        mon = monitor;
     epicsUInt32 cntpoll = 0;
 
     //TODO: dequeue and requeue strategy code goes here
@@ -91,7 +90,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
     pvd::MonitorElementPtr update;
 
-    while((update=mon->poll()))
+    while((update=monitor->poll()))
     {
         cntpoll++;
         lastval = update->pvStructurePtr;
@@ -126,7 +125,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
             }
         }
 
-        mon->release(update);
+        monitor->release(update);
     }
 }
 

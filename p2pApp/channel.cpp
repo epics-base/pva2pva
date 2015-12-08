@@ -180,8 +180,8 @@ GWChannel::createMonitor(
 
             // Create upstream monitor
             // This would create a strong ref. loop between ent and ent->mon.
-            // Instead we get clever and pass a "fake" strong ref, which simply
-            // checks to see that it will out-live the object.
+            // Instead we get clever and pass a "fake" strong ref.
+            // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
             MonitorCacheEntry::shared_pointer fakereal(ent.get(), noclean());
 
             ent->mon = entry->channel->createMonitor(fakereal, pvRequest);
