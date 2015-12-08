@@ -109,7 +109,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
             bool notify = false;
             {
-                Guard G(usr->queueLock); // TODO: more granular lock
+                Guard G(usr->queueLock);
                 if(!usr->running || usr->empty.empty()) {
                     epicsAtomicIncrSizeT(&usr->ndropped);
                     continue;

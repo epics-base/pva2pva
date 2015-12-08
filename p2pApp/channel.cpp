@@ -157,6 +157,7 @@ GWChannel::createMonitor(
     pvd::StructureConstPtr typedesc;
 
     try {
+        bool create = false;
         {
             Guard G(entry->cache->cacheLock);
 
@@ -165,14 +166,11 @@ GWChannel::createMonitor(
                 ment.reset(new MonitorCacheEntry(entry.get()));
                 entry->mon_entries[ser] = ment; // ref. wrapped
                 ment->weakref = ment;
-
-                // Create upstream monitor
-                // This would create a strong ref. loop between ent and ent->mon.
-                // Instead we get clever and pass a "fake" strong ref.
-                // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
-                MonitorCacheEntry::shared_pointer fakereal(ment.get(), noclean());
-
-                ment->mon = entry->channel->createMonitor(fakereal, pvRequest);
+                create = true;
+                // We've added an incomplete entry (no Monitor)
+                // so MonitorUser must check validity before de-ref.
+                // in this case we use !!typedesc as this also indicates
+                // that the upstream monitor is connected
 
                 std::cout<<"Monitor cache "<<entry->channelName<<" Miss\n";
             } else {
@@ -180,7 +178,23 @@ GWChannel::createMonitor(
             }
         }
 
+        pvd::MonitorPtr M;
+        if(create) {
+            // Note: no lock held
+
+            // Create upstream monitor
+            // This would create a strong ref. loop between ent and ent->mon.
+            // Instead we get clever and pass a "fake" strong ref.
+            // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
+            MonitorCacheEntry::shared_pointer fakereal(ment.get(), noclean());
+
+            M = entry->channel->createMonitor(fakereal, pvRequest);
+        }
+
         Guard G(ment->mutex());
+
+        if(create)
+            ment->mon = M;
 
         mon.reset(new MonitorUser(ment));
         ment->interested.insert(mon);
@@ -194,18 +208,14 @@ GWChannel::createMonitor(
         mon.reset();
         std::cerr<<"Exception in "<<__PRETTY_FUNCTION__<<"\n"
                    "is "<<e.what()<<"\n";
-        pvd::Status oops(pvd::Status::STATUSTYPE_FATAL, "Error during GWChannel setup");
-        startresult = oops;
-        monitorRequester->monitorConnect(oops, mon, typedesc);
-        return mon;
+        startresult = pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Error during GWChannel setup");
     }
 
     // unlock for callback
 
     if(typedesc || !startresult.isSuccess()) {
-        // upstream monitor already connected, or never will be,
-        // so connect immeidately
-        monitorRequester->monitorConnect(pvd::Status::Ok, mon, typedesc);
+        // upstream monitor already connected, or never will be.
+        monitorRequester->monitorConnect(startresult, mon, typedesc);
     }
 
     return mon;
