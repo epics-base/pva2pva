@@ -150,8 +150,9 @@ public:
         return m_data->store.clear();
     }
 
-    //! Test if set is empty at this moment
+    //! Test if set is empty
     //! @note Thread safe
+    //! @warning see size()
     bool empty() const {
         guard_type G(m_data->mutex);
         return m_data->store.empty();
@@ -159,6 +160,8 @@ public:
 
     //! number of entries in the set at this moment
     //! @note Thread safe
+    //! @warning May be momentarily inaccurate (larger) due to dead refs.
+    //!          which have not yet been removed.
     size_t size() const {
         guard_type G(m_data->mutex);
         return m_data->store.size();
@@ -228,7 +231,8 @@ weak_set<T>::lock_set() const
     for(typename store_t::const_iterator it=m_data->store.begin(),
         end=m_data->store.end(); it!=end; ++it)
     {
-        ret.insert(value_pointer(*it));
+        value_pointer P(it->lock());
+        if(P) ret.insert(P);
     }
     return ret;
 }
@@ -243,7 +247,8 @@ weak_set<T>::lock_vector() const
     for(typename store_t::const_iterator it=m_data->store.begin(),
         end=m_data->store.end(); it!=end; ++it)
     {
-        ret.push_back(value_pointer(*it));
+        value_pointer P(it->lock());
+        if(P) ret.push_back(P);
     }
     return ret;
 }

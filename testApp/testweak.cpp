@@ -12,8 +12,9 @@ void testWeakSet1()
 {
     testDiag("Test1 weak_set");
 
-    weak_set<int>::value_pointer ptr;
-    weak_set<int> set;
+    typedef weak_set<int> set_type;
+    set_type set;
+    set_type::value_pointer ptr;
 
     testOk1(set.empty());
 
@@ -25,13 +26,13 @@ void testWeakSet1()
     testOk1(ptr.unique()); // we hold the only "fake" strong ref.
 
     {
-        weak_set<int>::set_type S(set.lock_set());
+        set_type::set_type S(set.lock_set());
         testOk1(!S.empty());
         testOk1(S.size()==1);
         testOk1(S.find(ptr)!=S.end());
     }
     {
-        weak_set<int>::vector_type S(set.lock_vector());
+        set_type::vector_type S(set.lock_vector());
         testOk1(!S.empty());
         testOk1(S.size()==1);
         testOk1(*S[0]==5);
@@ -43,8 +44,9 @@ void testWeakSet2()
 {
     testDiag("Test2 weak_set");
 
-    weak_set<int> set;
-    weak_set<int>::value_pointer ptr;
+    typedef weak_set<int> set_type;
+    set_type set;
+    set_type::value_pointer ptr;
 
     testOk1(set.empty());
 
@@ -89,8 +91,9 @@ void testWeakMap1()
 {
     testDiag("Test weak_value_map1");
 
-    weak_set<int>::value_pointer ptr;
-    weak_value_map<int,int> map;
+    typedef weak_value_map<int,int> map_type;
+    map_type::value_pointer ptr;
+    map_type map;
 
     testOk1(map.empty());
 
@@ -99,7 +102,7 @@ void testWeakMap1()
 
     testOk1(!map.empty());
     {
-        weak_value_map<int,int>::lock_vector_type V(map.lock_vector());
+        map_type::lock_vector_type V(map.lock_vector());
         testOk1(V.size()==1);
         testOk1(V[0].first==4);
         testOk1(*V[0].second==5);
@@ -114,8 +117,9 @@ void testWeakMap2()
 {
     testDiag("Test weak_value_map2");
 
-    weak_set<int>::value_pointer ptr;
-    weak_value_map<int,int> map;
+    typedef weak_value_map<int,int> map_type;
+    map_type::value_pointer ptr;
+    map_type map;
 
     testOk1(map.empty());
 
@@ -124,7 +128,7 @@ void testWeakMap2()
 
     testOk1(!map.empty());
     {
-        weak_value_map<int,int>::lock_vector_type V(map.lock_vector());
+        map_type::lock_vector_type V(map.lock_vector());
         testOk1(V.size()==1);
         testOk1(V[0].first==4);
         testOk1(*V[0].second==5);
@@ -136,7 +140,7 @@ void testWeakMap2()
     ptr.reset(new int(5));
     map[4] = ptr;
     {
-        weak_set<int>::value_pointer O(map[4]);
+        map_type::value_pointer O(map[4]);
         testOk1(O==ptr);
     }
 

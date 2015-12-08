@@ -130,6 +130,7 @@ public:
 
     //! Test if set is empty at this moment
     //! @note Thread safe
+    //! @warning see size()
     bool empty() const {
         guard_type G(m_data->mutex);
         return m_data->store.empty();
@@ -137,6 +138,8 @@ public:
 
     //! number of entries in the set at this moment
     //! @note Thread safe
+    //! @warning May be momentarily inaccurate (larger) due to dead refs.
+    //!          which have not yet been removed.
     size_t size() const {
         guard_type G(m_data->mutex);
         return m_data->store.size();
@@ -202,8 +205,11 @@ public:
         value_pointer ret;
         guard_type G(m_data->mutex);
         typename store_t::const_iterator it(m_data->store.find(k));
-        if(it!=m_data->store.end())
-            ret = it->second.lock(); // may be nullptr if we race destruction
+        if(it!=m_data->store.end()) {
+            // may be nullptr if we race destruction
+            // as ref. count falls to zero before we can remove it
+            ret = it->second.lock();
+        }
         return ret;
     }
 
@@ -224,12 +230,13 @@ public:
     //! Return an equivalent map with strong value references
     lock_map_type lock_map() const
     {
-        std::map<K, value_pointer, C> ret;
+        lock_map_type ret;
         guard_type G(m_data->mutex);
         for(typename store_t::const_iterator it = m_data->store.begin(),
             end = m_data->store.end(); it!=end; ++it)
         {
-            ret[it->first] = it->second.lock();
+            value_pointer P(it->second.lock);
+            if(P) ret[it->first] = P;
         }
         return ret;
     }
@@ -239,13 +246,14 @@ public:
     //! useful for iteration
     lock_vector_type lock_vector() const
     {
-        std::vector<std::pair<K, value_pointer> > ret;
+        lock_vector_type ret;
         guard_type G(m_data->mutex);
         ret.reserve(m_data->store.size());
         for(typename store_t::const_iterator it = m_data->store.begin(),
             end = m_data->store.end(); it!=end; ++it)
         {
-            ret.push_back(std::make_pair(it->first, it->second.lock()));
+            value_pointer P(it->second.lock());
+            if(P) ret.push_back(std::make_pair(it->first, P));
         }
         return ret;
     }
