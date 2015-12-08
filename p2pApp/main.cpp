@@ -1,5 +1,6 @@
 
 #include <iocsh.h>
+#include <epicsExit.h>
 #include <libComRegister.h>
 
 #define epicsExportSharedSymbols
@@ -15,5 +16,6 @@ int main(int argc, char *argv[])
     int ret = iocsh(NULL);
     gwServerShutdown();
     gwClientShutdown();
+    epicsExit(ret);
     return ret;
 }

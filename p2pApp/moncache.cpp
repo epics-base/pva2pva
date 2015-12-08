@@ -172,8 +172,10 @@ MonitorUser::~MonitorUser()
 void
 MonitorUser::destroy()
 {
-    Guard G(entry->chan->cache->cacheLock);
-    running = false;
+    {
+        Guard G(entry->chan->cache->cacheLock);
+        running = false;
+    }
     req.reset();
 }
 
