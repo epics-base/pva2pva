@@ -141,6 +141,7 @@ struct GWServerChannelProvider : public
         } else {
             std::cerr<<"GWServer connecting channel "<<channelName<<" as "<<newName<<"\n";
             channelRequester->channelCreated(pvd::Status::Ok, ret);
+            channelRequester->channelStateChange(ret, pva::Channel::CONNECTED);
         }
 
         return ret; // ignored by caller
