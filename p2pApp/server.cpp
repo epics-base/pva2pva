@@ -276,24 +276,66 @@ void statusServer(int lvl)
 
             ChannelCache::entries_t entries;
 
+            size_t ncache;
             {
                 Guard G(scp->cache.cacheLock);
 
-                std::cout<<"Cache has "<<scp->cache.entries.size()<<" channels\n";
+                ncache = scp->cache.entries.size();
 
                 if(lvl>0)
                     entries = scp->cache.entries; // copy of std::map
             }
 
+            std::cout<<"Cache has "<<ncache<<" channels\n";
+
             if(lvl<=0)
                 continue;
 
-            for(ChannelCache::entries_t::const_iterator it=entries.begin(), end=entries.end();
-                it!=end; ++it)
-            {
+            FOREACH(it, end, entries) {
+                const std::string& channame = it->first;
                 ChannelCacheEntry& E = *it->second;
-                std::cout<<pva::Channel::ConnectionStateNames[E.channel->getConnectionState()]
-                        <<" Channel '"<<E.channelName<<"' with "<<E.interested.size()<<" clients\n";
+                ChannelCacheEntry::mon_entries_t::lock_vector_type mons;
+                size_t nsrv, nmon;
+                const char *chstate;
+                {
+                    Guard G(scp->cache.cacheLock);
+                    chstate = pva::Channel::ConnectionStateNames[E.channel->getConnectionState()];
+                    nsrv = E.interested.size();
+                    nmon = E.mon_entries.size();
+
+                    if(lvl>1)
+                        mons = E.mon_entries.lock_vector();
+                }
+
+                std::cout<<chstate
+                         <<" Client Channel '"<<channame
+                         <<"' used by "<<nsrv<<" Server channel(s) with "
+                         <<nmon<<" unique subscription(s)\n";
+
+                std::cout<<"  "<<nmon<<" "<<mons.size()<<"\n";
+                if(lvl<=1)
+                    continue;
+
+                FOREACH(it2, end2, mons) {
+                    MonitorCacheEntry& ME =  *it2->second;
+
+                    size_t nsrvmon;
+                    bool hastype, hasdata, isdone;
+                    {
+                        Guard G(scp->cache.cacheLock);
+
+                        nsrvmon = ME.interested.size();
+                        hastype = !!ME.typedesc;
+                        hasdata = !!ME.lastval;
+                        isdone = ME.done;
+                    }
+
+                    // TODO: how to describe pvRequest in a compact way...
+                    std::cout<<"  Client Monitor used by "<<nsrvmon<<" Server monitors, "
+                             <<"Has "<<(hastype?"":"not ")
+                             <<"opened, Has "<<(hasdata?"":"not ")
+                             <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n";
+                }
             }
         }
 
@@ -335,10 +377,11 @@ void dropChannel(const char *chan)
                 std::cout<<"Found in provider "<<p->getProviderName()<<"\n";
 
                 entry = it->second;
-                scp->cache.entries.erase(it); // drop out of cache
+                scp->cache.entries.erase(it); // drop out of cache (TODO: not required)
             }
 
-            entry->channel->destroy(); // trigger client side disconnect
+            // trigger client side disconnect (recursively calls call CRequester::channelStateChange())
+            entry->channel->destroy();
         }
 
         std::cout<<"Done\n";
@@ -360,49 +403,48 @@ void refCheck(int lvl)
         std::cout<<"GW instances reference counts.\n"
                    "Note: small inconsistencies (positive and negative) are normal due to locking.\n"
                    "      Actual leaks will manifest as a sustained increases.\n";
-        pva::ServerContextImpl::shared_pointer ctx(gblctx);
-        if(!ctx) {
-            std::cout<<"Not running\n";
-            return;
-        }
-
-        const AUTO_REF(prov, ctx->getChannelProviders());
 
         size_t chan_count = 0, mon_count = 0, mon_user_count = 0;
+        pva::ServerContextImpl::shared_pointer ctx(gblctx.lock());
+        if(ctx) {
+            const AUTO_REF(prov, ctx->getChannelProviders());
 
-        if(lvl>0) std::cout<<"Server has "<<prov.size()<<" providers\n";
+            if(lvl>0) std::cout<<"Server has "<<prov.size()<<" providers\n";
 
-        for(size_t i=0; i<prov.size(); i++)
-        {
-            pva::ChannelProvider* p = prov[i].get();
-            if(!p) continue;
-            GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
-            if(!scp) continue;
-
+            for(size_t i=0; i<prov.size(); i++)
             {
-                Guard G(scp->cache.cacheLock);
-                AUTO_REF(entries, scp->cache.entries);
+                pva::ChannelProvider* p = prov[i].get();
+                if(!p) continue;
+                GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
+                if(!scp) continue;
 
-                if(lvl>0) std::cout<<" Cache has "<<scp->cache.entries.size()<<" channels\n";
-
-                chan_count += entries.size();
-
-                FOREACH(it, end, entries)
                 {
-                    AUTO_VAL(M, it->second->mon_entries.lock_vector());
+                    Guard G(scp->cache.cacheLock);
+                    AUTO_REF(entries, scp->cache.entries);
 
-                    if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
-                                      <<" has "<<M.size()<<" Client Monitors\n";
+                    if(lvl>0) std::cout<<" Cache has "<<scp->cache.entries.size()<<" channels\n";
 
-                    mon_count += M.size();
-                    FOREACH(it2, end2, M)
+                    chan_count += entries.size();
+
+                    FOREACH(it, end, entries)
                     {
-                        AUTO_REF(W, it2->second->interested);
-                        if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
-                        mon_user_count += W.size();
+                        AUTO_VAL(M, it->second->mon_entries.lock_vector());
+
+                        if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
+                                          <<" has "<<M.size()<<" Client Monitors\n";
+
+                        mon_count += M.size();
+                        FOREACH(it2, end2, M)
+                        {
+                            AUTO_REF(W, it2->second->interested);
+                            if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
+                            mon_user_count += W.size();
+                        }
                     }
                 }
             }
+        } else {
+            std::cout<<"Server Not running\n";
         }
 
         size_t chan_latch = epicsAtomicGetSizeT(&ChannelCacheEntry::num_instances),

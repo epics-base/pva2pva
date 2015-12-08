@@ -13,6 +13,7 @@ size_t MonitorUser::num_instances;
 
 MonitorCacheEntry::MonitorCacheEntry(ChannelCacheEntry *ent)
     :chan(ent)
+    ,done(false)
 {
     epicsAtomicIncrSizeT(&num_instances);
 }
@@ -139,6 +140,7 @@ MonitorCacheEntry::unlisten(pvd::MonitorPtr const & monitor)
         M->destroy();
         std::cout<<__PRETTY_FUNCTION__<<" destroy client monitor\n";
     }
+    // TODO: call all unlisten()
 }
 
 std::string

@@ -28,6 +28,7 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
     pvrequest_t key;
 
     ChannelCacheEntry * const chan;
+    bool done;
 
     epics::pvData::StructureConstPtr typedesc;
     epics::pvData::PVStructure::shared_pointer lastval;
