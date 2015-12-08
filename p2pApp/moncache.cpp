@@ -176,7 +176,6 @@ MonitorUser::destroy()
         Guard G(entry->chan->cache->cacheLock);
         running = false;
     }
-    req.reset();
 }
 
 pvd::Status

@@ -39,20 +39,6 @@ GWChannel::message(std::string const & message, pvd::MessageType messageType)
 void
 GWChannel::destroy()
 {
-    std::cout<<__PRETTY_FUNCTION__<<"\n";
-    // Client closes channel. Release our references,
-    // won't
-    shared_pointer self(weakref);
-    {
-        Guard G(entry->cache->cacheLock);
-        // remove ourselves before releasing our reference to prevent "stale" pointers.
-        // Poke the cache so that this channel is held open for a while longer
-        // in case this client reconnects shortly.
-        entry->dropPoke = true;
-        entry->interested.erase(self);
-    }
-    requester.reset();
-    entry.reset();
 }
 
 std::tr1::shared_ptr<pva::ChannelProvider>
