@@ -281,11 +281,13 @@ void statusServer(int lvl, const char *chanexpr)
 
             ChannelCache::entries_t entries;
 
-            size_t ncache;
+            size_t ncache, ncleaned, ndust;
             {
                 Guard G(scp->cache.cacheLock);
 
                 ncache = scp->cache.entries.size();
+                ncleaned = scp->cache.cleanerRuns;
+                ndust = scp->cache.cleanerDust;
 
                 if(lvl>0) {
                     if(!chanexpr || iswild) { // no string or some glob pattern
@@ -298,7 +300,8 @@ void statusServer(int lvl, const char *chanexpr)
                 }
             }
 
-            std::cout<<"Cache has "<<ncache<<" channels\n";
+            std::cout<<"Cache has "<<ncache<<" channels.  Cleaned "
+                    <<ncleaned<<" times closing "<<ndust<<" channels\n";
 
             if(lvl<=0)
                 continue;
@@ -311,12 +314,14 @@ void statusServer(int lvl, const char *chanexpr)
                 ChannelCacheEntry& E = *it->second;
                 ChannelCacheEntry::mon_entries_t::lock_vector_type mons;
                 size_t nsrv, nmon;
+                bool dropflag;
                 const char *chstate;
                 {
                     Guard G(scp->cache.cacheLock);
                     chstate = pva::Channel::ConnectionStateNames[E.channel->getConnectionState()];
                     nsrv = E.interested.size();
                     nmon = E.mon_entries.size();
+                    dropflag = E.dropPoke;
 
                     if(lvl>1)
                         mons = E.mon_entries.lock_vector();
@@ -325,7 +330,8 @@ void statusServer(int lvl, const char *chanexpr)
                 std::cout<<chstate
                          <<" Client Channel '"<<channame
                          <<"' used by "<<nsrv<<" Server channel(s) with "
-                         <<nmon<<" unique subscription(s)\n";
+                         <<nmon<<" unique subscription(s) "
+                         <<(dropflag?'!':'_')<<"\n";
 
                 if(lvl<=1)
                     continue;

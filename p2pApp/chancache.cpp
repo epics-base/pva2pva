@@ -109,7 +109,7 @@ struct ChannelCache::cacheClean : public epicsTimerNotify
 
         {
             Guard G(cache->cacheLock);
-            std::cout<<"GWServer cleaning cache w/ "<<cache->entries.size()<<" entries\n";
+            cache->cleanerRuns++;
 
             ChannelCache::entries_t::iterator cur=cache->entries.begin(), next, end=cache->entries.end();
             while(cur!=end) {
@@ -117,15 +117,11 @@ struct ChannelCache::cacheClean : public epicsTimerNotify
                 ++next;
 
                 if(!cur->second->dropPoke && cur->second->interested.empty()) {
-                    //ChannelCacheEntry::shared_pointer E(cur->second);
-                    std::cout<<"GWServer cache remove "<<cur->second->channelName<<"\n";
                     cleaned.insert(cur->second);
                     cache->entries.erase(cur);
+                    cache->cleanerDust++;
                 } else {
                     cur->second->dropPoke = false;
-                    std::cout<<"GWServer cache "<<cur->second->channelName
-                            <<" interest "<<cur->second->interested.size()
-                           <<"\n";
                 }
 
                 cur = next;

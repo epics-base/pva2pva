@@ -143,6 +143,8 @@ struct ChannelCache
     epicsTimer *cleanTimer;
     struct cacheClean;
     cacheClean *cleaner;
+    size_t cleanerRuns;
+    size_t cleanerDust;
 
     ChannelCache();
     ~ChannelCache();
