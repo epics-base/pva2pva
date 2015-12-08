@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include <epicsAtomic.h>
+#include <epicsString.h>
 
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
@@ -254,7 +255,7 @@ void stopServer()
         printf("Not running\n");
 }
 
-void statusServer(int lvl)
+void statusServer(int lvl, const char *chanexpr)
 {
     try{
         pva::ServerContextImpl::shared_pointer ctx(gblctx);
@@ -262,6 +263,10 @@ void statusServer(int lvl)
             std::cout<<"Not running\n";
             return;
         }
+
+        bool iswild = chanexpr ? (strchr(chanexpr, '?') || strchr(chanexpr, '*')) : false;
+        if(chanexpr && lvl<1)
+            lvl=1; // giving a channel implies at least channel level of detail
 
         const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
 
@@ -282,8 +287,15 @@ void statusServer(int lvl)
 
                 ncache = scp->cache.entries.size();
 
-                if(lvl>0)
-                    entries = scp->cache.entries; // copy of std::map
+                if(lvl>0) {
+                    if(!chanexpr || iswild) { // no string or some glob pattern
+                        entries = scp->cache.entries; // copy of std::map
+                    } else if(chanexpr) { // just one channel
+                        AUTO_VAL(it, scp->cache.entries.find(chanexpr));
+                        if(it!=scp->cache.entries.end())
+                            entries[it->first] = it->second;
+                    }
+                }
             }
 
             std::cout<<"Cache has "<<ncache<<" channels\n";
@@ -293,6 +305,9 @@ void statusServer(int lvl)
 
             FOREACH(it, end, entries) {
                 const std::string& channame = it->first;
+                if(iswild && !epicsStrGlobMatch(channame.c_str(), chanexpr))
+                    continue;
+
                 ChannelCacheEntry& E = *it->second;
                 ChannelCacheEntry::mon_entries_t::lock_vector_type mons;
                 size_t nsrv, nmon;
@@ -501,7 +516,7 @@ void registerGWServerIocsh()
 
     iocshRegister<&startServer>("gwstart");
     iocshRegister<&stopServer>("gwstop");
-    iocshRegister<int, &statusServer>("gwstatus", "level");
+    iocshRegister<int, const char*, &statusServer>("gwstatus", "level", "channel name/pattern");
     iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
     iocshRegister<int, &refCheck>("gwref", "level");
 
