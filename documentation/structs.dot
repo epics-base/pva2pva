@@ -7,35 +7,23 @@ digraph {
   # green lines are strong references which are explicitly broken on some event
   # blue lines are weak references
   
-  ServerContextImpl [shape=box,color=red];
-  BlockingServerTCPTransportCodec [shape=box,color=red];
-  ServerChannelImpl [shape=box,color=red];
-  ServerChannelRequesterImpl [shape=box,color=red];
-  ServerChannelImpl [shape=box,color=red];
-  ServerMonitorRequesterImpl [shape=box,color=red];
+  subgraph clusterserver {
+    label = "Server";
+    ServerContextImpl [shape=box,color=red];
+    BlockingServerTCPTransportCodec [shape=box,color=red];
+    ServerChannelImpl [shape=box,color=red];
+    ServerChannelRequesterImpl [shape=box,color=red];
+    ServerChannelImpl [shape=box,color=red];
+    ServerMonitorRequesterImpl [shape=box,color=red];
 
-  InternalClientContextImpl [shape=box,color=blue];
-  ChannelProviderImpl [shape=box,color=blue];
-  BlockingClientTCPTransportCodec [shape=box,color=blue];
-  InternalChannelImpl [shape=box,color=blue];
-  ChannelMonitorImpl [shape=box,color=blue];
-  MonitorStrategyQueue [shape=box,color=blue];
-
-  GWServerChannelProvider;
-  ChannelCache;
-  ChannelCacheEntry;
-  GWChannel;
-  CRequester;
-  MonitorCacheEntry;
-  MonitorUser;
-
-  ## Server Internals
-  # Really goes through TransportRegistry
-  ServerContextImpl -> BlockingServerTCPTransportCodec [color=green,style=dashed,label="N"];
-  BlockingServerTCPTransportCodec -> ServerChannelImpl [color=green,style=dashed,label="N"];
-  ServerChannelRequesterImpl -> BlockingServerTCPTransportCodec [color=blue,label="1"];
-  ServerChannelRequesterImpl -> ServerChannelImpl [color=blue,label="1"];
-  ServerMonitorRequesterImpl -> BlockingServerTCPTransportCodec [color=red,label="1"];
+    ## Server Internals
+    # Really goes through TransportRegistry
+    ServerContextImpl -> BlockingServerTCPTransportCodec [color=green,style=dashed,label="N"];
+    BlockingServerTCPTransportCodec -> ServerChannelImpl [color=green,style=dashed,label="N"];
+    ServerChannelRequesterImpl -> BlockingServerTCPTransportCodec [color=blue,label="1"];
+    ServerChannelRequesterImpl -> ServerChannelImpl [color=blue,label="1"];
+    ServerMonitorRequesterImpl -> BlockingServerTCPTransportCodec [color=red,label="1"];
+  }
 
   ## Server to GW
   ServerContextImpl -> GWServerChannelProvider [color=red,label="N"];
@@ -44,20 +32,31 @@ digraph {
   MonitorUser -> ServerMonitorRequesterImpl [color=blue,label="1"];
   ServerMonitorRequesterImpl -> MonitorUser [color=red,label="1"];
 
-  ## GW internal
-  GWServerChannelProvider -> ChannelCache [color=red,label="1"];
-  GWChannel -> ChannelCacheEntry [color=red,label="1"];
+  subgraph clustergw {
+    label = "Gateway";
+    GWServerChannelProvider;
+    ChannelCache;
+    ChannelCacheEntry;
+    GWChannel;
+    CRequester;
+    MonitorCacheEntry;
+    MonitorUser;
 
-  ChannelCache -> ChannelCacheEntry [color=green,style=dashed,label="N"];
-  ChannelCache -> GWServerChannelProvider [color=blue,label="1"];
+    ## GW internal
+    GWServerChannelProvider -> ChannelCache [color=red,label="1"];
+    GWChannel -> ChannelCacheEntry [color=red,label="1"];
 
-  ChannelCacheEntry -> ChannelCache [color=blue,label="1"];
-  CRequester -> ChannelCacheEntry [color=blue,label="1"];
-  ChannelCacheEntry -> GWChannel [color=blue,label="N"];
-  ChannelCacheEntry -> MonitorCacheEntry [color=blue,label="N"];
-  MonitorCacheEntry -> ChannelCacheEntry [color=blue,label="1"];
-  MonitorCacheEntry -> MonitorUser [color=blue,label="N"];
-  MonitorUser -> MonitorCacheEntry [color=red,label="1"];
+    ChannelCache -> ChannelCacheEntry [color=green,style=dashed,label="N"];
+    ChannelCache -> GWServerChannelProvider [color=blue,label="1"];
+
+    ChannelCacheEntry -> ChannelCache [color=blue,label="1"];
+    CRequester -> ChannelCacheEntry [color=blue,label="1"];
+    ChannelCacheEntry -> GWChannel [color=blue,label="N"];
+    ChannelCacheEntry -> MonitorCacheEntry [color=blue,label="N"];
+    MonitorCacheEntry -> ChannelCacheEntry [color=blue,label="1"];
+    MonitorCacheEntry -> MonitorUser [color=blue,label="N"];
+    MonitorUser -> MonitorCacheEntry [color=red,label="1"];
+  }
 
   ## GW to Client
   ChannelCache -> ChannelProviderImpl [color=red,label="1"];
@@ -67,13 +66,23 @@ digraph {
   ChannelMonitorImpl -> MonitorCacheEntry [color=red,style=dashed,label="1"];
   MonitorStrategyQueue -> MonitorCacheEntry [color=red,label="1"];
 
-  ## Client internals
-  ChannelProviderImpl -> InternalClientContextImpl [color=blue,label="1"];
-  # Really goes through TransportRegistry
-  InternalClientContextImpl -> BlockingClientTCPTransportCodec [color=green,style=dashed,label="N"];
-  BlockingClientTCPTransportCodec -> InternalChannelImpl [color=blue,label="N"];
-  InternalChannelImpl -> BlockingClientTCPTransportCodec [color=red,label="1"];
-  InternalChannelImpl -> InternalClientContextImpl [color=red,label="1"];
-  ChannelMonitorImpl -> MonitorStrategyQueue [color=red,label="1"];
-  MonitorStrategyQueue -> InternalChannelImpl [color=red,label="1"];
+  subgraph clusterclient {
+    label = "Client";
+    InternalClientContextImpl [shape=box,color=blue];
+    ChannelProviderImpl [shape=box,color=blue];
+    BlockingClientTCPTransportCodec [shape=box,color=blue];
+    InternalChannelImpl [shape=box,color=blue];
+    ChannelMonitorImpl [shape=box,color=blue];
+    MonitorStrategyQueue [shape=box,color=blue];
+
+    ## Client internals
+    ChannelProviderImpl -> InternalClientContextImpl [color=blue,label="1"];
+    # Really goes through TransportRegistry
+    InternalClientContextImpl -> BlockingClientTCPTransportCodec [color=green,style=dashed,label="N"];
+    BlockingClientTCPTransportCodec -> InternalChannelImpl [color=blue,label="N"];
+    InternalChannelImpl -> BlockingClientTCPTransportCodec [color=red,label="1"];
+    InternalChannelImpl -> InternalClientContextImpl [color=red,label="1"];
+    ChannelMonitorImpl -> MonitorStrategyQueue [color=red,label="1"];
+    MonitorStrategyQueue -> InternalChannelImpl [color=red,label="1"];
+  }
 }
