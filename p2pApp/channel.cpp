@@ -157,7 +157,6 @@ GWChannel::createMonitor(
     pvd::StructureConstPtr typedesc;
 
     try {
-        bool create = false;
         {
             Guard G(entry->cache->cacheLock);
 
@@ -166,11 +165,24 @@ GWChannel::createMonitor(
                 ment.reset(new MonitorCacheEntry(entry.get()));
                 entry->mon_entries[ser] = ment; // ref. wrapped
                 ment->weakref = ment;
-                create = true;
+
                 // We've added an incomplete entry (no Monitor)
                 // so MonitorUser must check validity before de-ref.
                 // in this case we use !!typedesc as this also indicates
                 // that the upstream monitor is connected
+                pvd::MonitorPtr M;
+                {
+                    UnGuard U(G);
+
+                    // Create upstream monitor
+                    // This would create a strong ref. loop between ent and ent->mon.
+                    // Instead we get clever and pass a "fake" strong ref.
+                    // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
+                    MonitorCacheEntry::shared_pointer fakereal(ment.get(), noclean());
+
+                    M = entry->channel->createMonitor(fakereal, pvRequest);
+                }
+                ment->mon = M;
 
                 std::cout<<"Monitor cache "<<entry->channelName<<" Miss\n";
             } else {
@@ -178,23 +190,7 @@ GWChannel::createMonitor(
             }
         }
 
-        pvd::MonitorPtr M;
-        if(create) {
-            // Note: no lock held
-
-            // Create upstream monitor
-            // This would create a strong ref. loop between ent and ent->mon.
-            // Instead we get clever and pass a "fake" strong ref.
-            // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
-            MonitorCacheEntry::shared_pointer fakereal(ment.get(), noclean());
-
-            M = entry->channel->createMonitor(fakereal, pvRequest);
-        }
-
         Guard G(ment->mutex());
-
-        if(create)
-            ment->mon = M;
 
         mon.reset(new MonitorUser(ment));
         ment->interested.insert(mon);
