@@ -35,7 +35,6 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
                                   pvd::MonitorPtr const & monitor,
                                   pvd::StructureConstPtr const & structure)
 {
-    assert(monitor==mon);
 
     interested_t::vector_type tonotify;
     {
@@ -97,7 +96,10 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
     while((update=monitor->poll()))
     {
         cntpoll++;
-        lastval = update->pvStructurePtr;
+        {
+            Guard G(mutex());
+            lastval = update->pvStructurePtr;
+        }
         epicsAtomicIncrSizeT(&nevents);
 
         AUTO_VAL(tonotify, interested.lock_vector()); // TODO: avoid copy, iterate w/ lock
