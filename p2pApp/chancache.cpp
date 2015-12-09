@@ -149,27 +149,3 @@ ChannelCache::~ChannelCache()
     timerQueue->release();
     delete cleaner;
 }
-
-// caller must host cacheLock
-ChannelCacheEntry::shared_pointer
-ChannelCache::get(const std::string& name)
-{
-    entries_t::const_iterator it=entries.find(name);
-    if(it!=entries.end()) {
-        it->second->dropPoke = true;
-        return it->second;
-    }
-
-    ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(this, name));
-
-    std::cout<<"Create client channel for '"<<name<<"'\n";
-    pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
-    ent->channel = provider->createChannel(name, req);
-    if(!ent->channel)
-        THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
-    assert(ent->channel->getChannelRequester().get()==req.get());
-
-    entries[name] = ent;
-    assert(entries.size()>0);
-    return ent;
-}

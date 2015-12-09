@@ -68,11 +68,24 @@ struct GWServerChannelProvider : public
             if(it==cache.entries.end()) {
                 // first request, create ChannelCacheEntry
                 //TODO: async lookup
-                cache.get(newName);
 
-                assert(cache.entries.size()>0);
+                ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(&cache, newName));
 
-            } else if(it->second->channel->isConnected()) {
+                cache.entries[newName] = ent;
+
+                pva::Channel::shared_pointer M;
+                {
+                    // unlock to call createChannel()
+                    epicsGuardRelease<epicsMutex> U(G);
+
+                    pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
+                    M = cache.provider->createChannel(newName, req);
+                    if(!M)
+                        THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
+                }
+                ent->channel = M;
+
+            } else if(it->second->channel && it->second->channel->isConnected()) {
                 // another request, and hey we're connected this time
 
                 ret=this->shared_from_this();
@@ -127,7 +140,8 @@ struct GWServerChannelProvider : public
             Guard G(cache.cacheLock);
 
             ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
-            if(it!=cache.entries.end() && it->second->channel->isConnected())
+            if(it!=cache.entries.end() && it->second->channel
+                    && it->second->channel->isConnected())
             {
                 ret.reset(new GWChannel(it->second, channelRequester));
                 it->second->interested.insert(ret);

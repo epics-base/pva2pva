@@ -154,10 +154,6 @@ struct ChannelCache
 
     ChannelCache();
     ~ChannelCache();
-
-    // caller must host cacheLock
-    ChannelCacheEntry::shared_pointer get(const std::string& name);
-
 };
 
 #endif // CHANCACHE_H
