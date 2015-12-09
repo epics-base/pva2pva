@@ -143,7 +143,7 @@ struct GWServerChannelProvider : public
             if(it!=cache.entries.end() && it->second->channel
                     && it->second->channel->isConnected())
             {
-                ret.reset(new GWChannel(it->second, channelRequester));
+                ret.reset(new GWChannel(it->second, channelRequester, address));
                 it->second->interested.insert(ret);
                 ret->weakref = ret;
             }
@@ -383,6 +383,7 @@ void statusServer(int lvl, const char *chanexpr)
                         MonitorUser& MU = **it3;
 
                         size_t nempty, nfilled, nused, total;
+                        std::string remote;
                         bool isrunning;
                         {
                             Guard G(MU.queueLock);
@@ -391,10 +392,18 @@ void statusServer(int lvl, const char *chanexpr)
                             nfilled = MU.filled.size();
                             nused = MU.inuse.size();
                             isrunning = MU.running;
+
+                            GWChannel::shared_pointer srvchan(MU.srvchan.lock());
+                            if(srvchan)
+                                remote = srvchan->address;
+                            else
+                                remote = "<unknown>";
                         }
                         total = nempty + nfilled + nused;
 
-                        std::cout<<"    Server monitor"<<(isrunning?"":" Paused")
+                        std::cout<<"    Server monitor from "
+                                 <<remote
+                                 <<(isrunning?"":" Paused")
                                  <<" buffer "<<nfilled<<"/"<<total
                                  <<" out "<<nused<<"/"<<total
                                  <<" "<<epicsAtomicGetSizeT(&MU.nwakeups)<<" wakeups "

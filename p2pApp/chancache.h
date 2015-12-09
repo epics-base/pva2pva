@@ -65,6 +65,7 @@ struct MonitorUser : public epics::pvData::Monitor
 
     MonitorCacheEntry::shared_pointer entry;
     epics::pvData::MonitorRequester::weak_pointer req;
+    std::tr1::weak_ptr<GWChannel> srvchan;
 
     // guards queues and member variables
     epicsMutex queueLock;

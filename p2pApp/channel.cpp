@@ -12,9 +12,11 @@ namespace pvd = epics::pvData;
 size_t GWChannel::num_instances;
 
 GWChannel::GWChannel(ChannelCacheEntry::shared_pointer e,
-                     pva::ChannelRequester::shared_pointer r)
+                     pva::ChannelRequester::shared_pointer r,
+                     std::string addr)
     :entry(e)
     ,requester(r)
+    ,address(addr)
 {
     epicsAtomicIncrSizeT(&num_instances);
 }
@@ -195,6 +197,7 @@ GWChannel::createMonitor(
         mon.reset(new MonitorUser(ment));
         ment->interested.insert(mon);
         mon->weakref = mon;
+        mon->srvchan = shared_pointer(weakref);
         mon->req = monitorRequester;
 
         typedesc = ment->typedesc;

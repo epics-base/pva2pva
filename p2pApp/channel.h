@@ -11,11 +11,13 @@ struct GWChannel : public epics::pvAccess::Channel
     static size_t num_instances;
     weak_pointer weakref;
 
-    ChannelCacheEntry::shared_pointer entry;
-    epics::pvAccess::ChannelRequester::shared_pointer requester;
+    const ChannelCacheEntry::shared_pointer entry;
+    const epics::pvAccess::ChannelRequester::shared_pointer requester;
+    const std::string address; // address of client on GW server side
 
     GWChannel(ChannelCacheEntry::shared_pointer e,
-              epics::pvAccess::ChannelRequester::shared_pointer);
+              epics::pvAccess::ChannelRequester::shared_pointer,
+              std::string addr);
     virtual ~GWChannel();
 
 
