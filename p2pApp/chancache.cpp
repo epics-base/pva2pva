@@ -7,6 +7,7 @@
 
 #define epicsExportSharedSymbols
 #include "pva2pva.h"
+#include "helper.h"
 #include "chancache.h"
 #include "channel.h"
 
@@ -63,11 +64,6 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
     std::cout<<"Chan change '"<<chan->channelName<<"' is "
             <<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
 
-
-    ChannelCacheEntry::interested_t::vector_type interested;
-
-    // fanout notification
-
     {
         Guard G(chan->cache->cacheLock);
 
@@ -84,13 +80,12 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
         default:
             break;
         }
-
-        interested = chan->interested.lock_vector(); // Copy to allow unlock during callback
     }
 
-    for(ChannelCacheEntry::interested_t::vector_type::const_iterator
-        it=interested.begin(), end=interested.end();
-        it!=end; ++it)
+    // fanout notification
+    AUTO_VAL(interested, chan->interested.lock_vector()); // Copy
+
+    FOREACH(it, end, interested)
     {
         (*it)->requester->channelStateChange(*it, connectionState);
     }

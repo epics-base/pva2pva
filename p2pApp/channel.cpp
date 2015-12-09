@@ -158,7 +158,7 @@ GWChannel::createMonitor(
 
     try {
         {
-            Guard G(entry->cache->cacheLock);
+            Guard G(entry->mutex());
 
             ment = entry->mon_entries.find(ser);
             if(!ment) {

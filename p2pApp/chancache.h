@@ -98,6 +98,9 @@ struct ChannelCacheEntry
     const std::string channelName;
     ChannelCache * const cache;
 
+    // to avoid yet another mutex borrow interested.mutex() for our members
+    inline epicsMutex& mutex() const { return interested.mutex(); }
+
     // clientChannel
     epics::pvAccess::Channel::shared_pointer channel;
 

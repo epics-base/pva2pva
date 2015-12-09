@@ -331,7 +331,7 @@ void statusServer(int lvl, const char *chanexpr)
                 bool dropflag;
                 const char *chstate;
                 {
-                    Guard G(scp->cache.cacheLock);
+                    Guard G(E.mutex());
                     chstate = pva::Channel::ConnectionStateNames[E.channel->getConnectionState()];
                     nsrv = E.interested.size();
                     nmon = E.mon_entries.size();
@@ -484,28 +484,29 @@ void refCheck(int lvl)
                 GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
                 if(!scp) continue;
 
+                ChannelCache::entries_t entries;
                 {
                     Guard G(scp->cache.cacheLock);
-                    AUTO_REF(entries, scp->cache.entries);
+                    entries = scp->cache.entries; // Copy
+                }
 
-                    if(lvl>0) std::cout<<" Cache has "<<scp->cache.entries.size()<<" channels\n";
+                if(lvl>0) std::cout<<" Cache has "<<entries.size()<<" channels\n";
 
-                    chan_count += entries.size();
+                chan_count += entries.size();
 
-                    FOREACH(it, end, entries)
+                FOREACH(it, end, entries)
+                {
+                    AUTO_VAL(M, it->second->mon_entries.lock_vector());
+
+                    if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
+                                      <<" has "<<M.size()<<" Client Monitors\n";
+
+                    mon_count += M.size();
+                    FOREACH(it2, end2, M)
                     {
-                        AUTO_VAL(M, it->second->mon_entries.lock_vector());
-
-                        if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
-                                          <<" has "<<M.size()<<" Client Monitors\n";
-
-                        mon_count += M.size();
-                        FOREACH(it2, end2, M)
-                        {
-                            AUTO_REF(W, it2->second->interested);
-                            if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
-                            mon_user_count += W.size();
-                        }
+                        AUTO_REF(W, it2->second->interested);
+                        if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
+                        mon_user_count += W.size();
                     }
                 }
             }
