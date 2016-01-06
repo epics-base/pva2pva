@@ -22,8 +22,11 @@ svg: $(SVG)
 %.svg: %.dot
 	dot -o $@ -Tsvg $<
 
-%.png: %.msc
-	mscgen -T png -o $@ -i $<
+## broken with debian 8
+#%.png: %.msc
+#	mscgen -T png -o $@ -i $<
+%.png: %.svg
+	convert $< $@
 
 %.svg: %.msc
 	mscgen -T svg -o $@ -i $<
