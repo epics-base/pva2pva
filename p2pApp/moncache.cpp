@@ -35,7 +35,6 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
                                   pvd::MonitorPtr const & monitor,
                                   pvd::StructureConstPtr const & structure)
 {
-
     interested_t::vector_type tonotify;
     {
         Guard G(mutex());
@@ -84,7 +83,6 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
      * However, we don't want to keep the MonitorStrategyQueue as it's
      * destroy() method is a no-op!
      */
-    epicsUInt32 cntpoll = 0;
 
     //TODO: dequeue and requeue strategy code goes here
     epicsAtomicIncrSizeT(&nwakeups);
@@ -95,7 +93,6 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
     while((update=monitor->poll()))
     {
-        cntpoll++;
         {
             Guard G(mutex());
             lastval = update->pvStructurePtr;
