@@ -119,10 +119,11 @@ struct GWServerChannelProvider : public
     // The newly created channel is given to the ChannelRequester
     virtual pva::Channel::shared_pointer createChannel(std::string const & channelName,
                                                        pva::ChannelRequester::shared_pointer const & channelRequester,
-                                                       short priority, std::string const & address)
+                                                       short priority, std::string const & addressx)
     {
         GWChannel::shared_pointer ret;
         std::string newName;
+        std::string address = channelRequester->getRequesterName();
 
         if(!channelName.empty())
         {
