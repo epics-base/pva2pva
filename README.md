@@ -1,129 +1,55 @@
-PV Access to PV Access protocol gateway (aka. proxy)
+PV Access to PV Access protocol gateway
+=======================================
 
+The is unreleased, untested, alpha level software.
+You have been warned.
 
-Theory of Operation
+Dependencies
+------------
 
-The GW maintains a Channel Cache, which is a dictionary of client side channels
-(shared_ptr<epics::pvAccess::Channel> instances)
-in the NEVER_CONNECTED or CONNECTED states.
+- [epics-base](http://www.aps.anl.gov/epics/) >= 3.15.3
+- [pvDataCPP](http://epics-pvdata.sourceforge.net/)
+- [pvAccessCPP](http://epics-pvdata.sourceforge.net/)
 
-Each entry also has an activity flag and reference count.
+Portability
+-----------
 
-The activity flag is set each time the server side receives a search request for a PV.
+To this point all development/testing has been been carried out on Debian Linux 8 on amd64.
 
-The reference count is incremented for each active server side channel.
+Building
+--------
 
-Periodically the cache is iterated and any client channels with !activity and count==0 are dropped.
-In addition the activity flag is unconditionally cleared.
+At present pva2pva depends on un-merged changes to pvDataCPP and pvAccessCPP
+It must be built against the source for development Git repositories.
 
-
-Name search handling
-
-The server side listens for name search requests.
-When a request is received the channel cache is searched.
-If no entry exists, then one is created and no further action is taken.
-If an entry exists, but the client channel is not connected, then it's activiy flag is set and no further action is taken.
-If a connected entry exists, then an affirmative response is sent to the requester.
-
-
-When a channel create request is received, the channel cache is checked.
-If no connected entry exists, then the request is failed.
-
-
-Structure associations and ownership
-
-```c
-
-struct ServerContextImpl {
-  vector<shared_ptr<ChannelProvider> > providers; // GWServerChannelProvider
-};
-
-struct GWServerChannelProvider : public pva::ChannelProvider {
-  ChannelCache cache;
-};
-
-struct ChannelCache {
-  weak_pointer<ChannelProvider> server;
-  map<string, shared_ptr<ChannelCacheEntry> > entries;
-
-  epicsMutex cacheLock; // guards entries
-};
-
-struct ChannelCacheEntry {
-  ChannelCache * const cache;
-  shared_ptr<Channel> channel; // InternalChannelImpl
-  set<GWChannel*> interested;
-};
-
-struct InternalChannelImpl { // PVA client channel
-  shared_ptr<ChannelRequester> requester; // ChannelCacheEntry::CRequester
-};
-
-struct ChannelCacheEntry::CRequester {
-  weak_ptr<ChannelCacheEntry> chan;
-};
-
-struct GWChannel {
-  shared_ptr<ChannelCacheEntry> entry;
-  shared_ptr<ChannelRequester> requester; // pva::ServerChannelRequesterImpl
-};
-
-struct pva::ServerChannelImpl : public pva::ServerChannel
-{
-    shared_ptr<Channel> channel; // GWChannel
-};
+```
+git clone --recurse-submodules --branch pva2pva https://github.com/mdavidsaver/v4workspace.git
+cd v4workspace
+make -C epics-base
+make -C pvData
+make -C pvAccess
+make -C pva2pva
 ```
 
-Threading and Locking
+Running
+-------
 
-ServerContextImpl
-  BeaconServerStatusProvider ?
+Use of pva2pva requires a computer with at least two ethernet interfaces.
+At present each pva2pva process can act as a uni-directional proxy,
+presenting a pvAccess server on one interface,
+and a client on other(s).
 
-  2x BlockingUDPTransport (bcast and mcast, one thread each)
-    calls ChannelProvider::channelFind with no locks held
+The file [example.cmd](example.cmd) provides a starting point.
+Adjust *EPICS_PVAS_INTF_ADDR_LIST* and *EPICS_PVA_ADDR_LIST*
+according to the host computer's network configuration.
 
-  BlockingTCPAcceptor
-    BlockingServerTCPTransportCodec -> BlockingAbstractCodec (send and recv threads)
-      ServerResponseHandler
-        calls ChannelProvider::channelFind
-        calls ChannelProvider::createChannel
-        calls Channel::create*
+At present there are no safe guard against creating loops
+where a gateway client side connects to its own server side.
+To avoid this ensure that the address list does not contain
+the interface used for the server (either directly, or included in a broadcast domain).
+*EPICS_PVA_AUTO_ADDR_LIST* __must__ remain set to *NO*.
 
-InternalClientContextImpl
-
-  2x BlockingUDPTransport (bcast listener and ucast tx/rx, one thread each)
-
-  BlockingTCPConnector
-    BlockingClientTCPTransportCodec -> BlockingSocketAbstractCodec (send and recv threads)
-      ClientResponseHandler
-        calls MonitorRequester::monitorEvent with MonitorStrategyQueue::m_mutex locked
-
-TODO
-
-ServerChannelRequesterImpl::channelStateChange() - placeholder, needs implementation
-
-
-the send queue in BlockingAbstractCodec has no upper bound
-
-
-
-Monitor
-
-ServerChannelImpl calls GWChannel::createMonitor with a MonitorRequester which is ServerMonitorRequesterImpl
-
-The MonitorRequester is given a Monitor which is GWMonitor
-
-GWChannel calls InternalChannelImpl::createMonitor with a GWMonitorRequester
-
-GWMonitorRequester is given a Monitor which is ChannelMonitorImpl
-
-Updates originate from the client side, entering as an argument when GWMonitorRequester::monitorEvent is called,
-and exiting to the server when passed as an argument of a call to ServerMonitorRequesterImpl::monitorEvent.
-
-When called, ServerMonitorRequesterImpl::monitorEvent enqueues itself for transmission.
-The associated TCP sender thread later calls ServerMonitorRequesterImpl::send(),
-which calls GWMonitor::poll() to de-queue an event, which it encodes to the senders bytebuffer.
-It then reschedules itself.
-
-
-ServerMonitorRequesterImpl::monitorEvent is a no-op???
+```
+cd pva2pva
+./bin/linux-x86_64/pva2pva example.cmd
+```
