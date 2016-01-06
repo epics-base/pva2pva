@@ -537,6 +537,36 @@ void refCheck(int lvl)
     }
 }
 
+void pvadebug(const char *lvl)
+{
+    try {
+        std::string lname(lvl ? lvl : "warn");
+        pva::pvAccessLogLevel elvl;
+        if(lname=="off" || lname=="-2")
+            elvl = pva::logLevelOff;
+        else if(lname=="fatal" || lname=="-1")
+            elvl = pva::logLevelFatal;
+        else if(lname=="error" || lname=="0")
+            elvl = pva::logLevelError;
+        else if(lname=="warn" || lname=="1")
+            elvl = pva::logLevelWarn;
+        else if(lname=="info" || lname=="2")
+            elvl = pva::logLevelInfo;
+        else if(lname=="debug" || lname=="3")
+            elvl = pva::logLevelDebug;
+        else if(lname=="trace" || lname=="4")
+            elvl = pva::logLevelTrace;
+        else if(lname=="all" || lname=="5")
+            elvl = pva::logLevelAll;
+        else
+            throw std::invalid_argument("Unknown level name, must be one of off|fatal|error|warn|info|debug|trace|all");
+
+        pva::pvAccessSetLogLevel(elvl);
+    }catch(std::exception& e){
+        std::cout<<"Error: "<<e.what()<<"\n";
+    }
+}
+
 } // namespace
 
 static
@@ -552,7 +582,7 @@ void registerGWServerIocsh()
     iocshRegister<int, const char*, &statusServer>("gwstatus", "level", "channel name/pattern");
     iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
     iocshRegister<int, &refCheck>("gwref", "level");
-
+    iocshRegister<const char*, &pvadebug>("pvadebug", "level");
 }
 
 void gwServerShutdown()
