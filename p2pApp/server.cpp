@@ -48,18 +48,12 @@ struct GWServerChannelProvider : public
         pva::ChannelFind::shared_pointer ret;
         bool found = false;
 
-        // TODO
-        // until GW can bind client and server to specific (and different) interfaces
-        // use a naming convension to avoid loops (GW talks to itself).
-        // Server listens for names beginning with 'x',
-        // and re-writes these to start with 'y' for client search.
-        if(!channelName.empty() && channelName[0]=='x')
+        if(!channelName.empty())
         {
             std::string newName;
 
             // rewrite name
             newName = channelName;
-            newName[0] = 'y';
 
             Guard G(cache.cacheLock);
 
@@ -130,12 +124,11 @@ struct GWServerChannelProvider : public
         GWChannel::shared_pointer ret;
         std::string newName;
 
-        if(!channelName.empty() && channelName[0]=='x')
+        if(!channelName.empty())
         {
 
             // rewrite name
             newName = channelName;
-            newName[0] = 'y';
 
             Guard G(cache.cacheLock);
 
