@@ -41,6 +41,12 @@ struct iocshFuncInfo{
         for(size_t i=0; i<N; i++)
             argarr[i] = &args[i];
     }
+    template<int n, typename T>
+    void set(const char *name) {
+        argnames[n] = name;
+        args[n].name = argnames[n].c_str();
+        args[n].type = (iocshArgType)detail::getarg<T>::argtype;
+    }
 };
 
 template<void (*fn)()>
@@ -61,24 +67,31 @@ static void call2(const iocshArgBuf *args)
     fn(getarg<A>::op(args[0]),
        getarg<B>::op(args[1]));
 }
+
+template<typename A, typename B, typename C, void (*fn)(A,B,C)>
+static void call3(const iocshArgBuf *args)
+{
+    fn(getarg<A>::op(args[0]),
+       getarg<B>::op(args[1]),
+       getarg<C>::op(args[2]));
 }
+
+} // namespace detail
 
 
 template<void (*fn)()>
 void iocshRegister(const char *name)
 {
-    detail::iocshFuncInfo<0> *info = new detail::iocshFuncInfo<0>(name);
-    iocshRegister(&info->def, &detail::call0<fn>);
+    static detail::iocshFuncInfo<0> info(name);
+    iocshRegister(&info.def, &detail::call0<fn>);
 }
 
 template<typename A, void (*fn)(A)>
 void iocshRegister(const char *name, const char *arg1name)
 {
-    detail::iocshFuncInfo<1> *info = new detail::iocshFuncInfo<1>(name);
-    info->argnames[0] = arg1name;
-    info->args[0].name = info->argnames[0].c_str();
-    info->args[0].type = (iocshArgType)detail::getarg<A>::argtype;
-    iocshRegister(&info->def, &detail::call1<A, fn>);
+    static detail::iocshFuncInfo<1> info(name);
+    info.set<0,A>(arg1name);
+    iocshRegister(&info.def, &detail::call1<A, fn>);
 }
 
 template<typename A, typename B, void (*fn)(A,B)>
@@ -86,14 +99,37 @@ void iocshRegister(const char *name,
                    const char *arg1name,
                    const char *arg2name)
 {
-    detail::iocshFuncInfo<2> *info = new detail::iocshFuncInfo<2>(name);
-    info->argnames[0] = arg1name;
-    info->argnames[1] = arg2name;
-    info->args[0].name = info->argnames[0].c_str();
-    info->args[1].name = info->argnames[1].c_str();
-    info->args[0].type = (iocshArgType)detail::getarg<A>::argtype;
-    info->args[1].type = (iocshArgType)detail::getarg<B>::argtype;
-    iocshRegister(&info->def, &detail::call2<A, B, fn>);
+    static detail::iocshFuncInfo<2> info(name);
+    info.set<0,A>(arg1name);
+    info.set<1,B>(arg2name);
+    iocshRegister(&info.def, &detail::call2<A, B, fn>);
 }
+
+template<typename A, typename B, typename C, void (*fn)(A,B,C)>
+void iocshRegister(const char *name,
+                   const char *arg1name,
+                   const char *arg2name,
+                   const char *arg3name)
+{
+    static detail::iocshFuncInfo<3> info(name);
+    info.set<0,A>(arg1name);
+    info.set<1,B>(arg2name);
+    info.set<2,C>(arg3name);
+    iocshRegister(&info.def, &detail::call3<A, B, C, fn>);
+}
+
+template<typename V>
+struct iocshVariable
+{
+    iocshVariable(V* ptr, const char *name)
+    {
+        def.name = name;
+        def.type = (iocshArgType)detail::getarg<V>::argtype;
+        def.pval = (void*)ptr;
+        iocshRegisterVariable(&def);
+    }
+private:
+    iocshVarDef def;
+};
 
 #endif // IOCSHELPER_H
