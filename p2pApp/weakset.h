@@ -195,6 +195,27 @@ public:
         return m_data->mutex;
     }
 
+    //! an iterator-ish object which also locks the set during iteration
+    struct XIterator {
+        weak_set& set;
+        epicsGuard<epicsMutex> guard;
+        typename store_t::iterator it, end;
+        XIterator(weak_set& S) :set(S), guard(S.mutex()), it(S.m_data->store.begin()), end(S.m_data->store.end()) {}
+        //! yield the next live entry
+        value_pointer next() {
+            value_pointer ret;
+            while(it!=end) {
+                ret = (it++)->lock();
+                if(ret) break;
+            }
+            return ret;
+        }
+    private:
+        XIterator(const XIterator&);
+        XIterator& operator=(const XIterator&);
+    };
+
+    typedef XIterator iterator;
 };
 
 template<typename T>

@@ -165,16 +165,49 @@ void testWeakLock()
     }
 }
 
+static
+void testWeakIterate()
+{
+    typedef weak_set<int> set_type;
+    set_type::value_pointer A, B;
+    set_type set;
+
+    testDiag("Test weak_set locked iteration");
+
+    A.reset(new int(42));
+    set.insert(A);
+    A.reset(new int(43));
+    // ref. to 42 is dropped
+    set.insert(A);
+    B.reset(new int(44));
+    set.insert(B);
+
+    testOk1(set.size()==2);
+
+    {
+        set_type::iterator it(set);
+        set_type::value_pointer V;
+
+        V = it.next();
+        testOk1(V && (*V==43 || *V==44));
+        V = it.next();
+        testOk1(V && (*V==43 || *V==44));
+        V = it.next();
+        testOk1(!V);
+    }
+}
+
 } // namespace
 
 MAIN(testweak)
 {
-    testPlan(33);
+    testPlan(37);
     testWeakSet1();
     testWeakSet2();
     testWeakSetInvalid();
     testWeakMap1();
     testWeakMap2();
     testWeakLock();
+    testWeakIterate();
     return testDone();
 }
