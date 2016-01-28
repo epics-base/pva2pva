@@ -130,6 +130,8 @@ ChannelCache::ChannelCache()
     :provider(pva::getChannelProviderRegistry()->getProvider("pva"))
     ,timerQueue(&epicsTimerQueueActive::allocate(1, epicsThreadPriorityCAServerLow-2))
     ,cleaner(new cacheClean(this))
+    ,cleanerRuns(0)
+    ,cleanerDust(0)
 {
     if(!provider)
         throw std::logic_error("Missing 'pva' provider");
