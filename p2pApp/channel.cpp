@@ -11,12 +11,14 @@ namespace pvd = epics::pvData;
 
 size_t GWChannel::num_instances;
 
-GWChannel::GWChannel(ChannelCacheEntry::shared_pointer e,
-                     pva::ChannelRequester::shared_pointer r,
-                     std::string addr)
+GWChannel::GWChannel(const ChannelCacheEntry::shared_pointer& e,
+                     const epics::pvAccess::ChannelProvider::weak_pointer& srvprov,
+                     const pva::ChannelRequester::shared_pointer& r,
+                     const std::string& addr)
     :entry(e)
     ,requester(r)
     ,address(addr)
+    ,server_provder(srvprov)
 {
     epicsAtomicIncrSizeT(&num_instances);
 }
@@ -46,7 +48,7 @@ GWChannel::destroy()
 std::tr1::shared_ptr<pva::ChannelProvider>
 GWChannel::getProvider()
 {
-    return entry->cache->server.lock();
+    return server_provder.lock();
 }
 
 std::string
@@ -164,7 +166,7 @@ GWChannel::createMonitor(
 
             ment = entry->mon_entries.find(ser);
             if(!ment) {
-                ment.reset(new MonitorCacheEntry(entry.get()));
+                ment.reset(new MonitorCacheEntry(entry.get(), pvRequest));
                 entry->mon_entries[ser] = ment; // ref. wrapped
                 ment->weakref = ment;
 

@@ -137,7 +137,7 @@ struct GWServerChannelProvider : public
             if(it!=cache.entries.end() && it->second->channel
                     && it->second->channel->isConnected())
             {
-                ret.reset(new GWChannel(it->second, channelRequester, address));
+                ret.reset(new GWChannel(it->second, shared_from_this(), channelRequester, address));
                 it->second->interested.insert(ret);
                 ret->weakref = ret;
             }
@@ -189,7 +189,6 @@ struct GWServerChannelProviderFactory : public pva::ChannelProviderFactory
         pva::ChannelProvider::shared_pointer P(last_provider.lock());
         if(!P) {
             P.reset(new GWServerChannelProvider);
-            ((GWServerChannelProvider*)P.get())->cache.server = P;
             last_provider = P;
         }
         return P;
@@ -198,7 +197,6 @@ struct GWServerChannelProviderFactory : public pva::ChannelProviderFactory
     virtual pva::ChannelProvider::shared_pointer newInstance()
     {
         pva::ChannelProvider::shared_pointer P(new GWServerChannelProvider);
-        ((GWServerChannelProvider*)P.get())->cache.server = P;
         last_provider = P;
         return P;
     }

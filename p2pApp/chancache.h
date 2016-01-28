@@ -147,7 +147,6 @@ struct ChannelCache
     entries_t entries;
 
     epics::pvAccess::ChannelProvider::shared_pointer provider; // client Provider
-    epics::pvAccess::ChannelProvider::weak_pointer server; // GWServerChannelProvider
 
     epicsTimerQueueActive *timerQueue;
     epicsTimer *cleanTimer;
