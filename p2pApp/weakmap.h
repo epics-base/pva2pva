@@ -2,6 +2,7 @@
 #define WEAKMAP_H
 
 #include <map>
+#include <set>
 #include <vector>
 #include <stdexcept>
 
@@ -9,7 +10,7 @@
 #include <epicsMutex.h>
 #include <epicsGuard.h>
 
-/** @brief An associative map where the value is a weak_ptr to the value is stored.
+/** @brief An associative map where a weak_ptr to the value is stored.
  *
  * Acts like std::map<K, weak_ptr<V> > where entries are automatically
  * removed when no longer referenced.

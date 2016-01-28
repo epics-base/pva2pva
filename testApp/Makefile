@@ -7,10 +7,20 @@ include $(TOP)/configure/CONFIG
 
 USR_CPPFLAGS = -I$(TOP)/p2pApp
 
+LIBRARY += testutils
+
+testutils_SRCS += utilities.cpp
+testutils_LIBS += pvAccess pvData Com
+
 TESTPROD_HOST += testweak
 testweak_SRCS = testweak.cpp
 testweak_LIBS = Com
 TESTS += testweak
+
+TESTPROD_HOST += testtest
+testtest_SRCS = testtest.cpp
+testtest_LIBS = testutils p2pcore pvAccess pvData Com
+TESTS += testtest
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
