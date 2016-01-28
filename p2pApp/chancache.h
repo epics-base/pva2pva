@@ -27,6 +27,8 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
 
     ChannelCacheEntry * const chan;
 
+    const size_t bufferSize; // DS requested buffer size
+
     // to avoid yet another mutex borrow interested.mutex() for our members
     inline epicsMutex& mutex() const { return interested.mutex(); }
 
@@ -37,14 +39,14 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
     size_t nevents;  // # of upstream events poll()'d
 
     epics::pvData::StructureConstPtr typedesc;
-    epics::pvData::PVStructure::shared_pointer lastval;
+    epics::pvData::MonitorElement::shared_pointer lastelem;
     epics::pvData::MonitorPtr mon;
     epics::pvData::Status startresult;
 
     typedef weak_set<MonitorUser> interested_t;
     interested_t interested;
 
-    MonitorCacheEntry(ChannelCacheEntry *ent);
+    MonitorCacheEntry(ChannelCacheEntry *ent, const epics::pvData::PVStructure::shared_pointer& pvr);
     virtual ~MonitorCacheEntry();
 
     virtual void monitorConnect(epics::pvData::Status const & status,
@@ -63,19 +65,23 @@ struct MonitorUser : public epics::pvData::Monitor
     static size_t num_instances;
     weak_pointer weakref;
 
+    inline epicsMutex& mutex() const { return entry->mutex(); }
+
     MonitorCacheEntry::shared_pointer entry;
     epics::pvData::MonitorRequester::weak_pointer req;
     std::tr1::weak_ptr<GWChannel> srvchan;
 
     // guards queues and member variables
-    epicsMutex queueLock;
     bool running;
+    bool inoverflow;
     size_t nwakeups; // # of monitorEvent() calls to req
     size_t nevents;  // total # events queued
     size_t ndropped; // # of events drop because our queue was full
 
     std::deque<epics::pvData::MonitorElementPtr> filled, empty;
     std::set<epics::pvData::MonitorElementPtr> inuse;
+
+    epics::pvData::MonitorElementPtr overflowElement;
 
     MonitorUser(const MonitorCacheEntry::shared_pointer&);
     virtual ~MonitorUser();

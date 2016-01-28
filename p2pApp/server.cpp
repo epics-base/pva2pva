@@ -353,7 +353,7 @@ void statusServer(int lvl, const char *chanexpr)
 
                         nsrvmon = ME.interested.size();
                         hastype = !!ME.typedesc;
-                        hasdata = !!ME.lastval;
+                        hasdata = !!ME.lastelem;
                         isdone = ME.done;
 
                         if(lvl>2)
@@ -378,7 +378,7 @@ void statusServer(int lvl, const char *chanexpr)
                         std::string remote;
                         bool isrunning;
                         {
-                            Guard G(MU.queueLock);
+                            Guard G(MU.mutex());
 
                             nempty = MU.empty.size();
                             nfilled = MU.filled.size();

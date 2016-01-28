@@ -164,6 +164,8 @@ GWChannel::createMonitor(
         {
             Guard G(entry->mutex());
 
+            // TODO: no-cache/no-share flag in pvRequest
+
             ment = entry->mon_entries.find(ser);
             if(!ment) {
                 ment.reset(new MonitorCacheEntry(entry.get(), pvRequest));
