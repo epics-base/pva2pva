@@ -148,6 +148,8 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                         continue;
                     }
                     // we only come out of overflow when downstream release()s an element to us
+                    // empty.empty() does not imply inoverflow,
+                    // however inoverflow does imply empty.empty()
                     assert(!usr->inoverflow);
 
                     if(usr->filled.empty())

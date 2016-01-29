@@ -12,7 +12,7 @@ struct GWChannel : public epics::pvAccess::Channel
     weak_pointer weakref;
 
     const ChannelCacheEntry::shared_pointer entry;
-    const epics::pvAccess::ChannelRequester::shared_pointer requester;
+    epics::pvAccess::ChannelRequester::shared_pointer requester;
     const std::string address; // address of client on GW server side
     const epics::pvAccess::ChannelProvider::weak_pointer server_provder;
 

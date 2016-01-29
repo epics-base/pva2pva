@@ -128,7 +128,9 @@ struct ChannelCacheEntry
     // ChannelCacheEntry -> pva::Channel -> CRequester
     struct CRequester : public epics::pvAccess::ChannelRequester
     {
-        CRequester(const ChannelCacheEntry::shared_pointer& p) : chan(p) {}
+        static size_t num_instances;
+
+        CRequester(const ChannelCacheEntry::shared_pointer& p);
         virtual ~CRequester();
         ChannelCacheEntry::weak_pointer chan;
         // for Requester

@@ -176,10 +176,12 @@ MAIN(testmon)
     int ok = 1;
     size_t temp;
 #define TESTC(name) temp=epicsAtomicGetSizeT(&name::num_instances); ok &= temp==0; testDiag("num. live "  #name " %u", (unsigned)temp)
+    TESTC(GWChannel);
+    TESTC(ChannelCacheEntry::CRequester);
     TESTC(ChannelCacheEntry);
     TESTC(MonitorCacheEntry);
     TESTC(MonitorUser);
 #undef TESTC
-    testOk(temp, "All instances free'd");
+    testOk(ok, "All instances free'd");
     return testDone();
 }

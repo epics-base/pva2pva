@@ -37,7 +37,18 @@ ChannelCacheEntry::CRequester::getRequesterName()
     return "GWClient";
 }
 
-ChannelCacheEntry::CRequester::~CRequester() {}
+size_t ChannelCacheEntry::CRequester::num_instances;
+
+ChannelCacheEntry::CRequester::CRequester(const ChannelCacheEntry::shared_pointer& p)
+    :chan(p)
+{
+    epicsAtomicIncrSizeT(&num_instances);
+}
+
+ChannelCacheEntry::CRequester::~CRequester()
+{
+    epicsAtomicDecrSizeT(&num_instances);
+}
 
 void
 ChannelCacheEntry::CRequester::message(std::string const & message, pvd::MessageType messageType)
@@ -142,9 +153,26 @@ ChannelCache::ChannelCache(const pva::ChannelProvider::shared_pointer& prov)
 
 ChannelCache::~ChannelCache()
 {
+    Guard G(cacheLock);
+
     cleanTimer->destroy();
     timerQueue->release();
     delete cleaner;
+
+    entries_t E;
+    E.swap(entries);
+
+    FOREACH(it, end, E)
+    {
+        ChannelCacheEntry *ent = it->second.get();
+
+        if(ent->channel) {
+            epics::pvAccess::Channel::shared_pointer chan;
+            chan.swap(ent->channel);
+            UnGuard U(G);
+            chan->destroy();
+        }
+    }
 }
 
 ChannelCacheEntry::shared_pointer

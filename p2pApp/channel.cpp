@@ -43,6 +43,11 @@ GWChannel::message(std::string const & message, pvd::MessageType messageType)
 void
 GWChannel::destroy()
 {
+    epics::pvAccess::ChannelRequester::shared_pointer req;
+    {
+        Guard G(entry->mutex());
+        req.swap(requester);
+    }
 }
 
 std::tr1::shared_ptr<pva::ChannelProvider>
