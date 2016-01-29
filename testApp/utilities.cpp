@@ -386,7 +386,7 @@ void TestPVMonitor::release(pvd::MonitorElementPtr const & monitorElement)
     testDiag("TestPVMonitor::release %p %p", this, monitorElement.get());
 
     if(inoverflow) {
-        assert(!buffer.empty());
+        // buffer.empty() may be true if all elements poll()d by user
         assert(this->free.empty());
 
         monitorElement->pvStructurePtr->copyUnchecked(*overflow->pvStructurePtr);
@@ -446,6 +446,9 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
         FOREACH(it2, end2, tomon) // monitor/subscription
         {
             TestPVMonitor *mon = it2->get();
+
+            if(!mon->running)
+                continue;
 
             mon->overflow->pvStructurePtr->copyUnchecked(*value, changed);
 

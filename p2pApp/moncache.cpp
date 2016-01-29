@@ -137,6 +137,8 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
                 {
                     Guard G(usr->mutex());
+                    if(usr->initial)
+                        continue; // no start() yet
                     if(!usr->running || usr->empty.empty()) {
                         usr->inoverflow = true;
 
@@ -157,7 +159,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
                     AUTO_VAL(elem, usr->empty.front());
 
-                    elem->overrunBitSet->clear();
+                    *elem->overrunBitSet = *update->overrunBitSet;
                     assign(elem, update); // TODO: nice to avoid copy
 
                     usr->filled.push_back(elem);
@@ -272,7 +274,7 @@ MonitorUser::start()
         Guard G(mutex());
 
         if(initial) {
-            initial = true;
+            initial = false;
 
             empty.resize(entry->bufferSize);
             pvd::PVDataCreatePtr fact(pvd::getPVDataCreate());
@@ -284,17 +286,19 @@ MonitorUser::start()
             overflowElement.reset(new pvd::MonitorElement(fact->createPVStructure(typedesc)));
         }
 
+        doEvt = filled.empty();
+
         if(lval && !empty.empty()) {
             //already running, notify of initial element
 
             pvd::MonitorElementPtr elem(empty.front());
             elem->pvStructurePtr = lval;
-            elem->changedBitSet->set(0); // indicate all changed?
+            elem->changedBitSet->set(0); // indicate all changed
             filled.push_back(elem);
             empty.pop_front();
-
-            doEvt = true;
         }
+
+        doEvt &= !filled.empty();
         running = true;
     }
     if(doEvt)
@@ -341,6 +345,7 @@ MonitorUser::release(pvd::MonitorElementPtr const & monitorElement)
             filled.push_back(overflowElement);
             overflowElement = monitorElement;
             overflowElement->changedBitSet->clear();
+            overflowElement->overrunBitSet->clear();
 
             inoverflow = false;
         } else {
