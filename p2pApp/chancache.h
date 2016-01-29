@@ -72,6 +72,7 @@ struct MonitorUser : public epics::pvData::Monitor
     std::tr1::weak_ptr<GWChannel> srvchan;
 
     // guards queues and member variables
+    bool initial;
     bool running;
     bool inoverflow;
     size_t nwakeups; // # of monitorEvent() calls to req

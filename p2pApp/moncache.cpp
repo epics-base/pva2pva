@@ -221,8 +221,9 @@ MonitorCacheEntry::message(std::string const & message, pvd::MessageType message
 
 MonitorUser::MonitorUser(const MonitorCacheEntry::shared_pointer &e)
     :entry(e)
+    ,initial(true)
     ,running(false)
-    ,inoverflow(true)
+    ,inoverflow(false)
     ,nevents(0)
     ,ndropped(0)
 {
@@ -268,7 +269,9 @@ MonitorUser::start()
     {
         Guard G(mutex());
 
-        if(empty.empty()) {
+        if(initial) {
+            initial = true;
+
             empty.resize(entry->bufferSize);
             pvd::PVDataCreatePtr fact(pvd::getPVDataCreate());
             for(unsigned i=0; i<empty.size(); i++) {
@@ -333,14 +336,9 @@ MonitorUser::release(pvd::MonitorElementPtr const & monitorElement)
             // to avoid copy, enqueue the current overflowElement
             // and replace it with the element being release()d
 
-            empty.push_back(overflowElement);
-            try{
-                filled.push_back(overflowElement);
-            }catch(...){
-                empty.pop_back();
-                throw;
-            }
+            filled.push_back(overflowElement);
             overflowElement = monitorElement;
+            overflowElement->changedBitSet->clear();
 
             inoverflow = false;
         } else {
