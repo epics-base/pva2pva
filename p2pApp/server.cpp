@@ -8,172 +8,160 @@
 
 #define epicsExportSharedSymbols
 #include "helper.h"
-#include "pva2pva.h"
 #include "iocshelper.h"
-#include "chancache.h"
-#include "channel.h"
+#include "pva2pva.h"
+#include "server.h"
 
 namespace pva = epics::pvAccess;
 namespace pvd = epics::pvData;
 
-namespace {
-
-struct GWServerChannelProvider : public
-        pva::ChannelProvider,
-        pva::ChannelFind,
-        std::tr1::enable_shared_from_this<GWServerChannelProvider>
+std::tr1::shared_ptr<pva::ChannelProvider>
+GWServerChannelProvider::getChannelProvider()
 {
-    ChannelCache cache;
+    return shared_from_this();
+}
 
-    // for ChannelFind
+// Called from UDP search thread with no locks held
+// Called from TCP threads (for search w/ TCP)
+pva::ChannelFind::shared_pointer
+GWServerChannelProvider::channelFind(std::string const & channelName,
+                                     pva::ChannelFindRequester::shared_pointer const & channelFindRequester)
+{
+    pva::ChannelFind::shared_pointer ret;
+    bool found = false;
 
-    virtual std::tr1::shared_ptr<ChannelProvider> getChannelProvider()
+    if(!channelName.empty())
     {
-        return this->shared_from_this();
-    }
-
-    virtual void cancel() {}
-
-    // For ChannelProvider
-
-    virtual std::string getProviderName() {
-        return "GWServer";
-    }
-
-    // Called from UDP search thread with no locks held
-    // Called from TCP threads (for search w/ TCP)
-    virtual pva::ChannelFind::shared_pointer channelFind(std::string const & channelName,
-                                             pva::ChannelFindRequester::shared_pointer const & channelFindRequester)
-    {
-        pva::ChannelFind::shared_pointer ret;
-        bool found = false;
-
-        if(!channelName.empty())
-        {
-            std::string newName;
-
-            // rewrite name
-            newName = channelName;
-
-            Guard G(cache.cacheLock);
-
-            ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
-
-            if(it==cache.entries.end()) {
-                // first request, create ChannelCacheEntry
-                //TODO: async lookup
-
-                ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(&cache, newName));
-
-                cache.entries[newName] = ent;
-
-                pva::Channel::shared_pointer M;
-                {
-                    // unlock to call createChannel()
-                    epicsGuardRelease<epicsMutex> U(G);
-
-                    pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
-                    M = cache.provider->createChannel(newName, req);
-                    if(!M)
-                        THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
-                }
-                ent->channel = M;
-
-            } else if(it->second->channel && it->second->channel->isConnected()) {
-                // another request, and hey we're connected this time
-
-                ret=this->shared_from_this();
-                found=true;
-                std::cerr<<"GWServer accepting "<<channelName<<" as "<<newName<<"\n";
-
-                it->second->dropPoke = true;
-
-            } else {
-                // not connected yet, but a client is still interested
-                it->second->dropPoke = true;
-                std::cout<<"cache poke "<<newName<<"\n";
-            }
-        }
-
-        // unlock for callback
-
-        channelFindRequester->channelFindResult(pvd::Status::Ok, ret, found);
-
-        return ret;
-    }
-
-    virtual pva::ChannelFind::shared_pointer channelList(pva::ChannelListRequester::shared_pointer const & channelListRequester)
-    {
-        std::cerr<<"GWServer does not advertise a channel list\n";
-        return pva::ChannelFind::shared_pointer();
-    }
-
-    virtual pva::Channel::shared_pointer createChannel(std::string const & channelName,
-                                                       pva::ChannelRequester::shared_pointer const & channelRequester,
-                                                       short priority = PRIORITY_DEFAULT)
-    {
-        return createChannel(channelName, channelRequester, priority, "foobar");
-    }
-
-    // The return value of this function is ignored
-    // The newly created channel is given to the ChannelRequester
-    virtual pva::Channel::shared_pointer createChannel(std::string const & channelName,
-                                                       pva::ChannelRequester::shared_pointer const & channelRequester,
-                                                       short priority, std::string const & addressx)
-    {
-        GWChannel::shared_pointer ret;
         std::string newName;
-        std::string address = channelRequester->getRequesterName();
 
-        if(!channelName.empty())
-        {
+        // rewrite name
+        newName = channelName;
+        //newName[0] = 'y';
 
-            // rewrite name
-            newName = channelName;
+        Guard G(cache.cacheLock);
 
-            Guard G(cache.cacheLock);
+        ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
 
-            ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
-            if(it!=cache.entries.end() && it->second->channel
-                    && it->second->channel->isConnected())
+        if(it==cache.entries.end()) {
+            // first request, create ChannelCacheEntry
+            //TODO: async lookup
+
+            ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(&cache, newName));
+
+            cache.entries[newName] = ent;
+
+            pva::Channel::shared_pointer M;
             {
-                ret.reset(new GWChannel(it->second, shared_from_this(), channelRequester, address));
-                it->second->interested.insert(ret);
-                ret->weakref = ret;
+                // unlock to call createChannel()
+                epicsGuardRelease<epicsMutex> U(G);
+
+                pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
+                M = cache.provider->createChannel(newName, req);
+                if(!M)
+                    THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
             }
-        }
+            ent->channel = M;
 
-        if(!ret) {
-            std::cerr<<"GWServer refusing channel "<<channelName<<"\n";
-            pvd::Status S(pvd::Status::STATUSTYPE_ERROR, "Not found");
-            channelRequester->channelCreated(S, ret);
+        } else if(it->second->channel && it->second->channel->isConnected()) {
+            // another request, and hey we're connected this time
+
+            ret=this->shared_from_this();
+            found=true;
+            std::cerr<<"GWServer accepting "<<channelName<<" as "<<newName<<"\n";
+
+            it->second->dropPoke = true;
+
         } else {
-            std::cerr<<"GWServer connecting channel "<<channelName<<" as "<<newName<<"\n";
-            channelRequester->channelCreated(pvd::Status::Ok, ret);
-            channelRequester->channelStateChange(ret, pva::Channel::CONNECTED);
+            // not connected yet, but a client is still interested
+            it->second->dropPoke = true;
+            std::cout<<"cache poke "<<newName<<"\n";
         }
-
-        return ret; // ignored by caller
     }
 
-    virtual void configure(epics::pvData::PVStructure::shared_pointer /*configuration*/) {
-        std::cout<<"GWServer being configured\n";
-    }
+    // unlock for callback
 
-    virtual void destroy()
+    channelFindRequester->channelFindResult(pvd::Status::Ok, ret, found);
+
+    return ret;
+}
+
+pva::ChannelFind::shared_pointer
+GWServerChannelProvider::channelList(pva::ChannelListRequester::shared_pointer const & channelListRequester)
+{
+    std::cerr<<"GWServer does not advertise a channel list\n";
+    return pva::ChannelFind::shared_pointer();
+}
+
+pva::Channel::shared_pointer
+GWServerChannelProvider::createChannel(std::string const & channelName,
+                                       pva::ChannelRequester::shared_pointer const & channelRequester,
+                                       short priority)
+{
+    return createChannel(channelName, channelRequester, priority, "foobar");
+}
+
+// The return value of this function is ignored
+// The newly created channel is given to the ChannelRequester
+pva::Channel::shared_pointer
+GWServerChannelProvider::createChannel(std::string const & channelName,
+                                       pva::ChannelRequester::shared_pointer const & channelRequester,
+                                       short priority, std::string const & addressx)
+{
+    GWChannel::shared_pointer ret;
+    std::string newName;
+    std::string address = channelRequester->getRequesterName();
+
+    if(!channelName.empty())
     {
-        std::cout<<"GWServer destory request\n";
+
+        // rewrite name
+        newName = channelName;
+        //newName[0] = 'y';
+
+        Guard G(cache.cacheLock);
+
+        ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
+        if(it!=cache.entries.end() && it->second->channel
+                && it->second->channel->isConnected())
+        {
+            ret.reset(new GWChannel(it->second, shared_from_this(), channelRequester, address));
+            it->second->interested.insert(ret);
+            ret->weakref = ret;
+        }
     }
 
-    GWServerChannelProvider()
-    {
-        std::cout<<"GW Server ctor\n";
+    if(!ret) {
+        std::cerr<<"GWServer refusing channel "<<channelName<<"\n";
+        pvd::Status S(pvd::Status::STATUSTYPE_ERROR, "Not found");
+        channelRequester->channelCreated(S, ret);
+    } else {
+        std::cerr<<"GWServer connecting channel "<<channelName<<" as "<<newName<<"\n";
+        channelRequester->channelCreated(pvd::Status::Ok, ret);
+        channelRequester->channelStateChange(ret, pva::Channel::CONNECTED);
     }
-    virtual ~GWServerChannelProvider()
-    {
-        std::cout<<"GW Server dtor\n";
-    }
-};
+
+    return ret; // ignored by caller
+}
+
+void GWServerChannelProvider::configure(epics::pvData::PVStructure::shared_pointer /*configuration*/) {
+    std::cout<<"GWServer being configured\n";
+}
+
+void GWServerChannelProvider::destroy()
+{
+    std::cout<<"GWServer destory request\n";
+}
+
+GWServerChannelProvider::GWServerChannelProvider()
+{
+    std::cout<<"GW Server ctor\n";
+}
+GWServerChannelProvider::~GWServerChannelProvider()
+{
+    std::cout<<"GW Server dtor\n";
+}
+
+namespace {
 
 struct GWServerChannelProviderFactory : public pva::ChannelProviderFactory
 {
@@ -206,7 +194,7 @@ static
 bool p2pServerRunning;
 
 static
-std::tr1::weak_ptr<pva::ServerContextImpl> gblctx;
+std::tr1::weak_ptr<pva::ServerContextImpl> gblctx; //TODO mutex for this
 
 static
 void runGWServer(void *)
