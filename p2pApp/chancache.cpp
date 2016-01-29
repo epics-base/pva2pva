@@ -146,3 +146,49 @@ ChannelCache::~ChannelCache()
     timerQueue->release();
     delete cleaner;
 }
+
+ChannelCacheEntry::shared_pointer
+ChannelCache::lookup(const std::string& newName)
+{
+    ChannelCacheEntry::shared_pointer ret;
+
+    Guard G(cacheLock);
+
+    entries_t::const_iterator it = entries.find(newName);
+
+    if(it==entries.end()) {
+        // first request, create ChannelCacheEntry
+        //TODO: async lookup
+
+        ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(this, newName));
+
+        entries[newName] = ent;
+
+        pva::Channel::shared_pointer M;
+        {
+            // unlock to call createChannel()
+            epicsGuardRelease<epicsMutex> U(G);
+
+            pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
+            M = provider->createChannel(newName, req);
+            if(!M)
+                THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
+        }
+        ent->channel = M;
+
+        if(M->isConnected())
+            ret = ent; // immediate connect, mostly for unit-tests (thus delayed connect not covered)
+
+    } else if(it->second->channel && it->second->channel->isConnected()) {
+        // another request, and hey we're connected this time
+
+        ret = it->second;
+        it->second->dropPoke = true;
+
+    } else {
+        // not connected yet, but a client is still interested
+        it->second->dropPoke = true;
+    }
+
+    return ret;
+}

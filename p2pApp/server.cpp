@@ -38,43 +38,11 @@ GWServerChannelProvider::channelFind(std::string const & channelName,
         newName = channelName;
         //newName[0] = 'y';
 
-        Guard G(cache.cacheLock);
 
-        ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
-
-        if(it==cache.entries.end()) {
-            // first request, create ChannelCacheEntry
-            //TODO: async lookup
-
-            ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(&cache, newName));
-
-            cache.entries[newName] = ent;
-
-            pva::Channel::shared_pointer M;
-            {
-                // unlock to call createChannel()
-                epicsGuardRelease<epicsMutex> U(G);
-
-                pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
-                M = cache.provider->createChannel(newName, req);
-                if(!M)
-                    THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
-            }
-            ent->channel = M;
-
-        } else if(it->second->channel && it->second->channel->isConnected()) {
-            // another request, and hey we're connected this time
-
-            ret=this->shared_from_this();
-            found=true;
-            std::cerr<<"GWServer accepting "<<channelName<<" as "<<newName<<"\n";
-
-            it->second->dropPoke = true;
-
-        } else {
-            // not connected yet, but a client is still interested
-            it->second->dropPoke = true;
-            std::cout<<"cache poke "<<newName<<"\n";
+        ChannelCacheEntry::shared_pointer ent(cache.lookup(newName));
+        if(ent) {
+            found = true;
+            ret = shared_from_this();
         }
     }
 
@@ -120,12 +88,12 @@ GWServerChannelProvider::createChannel(std::string const & channelName,
 
         Guard G(cache.cacheLock);
 
-        ChannelCache::entries_t::const_iterator it = cache.entries.find(newName);
-        if(it!=cache.entries.end() && it->second->channel
-                && it->second->channel->isConnected())
+        ChannelCacheEntry::shared_pointer ent(cache.lookup(newName)); // recursively locks cacheLock
+
+        if(ent)
         {
-            ret.reset(new GWChannel(it->second, shared_from_this(), channelRequester, address));
-            it->second->interested.insert(ret);
+            ret.reset(new GWChannel(ent, shared_from_this(), channelRequester, address));
+            ent->interested.insert(ret);
             ret->weakref = ret;
         }
     }

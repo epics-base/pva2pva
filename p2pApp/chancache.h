@@ -163,6 +163,8 @@ struct ChannelCache
 
     ChannelCache(const epics::pvAccess::ChannelProvider::shared_pointer& prov);
     ~ChannelCache();
+
+    ChannelCacheEntry::shared_pointer lookup(const std::string& name);
 };
 
 #endif // CHANCACHE_H

@@ -9,6 +9,7 @@ struct GWServerChannelProvider : public
         epics::pvAccess::ChannelFind,
         std::tr1::enable_shared_from_this<GWServerChannelProvider>
 {
+    POINTER_DEFINITIONS(GWServerChannelProvider);
     ChannelCache cache;
 
     virtual std::tr1::shared_ptr<ChannelProvider> getChannelProvider();
