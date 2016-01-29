@@ -23,6 +23,22 @@ struct TestProvider;
         testDiag("%s : " #NAME "(%p) : %s", epics::pvData::getMessageTypeName(messageType).c_str(), this, message.c_str()); \
     }
 
+template<class C, void (C::*M)()>
+void test_method(const char *kname, const char *mname)
+{
+    try {
+        testDiag("------- %s::%s --------", kname, mname);
+        C inst;
+        (inst.*M)();
+    } catch(std::exception& e) {
+        PRINT_EXCEPTION(e);
+        testAbort("unexpected exception: %s", e.what());
+    }
+}
+
+// Construct an instance and run one method
+#define TEST_METHOD(klass, method) test_method<klass, &klass::method>(#klass, #method)
+
 // Boilerplate reduction for accessing a scalar field
 template<typename T>
 struct ScalarAccessor {
@@ -51,7 +67,7 @@ struct TestChannelRequester : public epics::pvAccess::ChannelRequester
     epics::pvData::Status status;
     epics::pvAccess::Channel::ConnectionState laststate;
     TestChannelRequester();
-    virtual ~TestChannelRequester() {}
+    virtual ~TestChannelRequester();
     virtual void channelCreated(const epics::pvData::Status& status, epics::pvAccess::Channel::shared_pointer const & channel);
     virtual void channelStateChange(epics::pvAccess::Channel::shared_pointer const & channel, epics::pvAccess::Channel::ConnectionState connectionState);
 
@@ -73,7 +89,7 @@ struct TestChannelMonitorRequester : public epics::pvData::MonitorRequester
     epics::pvData::StructureConstPtr dtype;
 
     TestChannelMonitorRequester();
-    virtual ~TestChannelMonitorRequester() {}
+    virtual ~TestChannelMonitorRequester();
 
     virtual void monitorConnect(epics::pvData::Status const & status,
                                 epics::pvData::MonitorPtr const & monitor,
@@ -183,6 +199,7 @@ struct TestPV
     TestPV(const std::string& name,
            const std::tr1::shared_ptr<TestProvider>& provider,
            const epics::pvData::StructureConstPtr& dtype);
+    ~TestPV();
 
     void post(const epics::pvData::BitSet& changed, bool notify = true);
 
@@ -210,7 +227,7 @@ struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_
                                            short priority, std::string const & address);
 
     TestProvider();
-    virtual ~TestProvider() {}
+    virtual ~TestProvider();
 
     TestPV::shared_pointer addPV(const std::string& name, const epics::pvData::StructureConstPtr& tdef);
 
@@ -219,6 +236,8 @@ struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_
     epicsMutex lock;
     typedef weak_value_map<std::string, TestPV> pvs_t;
     pvs_t pvs;
+
+    static void testCounts();
 };
 
 #endif // UTILITIES_H

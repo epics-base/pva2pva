@@ -64,6 +64,12 @@ struct TestMonitor {
         test1_y = 2;
     }
 
+    ~TestMonitor()
+    {
+        client->destroy();
+        gateway->destroy(); // noop atm.
+    }
+
     void test_event()
     {
         testDiag("Push the initial event through from upstream to downstream");
@@ -82,6 +88,10 @@ struct TestMonitor {
         testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==1);
 
         if(elem) mon->release(elem);
+
+        testOk1(!!mon->poll());
+
+        mon->destroy();
     }
 
     void test_share()
@@ -119,23 +129,37 @@ struct TestMonitor {
 
         if(elem) mon->release(elem);
         if(elem2) mon2->release(elem2);
+
+        testOk1(!!mon->poll());
+        testOk1(!!mon2->poll());
+
+        testDiag("explicitly push an update");
+        test1_x = 42;
+        test1_y = 43;
+        pvd::BitSet changed;
+        changed.set(1); // only indicate that 'x' changed
+        test1->post(changed);
+
+        elem = mon->poll();
+        elem2 = mon2->poll();
+        testOk1(!!elem.get());
+        testOk1(!!elem2.get());
+        testOk1(elem!=elem2);
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==42);
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==2);
+        testOk1(elem2 && elem2->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==42);
+        testOk1(elem2 && elem2->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==2);
+
+        if(elem) mon->release(elem);
+        if(elem2) mon2->release(elem2);
+
+        testOk1(!!mon->poll());
+        testOk1(!!mon2->poll());
+
+        mon->destroy();
+        mon2->destroy();
     }
 };
-
-template<class C, void (C::*M)()>
-void test_method(const char *kname, const char *mname)
-{
-    try {
-        testDiag("------- %s::%s --------", kname, mname);
-        C inst;
-        (inst.*M)();
-    } catch(std::exception& e) {
-        PRINT_EXCEPTION(e);
-        testAbort("unexpected exception: %s", e.what());
-    }
-}
-
-#define TEST_METHOD(klass, method) test_method<klass, &klass::method>(#klass, #method)
 
 } // namespace
 
@@ -144,5 +168,6 @@ MAIN(testmon)
     testPlan(0);
     TEST_METHOD(TestMonitor, test_event);
     TEST_METHOD(TestMonitor, test_share);
+    TestProvider::testCounts();
     return testDone();
 }

@@ -157,5 +157,6 @@ MAIN(testtest)
 {
     testPlan(0);
     testmonitor();
+    TestProvider::testCounts();
     return testDone();
 }

@@ -1,4 +1,6 @@
 
+#include <epicsAtomic.h>
+
 #include <utilities.h>
 #include <helper.h>
 
@@ -12,9 +14,19 @@ namespace {
 int debugdebug = getenv("TEST_EXTRA_DEBUG")!=NULL;
 }
 
+static size_t countTestChannelRequester;
+
 TestChannelRequester::TestChannelRequester()
     :laststate(pva::Channel::NEVER_CONNECTED)
-{}
+{
+    epicsAtomicIncrSizeT(&countTestChannelRequester);
+}
+
+
+TestChannelRequester::~TestChannelRequester()
+{
+    epicsAtomicDecrSizeT(&countTestChannelRequester);
+}
 
 void TestChannelRequester::channelCreated(const pvd::Status& status, pva::Channel::shared_pointer const & channel)
 {
@@ -58,11 +70,20 @@ bool TestChannelRequester::waitForConnect()
 
 }
 
+static size_t countTestChannelMonitorRequester;
+
 TestChannelMonitorRequester::TestChannelMonitorRequester()
     :connected(false)
     ,unlistend(false)
     ,eventCnt(0)
-{}
+{
+    epicsAtomicIncrSizeT(&countTestChannelMonitorRequester);
+}
+
+TestChannelMonitorRequester::~TestChannelMonitorRequester()
+{
+    epicsAtomicDecrSizeT(&countTestChannelMonitorRequester);
+}
 
 void TestChannelMonitorRequester::monitorConnect(pvd::Status const & status,
                                                  pvd::MonitorPtr const & monitor,
@@ -106,18 +127,23 @@ bool TestChannelMonitorRequester::waitForEvent()
     return !unlistend;
 }
 
+static size_t countTestPVChannel;
+
 TestPVChannel::TestPVChannel(const std::tr1::shared_ptr<TestPV> &pv,
                              const std::tr1::shared_ptr<pva::ChannelRequester> &req)
     :pv(pv)
     ,requester(req)
     ,state(CONNECTED)
-{}
+{
+    epicsAtomicIncrSizeT(&countTestPVChannel);
+}
 
 TestPVChannel::~TestPVChannel()
 {
     Guard G(pv->provider->lock);
     if(requester)
         testDiag("Warning: TestPVChannel dropped w/o destroy()");
+    epicsAtomicDecrSizeT(&countTestPVChannel);
 }
 
 void TestPVChannel::destroy()
@@ -242,6 +268,8 @@ TestPVChannel::createChannelArray(
     return ret;
 }
 
+static size_t countTestPVMonitor;
+
 TestPVMonitor::TestPVMonitor(const TestPVChannel::shared_pointer& ch,
               const pvd::MonitorRequester::shared_pointer& req,
               size_t bsize)
@@ -257,6 +285,7 @@ TestPVMonitor::TestPVMonitor(const TestPVChannel::shared_pointer& ch,
         pvd::MonitorElementPtr elem(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
         free.push_back(elem);
     }
+    epicsAtomicIncrSizeT(&countTestPVMonitor);
 }
 
 TestPVMonitor::~TestPVMonitor()
@@ -264,6 +293,7 @@ TestPVMonitor::~TestPVMonitor()
     Guard G(channel->pv->provider->lock);
     if(requester)
         testDiag("Warning: TestPVMonitor dropped w/o destroy()");
+    epicsAtomicDecrSizeT(&countTestPVMonitor);
 }
 
 void TestPVMonitor::destroy()
@@ -370,6 +400,8 @@ void TestPVMonitor::release(pvd::MonitorElementPtr const & monitorElement)
     }
 }
 
+static size_t countTestPV;
+
 TestPV::TestPV(const std::string& name,
                const std::tr1::shared_ptr<TestProvider>& provider,
                const pvd::StructureConstPtr& dtype)
@@ -378,7 +410,14 @@ TestPV::TestPV(const std::string& name,
     ,factory(pvd::PVDataCreate::getPVDataCreate())
     ,dtype(dtype)
     ,value(factory->createPVStructure(dtype))
-{}
+{
+    epicsAtomicIncrSizeT(&countTestPV);
+}
+
+TestPV::~TestPV()
+{
+    epicsAtomicDecrSizeT(&countTestPV);
+}
 
 void TestPV::post(const pvd::BitSet& changed, bool notify)
 {
@@ -444,7 +483,17 @@ void TestPV::disconnect()
     }
 }
 
-TestProvider::TestProvider() {}
+static size_t countTestProvider;
+
+TestProvider::TestProvider()
+{
+    epicsAtomicIncrSizeT(&countTestProvider);
+}
+
+TestProvider::~TestProvider()
+{
+    epicsAtomicDecrSizeT(&countTestProvider);
+}
 
 void TestProvider::destroy()
 {
@@ -555,4 +604,22 @@ void TestProvider::dispatch()
             }
         }
     }
+}
+
+void TestProvider::testCounts()
+{
+    int ok = 1;
+    size_t temp;
+#define TESTC(name) temp=epicsAtomicGetSizeT(&count##name); ok &= temp==0; testDiag("num. live "  #name " %u", (unsigned)temp)
+    TESTC(TestChannelMonitorRequester);
+    TESTC(TestChannelRequester);
+    TESTC(TestProvider);
+    TESTC(TestPV);
+    TESTC(TestPVChannel);
+    TESTC(TestPVMonitor);
+#undef TESTC
+    if(ok)
+        testPass("All instances free'd");
+    else
+        testFail("Some instances leaked");
 }
