@@ -63,7 +63,6 @@ struct TestMonitor {
             testAbort("channel \"test1\" not connected");
         test1_x = 1;
         test1_y = 2;
-        test1->post();
     }
 
     ~TestMonitor()

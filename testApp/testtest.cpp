@@ -37,7 +37,6 @@ void testmonitor()
 
     x = 42;
     y = 15;
-    pv->post();
 
     testDiag("Create channel");
     TestChannelRequester::shared_pointer creq(new TestChannelRequester);

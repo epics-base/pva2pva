@@ -54,6 +54,10 @@ struct ScalarAccessor {
         field->putFrom<T>(v);
         return *this;
     }
+    ScalarAccessor& operator+=(T v) {
+        field->putFrom<T>(field->getAs<T>()+v);
+        return *this;
+    }
 };
 
 struct TestChannelRequester : public epics::pvAccess::ChannelRequester
