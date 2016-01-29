@@ -1,4 +1,5 @@
 
+#include <epicsAtomic.h>
 #include <epicsGuard.h>
 #include <epicsUnitTest.h>
 #include <testMain.h>
@@ -62,6 +63,7 @@ struct TestMonitor {
             testAbort("channel \"test1\" not connected");
         test1_x = 1;
         test1_y = 2;
+        test1->post();
     }
 
     ~TestMonitor()
@@ -89,7 +91,7 @@ struct TestMonitor {
 
         if(elem) mon->release(elem);
 
-        testOk1(!!mon->poll());
+        testOk1(!mon->poll());
 
         mon->destroy();
     }
@@ -125,13 +127,15 @@ struct TestMonitor {
         testOk1(!!elem2.get());
         testOk1(elem!=elem2);
         testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==1);
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==2);
         testOk1(elem2 && elem2->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==1);
+        testOk1(elem2 && elem2->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==2);
 
         if(elem) mon->release(elem);
         if(elem2) mon2->release(elem2);
 
-        testOk1(!!mon->poll());
-        testOk1(!!mon2->poll());
+        testOk1(!mon->poll());
+        testOk1(!mon2->poll());
 
         testDiag("explicitly push an update");
         test1_x = 42;
@@ -153,8 +157,8 @@ struct TestMonitor {
         if(elem) mon->release(elem);
         if(elem2) mon2->release(elem2);
 
-        testOk1(!!mon->poll());
-        testOk1(!!mon2->poll());
+        testOk1(!mon->poll());
+        testOk1(!mon2->poll());
 
         mon->destroy();
         mon2->destroy();
@@ -169,5 +173,13 @@ MAIN(testmon)
     TEST_METHOD(TestMonitor, test_event);
     TEST_METHOD(TestMonitor, test_share);
     TestProvider::testCounts();
+    int ok = 1;
+    size_t temp;
+#define TESTC(name) temp=epicsAtomicGetSizeT(&name::num_instances); ok &= temp==0; testDiag("num. live "  #name " %u", (unsigned)temp)
+    TESTC(ChannelCacheEntry);
+    TESTC(MonitorCacheEntry);
+    TESTC(MonitorUser);
+#undef TESTC
+    testOk(temp, "All instances free'd");
     return testDone();
 }

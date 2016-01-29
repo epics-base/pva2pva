@@ -285,6 +285,7 @@ TestPVMonitor::TestPVMonitor(const TestPVChannel::shared_pointer& ch,
         pvd::MonitorElementPtr elem(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
         free.push_back(elem);
     }
+    overflow.reset(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
     epicsAtomicIncrSizeT(&countTestPVMonitor);
 }
 
@@ -309,48 +310,51 @@ pvd::Status TestPVMonitor::start()
 {
     if(debugdebug)
         testDiag("TestPVMonitor::start %p", this);
-    {
-        Guard G(channel->pv->provider->lock);
-        if(finalize && buffer.empty())
-            return pvd::Status();
 
-        if(running)
-            return pvd::Status();
-        running = true;
+    Guard G(channel->pv->provider->lock);
+    if(finalize && buffer.empty())
+        return pvd::Status();
 
-        if(this->buffer.empty()) {
-            needWakeup = true;
-            if(debugdebug)
-                testDiag(" need wakeup");
-        }
+    if(running)
+        return pvd::Status();
+    running = true;
 
-        if(!this->free.empty()) {
-            pvd::MonitorElementPtr monitorElement(this->free.front());
+    // overflow element does double duty to hold this monitor's copy
+    overflow->pvStructurePtr->copyUnchecked(*channel->pv->value);
 
-            if(changedMask.isEmpty()) {
-                changedMask.set(0); // initial update has all changed
-                overflowMask.clear();
-            }
-
-            monitorElement->pvStructurePtr->copyUnchecked(*channel->pv->value);
-            *monitorElement->changedBitSet = changedMask;
-            *monitorElement->overrunBitSet = overflowMask;
-            changedMask.clear();
-            overflowMask.clear();
-
-            buffer.push_back(monitorElement);
-            this->free.pop_front();
-            if(debugdebug)
-                testDiag(" push current");
-
-        } else {
-            inoverflow = true;
-            changedMask.clear();
-            changedMask.set(0);
-            if(debugdebug)
-                testDiag(" push overflow");
-        }
+    if(this->buffer.empty()) {
+        needWakeup = true;
+        if(debugdebug)
+            testDiag(" need wakeup");
     }
+
+    if(!this->free.empty()) {
+        pvd::MonitorElementPtr monitorElement(this->free.front());
+
+        if(overflow->changedBitSet->isEmpty()) {
+            overflow->changedBitSet->set(0); // initial update has all changed
+            overflow->overrunBitSet->clear();
+        }
+
+        monitorElement->pvStructurePtr->copyUnchecked(*overflow->pvStructurePtr);
+        *monitorElement->changedBitSet = *overflow->changedBitSet;
+        *monitorElement->overrunBitSet = *overflow->overrunBitSet;
+        overflow->changedBitSet->clear();
+        overflow->overrunBitSet->clear();
+
+        buffer.push_back(monitorElement);
+        this->free.pop_front();
+        if(debugdebug)
+            testDiag(" push current");
+
+    } else {
+        inoverflow = true;
+        overflow->changedBitSet->clear();
+        overflow->changedBitSet->set(0);
+        if(debugdebug)
+            testDiag(" push overflow");
+    }
+
     return pvd::Status();
 }
 
@@ -385,12 +389,12 @@ void TestPVMonitor::release(pvd::MonitorElementPtr const & monitorElement)
         assert(!buffer.empty());
         assert(this->free.empty());
 
-        monitorElement->pvStructurePtr->copyUnchecked(*channel->pv->value);
-        *monitorElement->changedBitSet = changedMask;
-        *monitorElement->overrunBitSet = overflowMask;
+        monitorElement->pvStructurePtr->copyUnchecked(*overflow->pvStructurePtr);
+        *monitorElement->changedBitSet = *overflow->changedBitSet;
+        *monitorElement->overrunBitSet = *overflow->overrunBitSet;
 
-        changedMask.clear();
-        overflowMask.clear();
+        overflow->changedBitSet->clear();
+        overflow->overrunBitSet->clear();
 
         buffer.push_back(monitorElement);
         testDiag("TestPVMonitor::overflow resume %p %p", this, monitorElement.get());
@@ -419,11 +423,19 @@ TestPV::~TestPV()
     epicsAtomicDecrSizeT(&countTestPV);
 }
 
+void TestPV::post(bool notify)
+{
+    pvd::BitSet changed;
+    changed.set(0); // all
+    post(changed, notify);
+}
+
 void TestPV::post(const pvd::BitSet& changed, bool notify)
 {
     if(debugdebug)
         testDiag("post %s %d", name.c_str(), (int)notify);
     Guard G(provider->lock);
+
     channels_t::vector_type toupdate(channels.lock_vector());
 
     FOREACH(it, end, toupdate) // channel
@@ -435,19 +447,22 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
         {
             TestPVMonitor *mon = it2->get();
 
-            if(mon->inoverflow || mon->free.empty()) {
+            mon->overflow->pvStructurePtr->copyUnchecked(*value, changed);
+
+            if(mon->free.empty()) {
                 mon->inoverflow = true;
-                mon->overflowMask.or_and(mon->changedMask, changed); // oflow = prev_changed & new_changed
-                mon->changedMask |= changed;
+                mon->overflow->overrunBitSet->or_and(*mon->overflow->changedBitSet, changed); // oflow = prev_changed & new_changed
+                *mon->overflow->changedBitSet |= changed;
                 if(debugdebug) testDiag("overflow");
 
             } else {
+                assert(!mon->inoverflow);
 
                 if(mon->buffer.empty())
                     mon->needWakeup = true;
 
                 AUTO_REF(elem, mon->free.front());
-                elem->pvStructurePtr->copyUnchecked(*value);
+                elem->pvStructurePtr->copyUnchecked(*mon->overflow->pvStructurePtr);
                 *elem->changedBitSet = changed;
                 elem->overrunBitSet->clear(); // redundant/paranoia
 
@@ -618,8 +633,5 @@ void TestProvider::testCounts()
     TESTC(TestPVChannel);
     TESTC(TestPVMonitor);
 #undef TESTC
-    if(ok)
-        testPass("All instances free'd");
-    else
-        testFail("Some instances leaked");
+    testOk(ok, "All instances free'd");
 }

@@ -32,9 +32,12 @@ void testmonitor()
                                           ->add("y", pvd::pvInt)
                                           ->createStructure()));
 
-    ScalarAccessor<pvd::int32> x(pv->value, "x");
+    ScalarAccessor<pvd::int32> x(pv->value, "x"),
+                               y(pv->value, "y");
 
     x = 42;
+    y = 15;
+    pv->post();
 
     testDiag("Create channel");
     TestChannelRequester::shared_pointer creq(new TestChannelRequester);
@@ -74,6 +77,7 @@ void testmonitor()
     testOk1(!!elem.get());
 
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==42);
+    testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==0); // initial update shows all changed
     testOk1(elem && elem->changedBitSet->nextSetBit(1)==-1);
     testOk1(elem && elem->overrunBitSet->isEmpty());
@@ -82,10 +86,11 @@ void testmonitor()
     testDiag("ensure start() queues only one");
     testOk1(!mon->poll());
 
-    testDiag("Change a field");
+    testDiag("Change both fields, only push 'x'");
     x = 43;
+    y = 16;
     pvd::BitSet changed;
-    changed.set(1);
+    changed.set(1); // only notify that 'x' changed
     pv->post(changed);
 
     testOk1(mreq->eventCnt==1);
@@ -94,6 +99,7 @@ void testmonitor()
     testOk1(!!elem.get());
 
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==43);
+    testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
     testOk1(elem && elem->changedBitSet->nextSetBit(2)==-1);
     testOk1(elem && elem->overrunBitSet->isEmpty());
@@ -121,6 +127,7 @@ void testmonitor()
     testOk1(!!elem.get());
 
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==44);
+    testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
     testOk1(elem && elem->overrunBitSet->isEmpty());
     if(elem) mon->release(elem); // overflow element is queued here
@@ -129,6 +136,7 @@ void testmonitor()
     testOk1(!!elem.get());
 
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==45);
+    testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
     testOk1(elem && elem->overrunBitSet->isEmpty());
     if(elem) mon->release(elem);
@@ -137,6 +145,7 @@ void testmonitor()
     testOk1(!!elem.get());
 
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==47);
+    testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
     testOk1(elem && elem->overrunBitSet->nextSetBit(0)==1);
     testOk1(elem && elem->overrunBitSet->nextSetBit(2)==-1);

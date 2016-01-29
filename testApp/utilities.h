@@ -182,7 +182,7 @@ struct TestPVMonitor : public epics::pvData::Monitor
     virtual void release(epics::pvData::MonitorElementPtr const & monitorElement);
 
     std::deque<epics::pvData::MonitorElementPtr> buffer, free;
-    epics::pvData::BitSet changedMask, overflowMask;
+    epics::pvData::MonitorElementPtr overflow;
 };
 
 struct TestPV
@@ -201,6 +201,7 @@ struct TestPV
            const epics::pvData::StructureConstPtr& dtype);
     ~TestPV();
 
+    void post(bool notify = true);
     void post(const epics::pvData::BitSet& changed, bool notify = true);
 
     void disconnect();
