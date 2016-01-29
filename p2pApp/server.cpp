@@ -152,7 +152,8 @@ void GWServerChannelProvider::destroy()
     std::cout<<"GWServer destory request\n";
 }
 
-GWServerChannelProvider::GWServerChannelProvider()
+GWServerChannelProvider::GWServerChannelProvider(const pva::ChannelProvider::shared_pointer& prov)
+    :cache(prov)
 {
     std::cout<<"GW Server ctor\n";
 }
@@ -176,7 +177,7 @@ struct GWServerChannelProviderFactory : public pva::ChannelProviderFactory
     {
         pva::ChannelProvider::shared_pointer P(last_provider.lock());
         if(!P) {
-            P.reset(new GWServerChannelProvider);
+            P.reset(new GWServerChannelProvider(pva::getChannelProviderRegistry()->getProvider("pva")));
             last_provider = P;
         }
         return P;
@@ -184,7 +185,7 @@ struct GWServerChannelProviderFactory : public pva::ChannelProviderFactory
 
     virtual pva::ChannelProvider::shared_pointer newInstance()
     {
-        pva::ChannelProvider::shared_pointer P(new GWServerChannelProvider);
+        pva::ChannelProvider::shared_pointer P(new GWServerChannelProvider(pva::getChannelProviderRegistry()->getProvider("pva")));
         last_provider = P;
         return P;
     }

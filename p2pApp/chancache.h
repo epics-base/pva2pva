@@ -161,7 +161,7 @@ struct ChannelCache
     size_t cleanerRuns;
     size_t cleanerDust;
 
-    ChannelCache();
+    ChannelCache(const epics::pvAccess::ChannelProvider::shared_pointer& prov);
     ~ChannelCache();
 };
 

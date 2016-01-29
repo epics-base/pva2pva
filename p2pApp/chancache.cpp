@@ -126,8 +126,8 @@ struct ChannelCache::cacheClean : public epicsTimerNotify
     }
 };
 
-ChannelCache::ChannelCache()
-    :provider(pva::getChannelProviderRegistry()->getProvider("pva"))
+ChannelCache::ChannelCache(const pva::ChannelProvider::shared_pointer& prov)
+    :provider(prov)
     ,timerQueue(&epicsTimerQueueActive::allocate(1, epicsThreadPriorityCAServerLow-2))
     ,cleaner(new cacheClean(this))
     ,cleanerRuns(0)
