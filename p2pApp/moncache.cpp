@@ -17,7 +17,6 @@ void assign(pvd::MonitorElementPtr& to, const pvd::MonitorElementPtr& from)
     assert(to && from);
     // TODO: lot of copying happens here.  how expensive?
     *to->changedBitSet = *from->changedBitSet;
-    *to->overrunBitSet = *from->overrunBitSet;
     to->pvStructurePtr->copyUnchecked(*from->pvStructurePtr);
 }
 
@@ -140,9 +139,11 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                     Guard G(usr->mutex());
                     if(!usr->running || usr->empty.empty()) {
                         usr->inoverflow = true;
+
+                        usr->overflowElement->overrunBitSet->or_and(*usr->overflowElement->changedBitSet,
+                                                                    *update->changedBitSet);
                         assign(usr->overflowElement, update);
-                        // when overflow, US change is DS overflow
-                        *usr->overflowElement->overrunBitSet |= *update->changedBitSet;
+
                         epicsAtomicIncrSizeT(&usr->ndropped);
                         continue;
                     }
@@ -154,6 +155,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
                     AUTO_VAL(elem, usr->empty.front());
 
+                    elem->overrunBitSet->clear();
                     assign(elem, update); // TODO: nice to avoid copy
 
                     usr->filled.push_back(elem);
