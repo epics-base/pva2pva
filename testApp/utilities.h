@@ -23,6 +23,23 @@ struct TestProvider;
         testDiag("%s : " #NAME "(%p) : %s", epics::pvData::getMessageTypeName(messageType).c_str(), this, message.c_str()); \
     }
 
+// Boilerplate reduction for accessing a scalar field
+template<typename T>
+struct ScalarAccessor {
+    epics::pvData::PVScalar::shared_pointer field;
+    typedef T value_type;
+    ScalarAccessor(const epics::pvData::PVStructurePtr& s, const char *name)
+        :field(s->getSubFieldT<epics::pvData::PVScalar>(name))
+    {}
+    operator value_type() {
+        return field->getAs<T>();
+    }
+    ScalarAccessor& operator=(T v) {
+        field->putFrom<T>(v);
+        return *this;
+    }
+};
+
 struct TestChannelRequester : public epics::pvAccess::ChannelRequester
 {
     POINTER_DEFINITIONS(TestChannelRequester);
@@ -196,6 +213,8 @@ struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_
     virtual ~TestProvider() {}
 
     TestPV::shared_pointer addPV(const std::string& name, const epics::pvData::StructureConstPtr& tdef);
+
+    void dispatch();
 
     epicsMutex lock;
     typedef weak_value_map<std::string, TestPV> pvs_t;

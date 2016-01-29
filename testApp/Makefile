@@ -22,6 +22,11 @@ testtest_SRCS = testtest.cpp
 testtest_LIBS = testutils p2pcore pvAccess pvData Com
 TESTS += testtest
 
+TESTPROD_HOST += testmon
+testmon_SRCS = testmon.cpp
+testmon_LIBS = testutils p2pcore pvAccess pvData Com
+TESTS += testmon
+
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
 #===========================

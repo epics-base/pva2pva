@@ -16,21 +16,6 @@ namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
 namespace {
-template<typename T>
-struct ScalarAccessor {
-    pvd::PVScalar::shared_pointer field;
-    typedef T value_type;
-    ScalarAccessor(const pvd::PVStructurePtr& s, const char *name)
-        :field(s->getSubFieldT<pvd::PVScalar>(name))
-    {}
-    operator value_type() {
-        return field->getAs<T>();
-    }
-    ScalarAccessor& operator=(T v) {
-        field->putFrom<T>(v);
-        return *this;
-    }
-};
 
 void testmonitor()
 {
