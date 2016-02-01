@@ -7,7 +7,7 @@
 * found in the file LICENSE that is included with this distribution.
 \*************************************************************************/
 
-/* $Revision-Id$ */
+/* Copyed from EPICS Base 3.16 branch */
 
 /* Author: Andrew Johnson	Date: 2003-04-08 */
 
@@ -70,12 +70,11 @@
 #include "asDbLib.h"
 #include "iocInit.h"
 #include "iocsh.h"
-#include "epicsInstallDir.h"
 
-extern "C" int softIoc_registerRecordDeviceDriver(struct dbBase *pdbbase);
+extern "C" int softIocPVA_registerRecordDeviceDriver(struct dbBase *pdbbase);
 
-#define DBD_FILE EPICS_BASE "/dbd/softIoc.dbd"
-#define EXIT_FILE EPICS_BASE "/db/softIocExit.db"
+#define DBD_FILE FINAL_LOCATION "/dbd/softIocPVA.dbd"
+#define EXIT_FILE FINAL_LOCATION "/db/softIocExit.db"
 
 const char *arg0;
 const char *base_dbd = DBD_FILE;
@@ -90,7 +89,7 @@ static void usage(int status) {
     printf("Usage: %s [-D softIoc.dbd] [-h] [-S] [-a ascf]\n", arg0);
     puts("\t[-m macro=value,macro2=value2] [-d file.db]");
     puts("\t[-x prefix] [st.cmd]");
-    puts("Compiled-in path to softIoc.dbd is:");
+    puts("Compiled-in path to softIocPVA.dbd is:");
     printf("\t%s\n", base_dbd);
     epicsExit(status);
 }
@@ -128,7 +127,7 @@ int main(int argc, char *argv[])
 	epicsExit(EXIT_FAILURE);
     }
     
-    softIoc_registerRecordDeviceDriver(pdbbase);
+    softIocPVA_registerRecordDeviceDriver(pdbbase);
     registryFunctionAdd("exit", (REGISTRYFUNCTION) exitSubroutine);
 
     while (argc>1 && **argv == '-') {
