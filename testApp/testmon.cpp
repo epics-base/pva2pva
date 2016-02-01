@@ -210,6 +210,8 @@ struct TestMonitor {
         testOk1(!!elem.get());
         if(elem) mon->release(elem);
 
+        // queue 4 events input buffer of size 2
+        // don't notify downstream until after overflow has occurred
         pvd::BitSet changed;
         changed.set(1);
         test1_x=50;
@@ -246,6 +248,74 @@ struct TestMonitor {
 
         mon->destroy();
     }
+
+    void test_overflow_downstream()
+    {
+        testDiag("Check behavour when downstream monitor overflows");
+
+        TestChannelMonitorRequester::shared_pointer mreq(new TestChannelMonitorRequester);
+        pvd::Monitor::shared_pointer mon(client->createMonitor(mreq, makeRequest(2)));
+        if(!mon) testAbort("Failed to create monitor");
+
+        testOk1(mreq->eventCnt==0);
+        testOk1(mon->start().isSuccess());
+        upstream->dispatch(); // trigger monitorEvent() from upstream to gateway
+        testOk1(mreq->eventCnt==1);
+
+        testDiag("poll initial update");
+        pvd::MonitorElementPtr elem(mon->poll());
+        testOk1(!!elem.get());
+        if(elem) mon->release(elem);
+
+        // queue 4 events into buffer of size 2 (plus the overflow element)
+        // notify downstream after each update
+        // so the upstream queue never overflows
+        pvd::BitSet changed;
+        changed.set(1);
+        test1_x=50;
+        test1->post(changed);
+        test1_x=51;
+        test1->post(changed);
+        test1_x=52;
+        test1->post(changed);
+        test1_x=53;
+        test1->post(changed);
+
+        elem = mon->poll();
+        testOk1(!!elem.get());
+
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==50);
+        testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
+        testOk1(elem && elem->changedBitSet->nextSetBit(2)==-1);
+        testOk1(elem && elem->overrunBitSet->nextSetBit(0)==-1);
+
+        if(elem) mon->release(elem);
+
+        elem = mon->poll();
+        testOk1(!!elem.get());
+
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==51);
+        testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
+        testOk1(elem && elem->changedBitSet->nextSetBit(2)==-1);
+        testOk1(elem && elem->overrunBitSet->nextSetBit(0)==-1);
+
+        if(elem) mon->release(elem);
+
+        elem = mon->poll();
+        testOk1(!!elem.get());
+
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==53);
+        testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
+        testOk1(elem && elem->changedBitSet->nextSetBit(2)==-1);
+        testOk1(elem && elem->overrunBitSet->nextSetBit(0)==1);
+        testOk1(elem && elem->overrunBitSet->nextSetBit(2)==-1);
+
+        if(elem) mon->release(elem);
+
+        testOk1(!mon->poll());
+
+        mon->destroy();
+    }
 };
 
 } // namespace
@@ -257,6 +327,7 @@ MAIN(testmon)
     TEST_METHOD(TestMonitor, test_share);
     TEST_METHOD(TestMonitor, test_ds_no_start);
     TEST_METHOD(TestMonitor, test_overflow_upstream);
+    TEST_METHOD(TestMonitor, test_overflow_downstream);
     TestProvider::testCounts();
     int ok = 1;
     size_t temp;
