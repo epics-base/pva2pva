@@ -34,7 +34,8 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
 
     typedef std::vector<epicsUInt8> pvrequest_t;
 
-    bool done;
+    bool havedata; // set when initial update is received
+    bool done;     // set when unlisten() is received
     size_t nwakeups; // # of upstream monitorEvent() calls
     size_t nevents;  // # of upstream events poll()'d
 
