@@ -175,7 +175,6 @@ void runGWServer(void *)
         ctx->setChannelProviderName("GWServer");
 
         ctx->initialize(pva::getChannelProviderRegistry());
-        ctx->printInfo();
 
         printf("Gateway running\n");
         gblctx = ctx;
@@ -216,6 +215,18 @@ void stopServer()
         ctx->shutdown();
     } else
         printf("Not running\n");
+}
+
+void infoServer(int lvl)
+{
+    (void)lvl;
+    pva::ServerContextImpl::shared_pointer ctx(gblctx.lock());
+
+    if(ctx) {
+        ctx->printInfo();
+    } else {
+        printf("Not running");
+    }
 }
 
 void statusServer(int lvl, const char *chanexpr)
@@ -528,6 +539,7 @@ void registerGWServerIocsh()
 
     iocshRegister<&startServer>("gwstart");
     iocshRegister<&stopServer>("gwstop");
+    iocshRegister<int, &infoServer>("pvasr", "level");
     iocshRegister<int, const char*, &statusServer>("gwstatus", "level", "channel name/pattern");
     iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
     iocshRegister<int, &refCheck>("gwref", "level");
