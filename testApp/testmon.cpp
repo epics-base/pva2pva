@@ -210,23 +210,40 @@ struct TestMonitor {
         testOk1(!!elem.get());
         if(elem) mon->release(elem);
 
+        testOk1(!mon->poll());
+
         // queue 4 events input buffer of size 2
         // don't notify downstream until after overflow has occurred
         pvd::BitSet changed;
         changed.set(1);
         test1_x=50;
+        testDiag("post 50");
         test1->post(changed, false);
         test1_x=51;
+        testDiag("post 51");
         test1->post(changed, false);
         test1_x=52;
+        testDiag("post 52");
         test1->post(changed, false);
         test1_x=53;
+        testDiag("post 53");
         test1->post(changed);
 
         elem = mon->poll();
         testOk1(!!elem.get());
 
+        testDiag("XX %d", elem ? elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get() : -42);
         testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==50);
+        testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
+        testOk1(elem && elem->changedBitSet->nextSetBit(2)==-1);
+        testOk1(elem && elem->overrunBitSet->nextSetBit(0)==-1);
+
+        if(elem) mon->release(elem);
+
+        elem = mon->poll();
+        testOk1(!!elem.get());
+
+        testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==51);
         testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);
         testOk1(elem && elem->changedBitSet->nextSetBit(2)==-1);
         testOk1(elem && elem->overrunBitSet->nextSetBit(0)==-1);

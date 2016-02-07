@@ -10,10 +10,6 @@ typedef epicsGuardRelease<epicsMutex> UnGuard;
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
-namespace {
-int debugdebug = getenv("TEST_EXTRA_DEBUG")!=NULL;
-}
-
 static size_t countTestChannelRequester;
 
 TestChannelRequester::TestChannelRequester()
@@ -30,8 +26,7 @@ TestChannelRequester::~TestChannelRequester()
 
 void TestChannelRequester::channelCreated(const pvd::Status& status, pva::Channel::shared_pointer const & channel)
 {
-    if(debugdebug)
-        testDiag("channelCreated %s", channel->getChannelName().c_str());
+    testDiag("channelCreated %s", channel->getChannelName().c_str());
     Guard G(lock);
     laststate = pva::Channel::CONNECTED;
     this->status = status;
@@ -42,8 +37,7 @@ void TestChannelRequester::channelCreated(const pvd::Status& status, pva::Channe
 void TestChannelRequester::channelStateChange(pva::Channel::shared_pointer const & channel,
                                               pva::Channel::ConnectionState connectionState)
 {
-    if(debugdebug)
-        testDiag("channelStateChange %s %d", channel->getChannelName().c_str(), (int)connectionState);
+    testDiag("channelStateChange %s %d", channel->getChannelName().c_str(), (int)connectionState);
     Guard G(lock);
     laststate = connectionState;
     wait.trigger();
@@ -89,8 +83,7 @@ void TestChannelMonitorRequester::monitorConnect(pvd::Status const & status,
                                                  pvd::MonitorPtr const & monitor,
                                                  pvd::StructureConstPtr const & structure)
 {
-    if(debugdebug)
-        testDiag("monitorConnect %p %d", monitor.get(), (int)status.isSuccess());
+    testDiag("monitorConnect %p %d", monitor.get(), (int)status.isSuccess());
     Guard G(lock);
     connectStatus = status;
     dtype = structure;
@@ -100,8 +93,7 @@ void TestChannelMonitorRequester::monitorConnect(pvd::Status const & status,
 
 void TestChannelMonitorRequester::monitorEvent(pvd::MonitorPtr const & monitor)
 {
-    if(debugdebug)
-        testDiag("monitorEvent %p", monitor.get());
+    testDiag("monitorEvent %p", monitor.get());
     mon = monitor;
     eventCnt++;
     wait.trigger();
@@ -109,8 +101,7 @@ void TestChannelMonitorRequester::monitorEvent(pvd::MonitorPtr const & monitor)
 
 void TestChannelMonitorRequester::unlisten(pvd::MonitorPtr const & monitor)
 {
-    if(debugdebug)
-        testDiag("unlisten %p", monitor.get());
+    testDiag("unlisten %p", monitor.get());
     Guard G(lock);
     unlistend = true;
     wait.trigger();
@@ -250,8 +241,7 @@ TestPVChannel::createMonitor(
         monitors.insert(ret);
         static_cast<TestPVMonitor*>(ret.get())->weakself = ret; // save wrapped weak ref
     }
-    if(debugdebug)
-        testDiag("TestPVChannel::createMonitor %s %p", pv->name.c_str(), ret.get());
+    testDiag("TestPVChannel::createMonitor %s %p", pv->name.c_str(), ret.get());
     requester->monitorConnect(pvd::Status(), ret, pv->dtype);
     return ret;
 }
@@ -308,8 +298,7 @@ void TestPVMonitor::destroy()
 
 pvd::Status TestPVMonitor::start()
 {
-    if(debugdebug)
-        testDiag("TestPVMonitor::start %p", this);
+    testDiag("TestPVMonitor::start %p", this);
 
     Guard G(channel->pv->provider->lock);
     if(finalize && buffer.empty())
@@ -324,8 +313,7 @@ pvd::Status TestPVMonitor::start()
 
     if(this->buffer.empty()) {
         needWakeup = true;
-        if(debugdebug)
-            testDiag(" need wakeup");
+        testDiag(" need wakeup");
     }
 
     if(!this->free.empty()) {
@@ -344,15 +332,13 @@ pvd::Status TestPVMonitor::start()
 
         buffer.push_back(monitorElement);
         this->free.pop_front();
-        if(debugdebug)
-            testDiag(" push current");
+        testDiag(" push current");
 
     } else {
         inoverflow = true;
         overflow->changedBitSet->clear();
         overflow->changedBitSet->set(0);
-        if(debugdebug)
-            testDiag(" push overflow");
+        testDiag(" push overflow");
     }
 
     return pvd::Status();
@@ -360,8 +346,7 @@ pvd::Status TestPVMonitor::start()
 
 pvd::Status TestPVMonitor::stop()
 {
-    if(debugdebug)
-        testDiag("TestPVMonitor::stop %p", this);
+    testDiag("TestPVMonitor::stop %p", this);
     Guard G(channel->pv->provider->lock);
     running = false;
     return pvd::Status();
@@ -375,8 +360,10 @@ pvd::MonitorElementPtr TestPVMonitor::poll()
         ret = buffer.front();
         buffer.pop_front();
     }
-    if(debugdebug)
-        testDiag("TestPVMonitor::poll %p %p", this, ret.get());
+    testDiag("TestPVMonitor::poll %p %p", this, ret.get());
+    if(ret)
+    std::cerr<<"# XXXZ "<<*ret->changedBitSet<<" "
+            <<*ret->overrunBitSet<<"\n";
     return ret;
 }
 
@@ -397,7 +384,7 @@ void TestPVMonitor::release(pvd::MonitorElementPtr const & monitorElement)
         overflow->overrunBitSet->clear();
 
         buffer.push_back(monitorElement);
-        testDiag("TestPVMonitor::overflow resume %p %p", this, monitorElement.get());
+        testDiag("TestPVMonitor::release overflow resume %p %p", this, monitorElement.get());
         inoverflow = false;
     } else {
         this->free.push_back(monitorElement);
@@ -432,8 +419,7 @@ void TestPV::post(bool notify)
 
 void TestPV::post(const pvd::BitSet& changed, bool notify)
 {
-    if(debugdebug)
-        testDiag("post %s %d", name.c_str(), (int)notify);
+    testDiag("post %s %d", name.c_str(), (int)notify);
     Guard G(provider->lock);
 
     channels_t::vector_type toupdate(channels.lock_vector());
@@ -456,7 +442,7 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
                 mon->inoverflow = true;
                 mon->overflow->overrunBitSet->or_and(*mon->overflow->changedBitSet, changed); // oflow = prev_changed & new_changed
                 *mon->overflow->changedBitSet |= changed;
-                if(debugdebug) testDiag("overflow");
+                testDiag("overflow");
 
             } else {
                 assert(!mon->inoverflow);
@@ -471,11 +457,11 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
 
                 mon->buffer.push_back(elem);
                 mon->free.pop_front();
-                if(debugdebug) testDiag("push %p", elem.get());
+                testDiag("push %p", elem.get());
             }
 
             if(mon->needWakeup && notify) {
-                if(debugdebug) testDiag(" wakeup");
+                testDiag(" wakeup");
                 mon->needWakeup = false;
                 UnGuard U(G);
                 mon->requester->monitorEvent(*it2);
@@ -571,8 +557,7 @@ TestProvider::createChannel(std::string const & channelName,
     } else {
         requester->channelCreated(pvd::Status(pvd::Status::STATUSTYPE_ERROR, "PV not found"), ret);
     }
-    if(debugdebug)
-        testDiag("createChannel %s %p", channelName.c_str(), ret.get());
+    testDiag("createChannel %s %p", channelName.c_str(), ret.get());
     return ret;
 }
 
@@ -588,8 +573,7 @@ TestProvider::addPV(const std::string& name, const pvd::StructureConstPtr& tdef)
 void TestProvider::dispatch()
 {
     Guard G(lock);
-    if(debugdebug)
-        testDiag("TestProvider::dispatch");
+    testDiag("TestProvider::dispatch");
 
     pvs_t::lock_vector_type allpvs(pvs.lock_vector());
     FOREACH(pvit, pvend, allpvs)
@@ -613,8 +597,7 @@ void TestProvider::dispatch()
                     continue;
 
                 if(mon->needWakeup) {
-                    if(debugdebug)
-                        testDiag("  wakeup monitor %p", mon);
+                    testDiag("  wakeup monitor %p", mon);
                     mon->needWakeup = false;
                     UnGuard U(G);
                     mon->requester->monitorEvent(*monit);
