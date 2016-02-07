@@ -137,6 +137,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
             *lastelem->changedBitSet = *update->changedBitSet;
             *lastelem->overrunBitSet = *update->overrunBitSet;
             monitor->release(update);
+            update.reset();
 
             interested_t::iterator IIT(interested); // recursively locks interested.mutex() (assumes this->mutex() is interestd.mutex())
             for(interested_t::value_pointer pusr = IIT.next(); pusr; pusr = IIT.next())
@@ -150,9 +151,10 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                     if(!usr->running || usr->empty.empty()) {
                         usr->inoverflow = true;
 
+                        *usr->overflowElement->overrunBitSet |= *lastelem->overrunBitSet;
                         usr->overflowElement->overrunBitSet->or_and(*usr->overflowElement->changedBitSet,
-                                                                    *update->changedBitSet);
-                        assign(usr->overflowElement, update);
+                                                                    *lastelem->changedBitSet);
+                        assign(usr->overflowElement, lastelem);
 
                         epicsAtomicIncrSizeT(&usr->ndropped);
                         continue;
@@ -167,8 +169,8 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
                     AUTO_VAL(elem, usr->empty.front());
 
-                    *elem->overrunBitSet = *update->overrunBitSet;
-                    assign(elem, update); // TODO: nice to avoid copy
+                    *elem->overrunBitSet = *lastelem->overrunBitSet;
+                    assign(elem, lastelem); // TODO: nice to avoid copy
 
                     usr->filled.push_back(elem);
                     usr->empty.pop_front();
