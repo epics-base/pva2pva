@@ -76,13 +76,22 @@ extern "C" int softIocPVA_registerRecordDeviceDriver(struct dbBase *pdbbase);
 #define DBD_FILE FINAL_LOCATION "/dbd/softIocPVA.dbd"
 #define EXIT_FILE FINAL_LOCATION "/db/softIocExit.db"
 
+#ifdef VERSION_INT
+#if EPICS_VERSION_INT>=VERSION_INT(3,15,0,1)
+#define USE_EXIT_LATER
+#endif
+#endif
 const char *arg0;
 const char *base_dbd = DBD_FILE;
 const char *exit_db = EXIT_FILE;
 
 
 static void exitSubroutine(subRecord *precord) {
+#ifdef USE_EXIT_LATER
     epicsExitLater((precord->a == 0.0) ? EXIT_SUCCESS : EXIT_FAILURE);
+#else
+    epicsExit((precord->a == 0.0) ? EXIT_SUCCESS : EXIT_FAILURE);
+#endif
 }
 
 static void usage(int status) {
