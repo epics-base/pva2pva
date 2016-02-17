@@ -75,10 +75,15 @@ void testmonitor()
     pvd::MonitorElementPtr elem(mon->poll());
     testOk1(!!elem.get());
 
+    if(elem) testDiag("elem changed '%s' overflow '%s'", toString(*elem->changedBitSet).c_str(), toString(*elem->overrunBitSet).c_str());
+    if(elem) testDiag("elem x=%d y=%d",
+                      elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get(),
+                      elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get());
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==42);
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==0); // initial update shows all changed
     testOk1(elem && elem->changedBitSet->nextSetBit(1)==-1);
+    testOk1(elem && elem->overrunBitSet->nextSetBit(0)==-1);
     testOk1(elem && elem->overrunBitSet->isEmpty());
     if(elem) mon->release(elem);
 
@@ -97,6 +102,10 @@ void testmonitor()
     elem = mon->poll();
     testOk1(!!elem.get());
 
+    if(elem) testDiag("elem changed '%s' overflow '%s'", toString(*elem->changedBitSet).c_str(), toString(*elem->overrunBitSet).c_str());
+    if(elem) testDiag("elem x=%d y=%d",
+                      elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get(),
+                      elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get());
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==43);
     testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("y")->get()==15);
     testOk1(elem && elem->changedBitSet->nextSetBit(0)==1);

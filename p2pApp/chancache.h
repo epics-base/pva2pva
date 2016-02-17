@@ -40,6 +40,9 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
     size_t nevents;  // # of upstream events poll()'d
 
     epics::pvData::StructureConstPtr typedesc;
+    /** value of upstream monitor (accumulation of all deltas)
+     *  changed/overflow bit masks of last delta
+     */
     epics::pvData::MonitorElement::shared_pointer lastelem;
     epics::pvData::MonitorPtr mon;
     epics::pvData::Status startresult;

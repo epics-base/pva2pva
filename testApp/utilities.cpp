@@ -276,6 +276,7 @@ TestPVMonitor::TestPVMonitor(const TestPVChannel::shared_pointer& ch,
         free.push_back(elem);
     }
     overflow.reset(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
+    overflow->changedBitSet->set(0); // initially all changed
     epicsAtomicIncrSizeT(&countTestPVMonitor);
 }
 
@@ -419,7 +420,7 @@ void TestPV::post(bool notify)
 
 void TestPV::post(const pvd::BitSet& changed, bool notify)
 {
-    testDiag("post %s %d", name.c_str(), (int)notify);
+    testDiag("post %s %d changed '%s'", name.c_str(), (int)notify, toString(changed).c_str());
     Guard G(provider->lock);
 
     channels_t::vector_type toupdate(channels.lock_vector());
@@ -442,7 +443,9 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
                 mon->inoverflow = true;
                 mon->overflow->overrunBitSet->or_and(*mon->overflow->changedBitSet, changed); // oflow = prev_changed & new_changed
                 *mon->overflow->changedBitSet |= changed;
-                testDiag("overflow");
+                testDiag("overflow changed '%s' overrun '%s'",
+                         toString(*mon->overflow->changedBitSet).c_str(),
+                         toString(*mon->overflow->overrunBitSet).c_str());
 
             } else {
                 assert(!mon->inoverflow);
@@ -451,13 +454,17 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
                     mon->needWakeup = true;
 
                 AUTO_REF(elem, mon->free.front());
+                // Note: can't use 'changed' to optimize this copy since we don't know
+                //       the state of the free element
                 elem->pvStructurePtr->copyUnchecked(*mon->overflow->pvStructurePtr);
                 *elem->changedBitSet = changed;
                 elem->overrunBitSet->clear(); // redundant/paranoia
 
                 mon->buffer.push_back(elem);
                 mon->free.pop_front();
-                testDiag("push %p", elem.get());
+                testDiag("push %p changed '%s' overflow '%s'", elem.get(),
+                         toString(*elem->changedBitSet).c_str(),
+                         toString(*elem->overrunBitSet).c_str());
             }
 
             if(mon->needWakeup && notify) {

@@ -12,14 +12,6 @@ size_t MonitorCacheEntry::num_instances;
 size_t MonitorUser::num_instances;
 
 namespace {
-void assign(pvd::MonitorElementPtr& to, const pvd::MonitorElementPtr& from)
-{
-    assert(to && from);
-    // TODO: lot of copying happens here.  how expensive?
-    *to->changedBitSet = *from->changedBitSet;
-    to->pvStructurePtr->copyUnchecked(*from->pvStructurePtr);
-}
-
 // fetch scalar value or default
 template<typename T>
 T getS(const pvd::PVStructurePtr& s, const char* name, T dft)
@@ -148,13 +140,22 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                     Guard G(usr->mutex());
                     if(usr->initial)
                         continue; // no start() yet
+                    // TODO: track overflow when !running (after stop())?
                     if(!usr->running || usr->empty.empty()) {
                         usr->inoverflow = true;
+
+                        /* overrun |= lastelem->overrun           // upstream overflows
+                         * overrun |= changed & lastelem->changed // downstream overflows
+                         * changed |= lastelem->changed           // accumulate changes
+                         */
 
                         *usr->overflowElement->overrunBitSet |= *lastelem->overrunBitSet;
                         usr->overflowElement->overrunBitSet->or_and(*usr->overflowElement->changedBitSet,
                                                                     *lastelem->changedBitSet);
-                        assign(usr->overflowElement, lastelem);
+                        *usr->overflowElement->changedBitSet |= *lastelem->changedBitSet;
+
+                        usr->overflowElement->pvStructurePtr->copyUnchecked(*lastelem->pvStructurePtr,
+                                                                            *lastelem->changedBitSet);
 
                         epicsAtomicIncrSizeT(&usr->ndropped);
                         continue;
@@ -170,7 +171,10 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                     AUTO_VAL(elem, usr->empty.front());
 
                     *elem->overrunBitSet = *lastelem->overrunBitSet;
-                    assign(elem, lastelem); // TODO: nice to avoid copy
+                    *elem->changedBitSet = *lastelem->changedBitSet;
+                    // Note: can't use changed mask to optimize this copy since we don't know
+                    //       the state of the free element
+                    elem->pvStructurePtr->copyUnchecked(*lastelem->pvStructurePtr);
 
                     usr->filled.push_back(elem);
                     usr->empty.pop_front();
@@ -297,6 +301,7 @@ MonitorUser::start()
             pvd::MonitorElementPtr elem(empty.front());
             elem->pvStructurePtr = lval;
             elem->changedBitSet->set(0); // indicate all changed
+            elem->overrunBitSet->clear();
             filled.push_back(elem);
             empty.pop_front();
         }

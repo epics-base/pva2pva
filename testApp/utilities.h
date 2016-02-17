@@ -2,6 +2,7 @@
 #define UTILITIES_H
 
 #include <deque>
+#include <sstream>
 
 #include <epicsEvent.h>
 #include <epicsUnitTest.h>
@@ -22,6 +23,14 @@ struct TestProvider;
     virtual void message(std::string const & message,epics::pvData::MessageType messageType) { \
         testDiag("%s : " #NAME "(%p) : %s", epics::pvData::getMessageTypeName(messageType).c_str(), this, message.c_str()); \
     }
+
+template<typename T>
+inline std::string toString(const T& tbs)
+{
+    std::ostringstream oss;
+    oss << tbs;
+    return oss.str();
+}
 
 template<class C, void (C::*M)()>
 void test_method(const char *kname, const char *mname)
