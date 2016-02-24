@@ -4,8 +4,10 @@
 #include <deque>
 #include <sstream>
 
+#include <errlog.h>
 #include <epicsEvent.h>
 #include <epicsUnitTest.h>
+#include <dbUnitTest.h>
 
 #include <pv/pvAccess.h>
 
@@ -252,6 +254,26 @@ struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_
     pvs_t pvs;
 
     static void testCounts();
+};
+
+struct TestIOC {
+    bool hasInit;
+    TestIOC() : hasInit(false) {
+        testdbPrepare();
+    }
+    ~TestIOC() {
+        if(hasInit)
+            testIocShutdownOk();
+        testdbCleanup();
+    }
+    void init() {
+        if(!hasInit) {
+            eltc(0);
+            testIocInitOk();
+            eltc(1);
+            hasInit = true;
+        }
+    }
 };
 
 #endif // UTILITIES_H

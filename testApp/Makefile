@@ -5,7 +5,11 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
-USR_CPPFLAGS = -I$(TOP)/p2pApp
+USR_CPPFLAGS += -I$(TOP)/p2pApp
+USR_CPPFLAGS += -I$(TOP)/pdbApp
+
+TARGETS += $(COMMON_DIR)/p2pTestIoc.dbd
+p2pTestIoc_DBD += base.dbd
 
 LIBRARY += testutils
 
@@ -27,6 +31,11 @@ testmon_SRCS = testmon.cpp
 testmon_LIBS = testutils p2pcore pvAccess pvData Com
 TESTS += testmon
 
+
+TESTPROD_HOST += testpvif
+testpvif_SRCS += testpvif.cpp
+testpvif_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
+testpvif_LIBS += pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
 #===========================
