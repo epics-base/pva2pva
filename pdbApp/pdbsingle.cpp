@@ -53,6 +53,16 @@ PDBSingleChannel::createChannelGet(
     return ret;
 }
 
+pva::ChannelPut::shared_pointer
+PDBSingleChannel::createChannelPut(
+        pva::ChannelPutRequester::shared_pointer const & requester,
+        pvd::PVStructure::shared_pointer const & pvRequest)
+{
+    pva::ChannelPut::shared_pointer ret(new PDBSinglePut(shared_from_this(), requester));
+    requester->channelPutConnect(pvd::Status(), ret, fielddesc);
+    return ret;
+}
+
 
 PDBSingleGet::PDBSingleGet(PDBSingleChannel::shared_pointer channel,
                            pva::ChannelGetRequester::shared_pointer requester)
@@ -64,6 +74,41 @@ PDBSingleGet::PDBSingleGet(PDBSingleChannel::shared_pointer channel,
 {}
 
 void PDBSingleGet::get()
+{
+    changed->clear();
+    {
+        DBScanLocker L(channel->pv->chan);
+        pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+    }
+    //TODO: report unused fields as changed?
+    changed->clear();
+    changed->set(0);
+    requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
+}
+
+
+
+
+PDBSinglePut::PDBSinglePut(PDBSingleChannel::shared_pointer channel,
+                           pva::ChannelPutRequester::shared_pointer requester)
+    :channel(channel)
+    ,requester(requester)
+    ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
+    ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
+    ,pvif(PVIF::attach(channel->pv->chan, pvf))
+{}
+
+void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
+                       pvd::BitSet::shared_pointer const & changed)
+{
+    {
+        DBScanLocker L(channel->pv->chan);
+        pvif->get(*changed);
+    }
+    requester->putDone(pvd::Status(), shared_from_this());
+}
+
+void PDBSinglePut::get()
 {
     changed->clear();
     {

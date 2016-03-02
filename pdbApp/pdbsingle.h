@@ -43,6 +43,9 @@ struct PDBSingleChannel : public BaseChannel,
     virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
             epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
+    virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
+            epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
+            epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
     virtual void printInfo(std::ostream& out);
 };
@@ -69,7 +72,33 @@ struct PDBSingleGet : public epics::pvAccess::ChannelGet,
     virtual void lastRequest() {}
     virtual void get();
 };
-//struct PDBSinglePut : public epics::pvAccess::ChannelPut {};
+
+struct PDBSinglePut : public epics::pvAccess::ChannelPut,
+        public std::tr1::enable_shared_from_this<PDBSinglePut>
+{
+    PDBSingleChannel::shared_pointer channel;
+    epics::pvAccess::ChannelPutRequester::shared_pointer requester;
+
+    epics::pvData::BitSetPtr changed;
+    epics::pvData::PVStructurePtr pvf;
+    std::auto_ptr<PVIF> pvif;
+
+    PDBSinglePut(PDBSingleChannel::shared_pointer channel,
+                 epics::pvAccess::ChannelPutRequester::shared_pointer requester);
+    virtual ~PDBSinglePut() {}
+
+    virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }
+    virtual void lock() {}
+    virtual void unlock() {}
+    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
+    virtual void cancel() {}
+    virtual void lastRequest() {}
+    virtual void put(
+            epics::pvData::PVStructure::shared_pointer const & pvPutStructure,
+            epics::pvData::BitSet::shared_pointer const & putBitSet);
+    virtual void get();
+};
+
 //struct PDBSingleMonitor : public epics::pvData::Monitor {};
 
 #endif // PDBSINGLE_H
