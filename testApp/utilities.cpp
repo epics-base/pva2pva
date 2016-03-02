@@ -64,6 +64,44 @@ bool TestChannelRequester::waitForConnect()
 
 }
 
+static size_t countTestChannelGetRequester;
+
+TestChannelGetRequester::TestChannelGetRequester()
+    :connected(false)
+    ,done(false)
+{
+    epicsAtomicIncrSizeT(&countTestChannelGetRequester);
+}
+
+TestChannelGetRequester::~TestChannelGetRequester()
+{
+    epicsAtomicDecrSizeT(&countTestChannelGetRequester);
+}
+
+void TestChannelGetRequester::channelGetConnect(const epics::pvData::Status &status,
+                                                const epics::pvAccess::ChannelGet::shared_pointer &get,
+                                                const epics::pvData::Structure::const_shared_pointer &structure)
+{
+    if(connected)
+        testFail("channelGetConnect() called twice");
+    statusConnect = status;
+    channelGet = get;
+    fielddesc = structure;
+    connected = true;
+}
+
+void TestChannelGetRequester::getDone(const epics::pvData::Status &status,
+                                      const epics::pvAccess::ChannelGet::shared_pointer &get,
+                                      const epics::pvData::PVStructure::shared_pointer &pvStructure,
+                                      const epics::pvData::BitSet::shared_pointer &bitSet)
+{
+    statusDone = status;
+    channelGet = get;
+    value = pvStructure;
+    changed = bitSet;
+    done = true;
+}
+
 static size_t countTestChannelMonitorRequester;
 
 TestChannelMonitorRequester::TestChannelMonitorRequester()

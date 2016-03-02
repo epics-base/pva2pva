@@ -89,6 +89,33 @@ struct TestChannelRequester : public epics::pvAccess::ChannelRequester
     bool waitForConnect();
 };
 
+struct TestChannelGetRequester : public epics::pvAccess::ChannelGetRequester
+{
+    POINTER_DEFINITIONS(TestChannelGetRequester);
+    DUMBREQUESTER(TestChannelGetRequester)
+
+    bool connected, done;
+    epics::pvData::Status statusConnect, statusDone;
+    epics::pvAccess::ChannelGet::shared_pointer channelGet;
+    epics::pvData::Structure::const_shared_pointer fielddesc;
+    epics::pvData::PVStructure::shared_pointer value;
+    epics::pvData::BitSet::shared_pointer changed;
+
+    TestChannelGetRequester();
+    virtual ~TestChannelGetRequester();
+
+    virtual void channelGetConnect(
+            const epics::pvData::Status& status,
+            epics::pvAccess::ChannelGet::shared_pointer const & channelGet,
+            epics::pvData::Structure::const_shared_pointer const & structure);
+
+    virtual void getDone(
+            const epics::pvData::Status& status,
+            epics::pvAccess::ChannelGet::shared_pointer const & channelGet,
+            epics::pvData::PVStructure::shared_pointer const & pvStructure,
+            epics::pvData::BitSet::shared_pointer const & bitSet);
+};
+
 struct TestChannelMonitorRequester : public epics::pvData::MonitorRequester
 {
     POINTER_DEFINITIONS(TestChannelMonitorRequester);
@@ -262,8 +289,7 @@ struct TestIOC {
         testdbPrepare();
     }
     ~TestIOC() {
-        if(hasInit)
-            testIocShutdownOk();
+        this->shutdown();
         testdbCleanup();
     }
     void init() {
@@ -272,6 +298,12 @@ struct TestIOC {
             testIocInitOk();
             eltc(1);
             hasInit = true;
+        }
+    }
+    void shutdown() {
+        if(hasInit) {
+            testIocShutdownOk();
+            hasInit = false;
         }
     }
 };

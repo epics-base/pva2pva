@@ -82,6 +82,9 @@ void PDBGroupGet::get()
             pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
         }
     }
+    //TODO: report unused fields as changed?
+    changed->clear();
+    changed->set(0);
     requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 

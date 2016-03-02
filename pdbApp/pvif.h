@@ -14,7 +14,7 @@
 struct DBCH {
     dbChannel *chan;
     DBCH() :chan(0) {}
-    explicit DBCH(dbChannel *ch);
+    explicit DBCH(dbChannel *ch); // calls dbChannelOpen()
     explicit DBCH(const std::string& name);
     explicit DBCH(const char *name);
     ~DBCH();

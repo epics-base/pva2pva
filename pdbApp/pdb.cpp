@@ -132,11 +132,32 @@ void PDBProvider::destroy() {}
 
 std::string PDBProvider::getProviderName() { return "PDBProvider"; }
 
+namespace {
+struct ChannelFindRequesterNOOP : public pva::ChannelFind
+{
+    const pva::ChannelProvider::weak_pointer provider;
+    ChannelFindRequesterNOOP(const pva::ChannelProvider::shared_pointer& prov) : provider(prov) {}
+    virtual ~ChannelFindRequesterNOOP() {}
+    virtual void destroy() {}
+    virtual std::tr1::shared_ptr<pva::ChannelProvider> getChannelProvider() { return provider.lock(); }
+    virtual void cancel() {}
+};
+}
+
 pva::ChannelFind::shared_pointer
 PDBProvider::channelFind(const std::string &channelName, const pva::ChannelFindRequester::shared_pointer &requester)
 {
-    pva::ChannelFind::shared_pointer ret;
-    requester->channelFindResult(pvd::Status(pvd::Status::STATUSTYPE_ERROR, ""), ret, false);
+    pva::ChannelFind::shared_pointer ret(new ChannelFindRequesterNOOP(shared_from_this()));
+
+    bool found = false;
+    {
+        epicsGuard<epicsMutex> G(transient_pv_map.mutex());
+        if(persist_pv_map.find(channelName)!=persist_pv_map.end()
+                || transient_pv_map.find(channelName)
+                || dbChannelTest(channelName.c_str())==0)
+            found = true;
+    }
+    requester->channelFindResult(pvd::Status(), ret, found);
     return ret;
 }
 

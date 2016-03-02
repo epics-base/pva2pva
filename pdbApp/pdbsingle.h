@@ -19,11 +19,7 @@ struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBS
     PDBProvider::shared_pointer provider;
 
     PDBSinglePV(DBCH& chan,
-                const PDBProvider::shared_pointer& prov)
-        :provider(prov)
-    {
-        this->chan.swap(chan);
-    }
+                const PDBProvider::shared_pointer& prov);
     virtual ~PDBSinglePV() {}
 
     epics::pvAccess::Channel::shared_pointer

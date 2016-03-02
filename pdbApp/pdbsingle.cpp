@@ -6,6 +6,14 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
+PDBSinglePV::PDBSinglePV(DBCH& chan,
+            const PDBProvider::shared_pointer& prov)
+    :provider(prov)
+{
+    this->chan.swap(chan);
+    fielddesc = PVIF::dtype(this->chan);
+}
+
 pva::Channel::shared_pointer
 PDBSinglePV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                      const pva::ChannelRequester::shared_pointer& req)
@@ -53,5 +61,8 @@ void PDBSingleGet::get()
         DBScanLocker L(channel->pv->chan);
         pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     }
+    //TODO: report unused fields as changed?
+    changed->clear();
+    changed->set(0);
     requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }

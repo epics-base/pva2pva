@@ -36,7 +36,17 @@ TESTPROD_HOST += testpvif
 testpvif_SRCS += testpvif.cpp
 testpvif_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
 testpvif_LIBS += pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+TESTS += testpvif
+
+TESTPROD_HOST += testpdb
+testpdb_SRCS += testpdb.cpp
+testpdb_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
+testpdb_LIBS += testutils pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+TESTS += testpdb
+
+
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
+
 
 #===========================
 
