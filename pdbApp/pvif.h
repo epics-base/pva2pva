@@ -4,6 +4,7 @@
 #include <map>
 
 #include <dbChannel.h>
+#include <dbStaticLib.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
@@ -22,6 +23,38 @@ struct DBCH {
 private:
     DBCH(const DBCH&);
     DBCH& operator=(const DBCH&);
+};
+
+struct pdbRecordInfo {
+    DBENTRY ent;
+    pdbRecordInfo(const char *name)
+    {
+        dbInitEntry(pdbbase, &ent);
+        if(dbFindRecordPart(&ent, &name))
+            throw std::runtime_error(ent.message);
+    }
+    ~pdbRecordInfo()
+    {
+        dbFinishEntry(&ent);
+    }
+    const char *info(const char *key, const char *def)
+    {
+        if(dbFindInfo(&ent, key))
+            return def;
+        return dbGetInfoString(&ent);
+    }
+};
+
+
+struct DBScanLocker
+{
+    dbCommon *prec;
+    DBScanLocker(dbChannel *chan) :prec(dbChannelRecord(chan))
+    { dbScanLock(prec); }
+    DBScanLocker(dbCommon *prec) :prec(prec)
+    { dbScanLock(prec); }
+    ~DBScanLocker()
+    { dbScanUnlock(prec); }
 };
 
 struct PVIF {

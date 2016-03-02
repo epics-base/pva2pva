@@ -7,7 +7,11 @@ include $(TOP)/configure/CONFIG
 
 LIBRARY_HOST += pdbcore
 
+USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
+
 pdbcore_SRCS += pvif.cpp
+pdbcore_SRCS += pdbsingle.cpp
+pdbcore_SRCS += pdbgroup.cpp
 
 pdbcore_LIBS += pvAccess pvData Com
 
