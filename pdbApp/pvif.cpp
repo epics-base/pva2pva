@@ -384,8 +384,8 @@ struct PVIFScalarNumeric : public PVIF
 
     virtual void get(epics::pvData::BitSet& mask)
     {
-        getValue(pvmeta);
-        mask |= pvmeta.maskVALUE;
+        if(mask.bitwise_and(pvmeta.maskVALUE))
+            getValue(pvmeta);
     }
 
 };
