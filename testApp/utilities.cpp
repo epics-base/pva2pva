@@ -26,7 +26,7 @@ TestChannelRequester::~TestChannelRequester()
 
 void TestChannelRequester::channelCreated(const pvd::Status& status, pva::Channel::shared_pointer const & channel)
 {
-    testDiag("channelCreated %s", channel->getChannelName().c_str());
+    testDiag("channelCreated %s", channel ? channel->getChannelName().c_str() : "<fails>");
     Guard G(lock);
     laststate = pva::Channel::CONNECTED;
     this->status = status;

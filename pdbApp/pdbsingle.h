@@ -18,9 +18,11 @@ struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBS
     DBCH chan;
     PDBProvider::shared_pointer provider;
 
+    static size_t ninstances;
+
     PDBSinglePV(DBCH& chan,
                 const PDBProvider::shared_pointer& prov);
-    virtual ~PDBSinglePV() {}
+    virtual ~PDBSinglePV();
 
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,

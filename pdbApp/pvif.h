@@ -55,7 +55,12 @@ struct pdbRecordIterator {
     {
         dbInitEntry(pdbbase, &ent);
         m_done = dbFirstRecordType(&ent)!=0;
-        if(!m_done) m_done = dbFirstRecord(&ent)!=0;
+        while(!m_done) {
+            if(dbFirstRecord(&ent)==0)
+                break;
+            // not instances of this type
+            m_done = dbNextRecordType(&ent)!=0;
+        }
     }
     ~pdbRecordIterator()
     {
@@ -63,8 +68,17 @@ struct pdbRecordIterator {
     }
     bool done() const { return m_done; }
     bool next() {
-        m_done = dbNextRecord(&ent)!=0;
-        if(m_done) m_done = dbNextRecordType(&ent)!=0;
+        if(!m_done && dbNextRecord(&ent)!=0)
+        {
+            // done with this recordType
+            while(true) {
+                m_done = dbNextRecordType(&ent)!=0;
+                if(m_done) break;
+                if(dbFirstRecord(&ent)==0)
+                    break;
+                // not instances of this type
+            }
+        }
         return m_done;
     }
     dbCommon* record() const {
@@ -90,6 +104,20 @@ struct DBScanLocker
     { dbScanLock(prec); }
     ~DBScanLocker()
     { dbScanUnlock(prec); }
+};
+
+struct DBManyLock
+{
+    dbLocker *plock;
+    DBManyLock() :plock(NULL) {}
+    DBManyLock(dbCommon **precs, size_t nrecs, unsigned flags=0)
+        :plock(dbLockerAlloc(precs, nrecs, flags))
+    {
+        if(!plock) throw std::invalid_argument("Failed to create locker");
+    }
+    ~DBManyLock() { if(plock) dbLockerFree(plock); }
+    void swap(DBManyLock& O) { std::swap(plock, O.plock); }
+    operator dbLocker*() { return plock; }
 };
 
 struct DBManyLocker

@@ -50,6 +50,15 @@ void test_method(const char *kname, const char *mname)
 // Construct an instance and run one method
 #define TEST_METHOD(klass, method) test_method<klass, &klass::method>(#klass, #method)
 
+template<typename LHS, typename RHS>
+void testEqualx(const char *nLHS, const char *nRHS, LHS l, RHS r)
+{
+    std::ostringstream msg;
+    msg<<nLHS<<" ("<<l<<") == "<<nRHS<<" ("<<r<<")";
+    testOk(l==r, "%s", msg.str().c_str());
+}
+#define testEqual(LHS, RHS) testEqualx(#LHS, #RHS, LHS, RHS)
+
 // Boilerplate reduction for accessing a scalar field
 template<typename T>
 struct ScalarAccessor {

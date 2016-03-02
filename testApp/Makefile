@@ -7,6 +7,7 @@ include $(TOP)/configure/CONFIG
 
 USR_CPPFLAGS += -I$(TOP)/p2pApp
 USR_CPPFLAGS += -I$(TOP)/pdbApp
+USR_CPPFLAGS += -I$(TOP)/common
 
 TARGETS += $(COMMON_DIR)/p2pTestIoc.dbd
 p2pTestIoc_DBD += base.dbd

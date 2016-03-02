@@ -1,4 +1,5 @@
 #include <dbAccess.h>
+#include <epicsAtomic.h>
 
 #include "pdbsingle.h"
 #include "pdb.h"
@@ -6,12 +7,20 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
+size_t PDBSinglePV::ninstances;
+
 PDBSinglePV::PDBSinglePV(DBCH& chan,
             const PDBProvider::shared_pointer& prov)
     :provider(prov)
 {
     this->chan.swap(chan);
     fielddesc = PVIF::dtype(this->chan);
+    epics::atomic::increment(ninstances);
+}
+
+PDBSinglePV::~PDBSinglePV()
+{
+    epics::atomic::decrement(ninstances);
 }
 
 pva::Channel::shared_pointer

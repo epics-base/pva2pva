@@ -19,10 +19,12 @@ struct PDBGroupPV : public PDBPV, public std::tr1::enable_shared_from_this<PDBGr
     std::string name;
     epics::pvData::shared_vector<DBCH> chan;
     std::vector<std::string> attachments;
-    std::auto_ptr<dbLocker> locker;
+    DBManyLock locker;
 
-    PDBGroupPV() {}
-    virtual ~PDBGroupPV() {}
+    static size_t ninstances;
+
+    PDBGroupPV();
+    virtual ~PDBGroupPV();
 
     virtual
     epics::pvAccess::Channel::shared_pointer

@@ -1,3 +1,5 @@
+
+#include <epicsAtomic.h>
 #include <dbAccess.h>
 
 #include "pdbgroup.h"
@@ -5,6 +7,18 @@
 
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
+
+size_t PDBGroupPV::ninstances;
+
+PDBGroupPV::PDBGroupPV()
+{
+    epics::atomic::increment(ninstances);
+}
+
+PDBGroupPV::~PDBGroupPV()
+{
+    epics::atomic::decrement(ninstances);
+}
 
 pva::Channel::shared_pointer
 PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
@@ -18,8 +32,8 @@ PDBGroupChannel::PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                                  const std::tr1::shared_ptr<pva::ChannelProvider>& prov,
                                  const pva::ChannelRequester::shared_pointer& req)
     :BaseChannel(pv->name, prov, req, pv->fielddesc)
-{
-}
+    ,pv(pv)
+{}
 
 void PDBGroupChannel::printInfo(std::ostream& out)
 {
@@ -71,7 +85,7 @@ void PDBGroupGet::get()
 
     changed->clear();
     if(atomic) {
-        DBManyLocker L(channel->pv->locker.get());
+        DBManyLocker L(channel->pv->locker);
         for(size_t i=0; i<npvs; i++)
             pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     } else {

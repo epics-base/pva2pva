@@ -1,12 +1,15 @@
 
 #include <testMain.h>
 
+#include <epicsAtomic.h>
 #include <dbAccess.h>
 
 #include <pv/epicsException.h>
 
 #include "utilities.h"
 #include "pdb.h"
+#include "pdbgroup.h"
+#include "pdbsingle.h"
 
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
@@ -21,8 +24,7 @@ void testFieldEqual(const pvd::PVStructurePtr& val, const char *name, typename P
         testFail("field '%s' with type %s does not exist", name, typeid(PVD).name());
     } else {
         typename PVD::value_type actual(fval->get());
-        std::cout<<"# expect='"<<expect<<"' actual='"<<actual<<"'\n";
-        testOk1(actual==expect);
+        testEqualx(name, "expect", actual, expect);
     }
 }
 
@@ -67,11 +69,16 @@ pvd::PVStructurePtr pvget(const pva::ChannelProvider::shared_pointer& prov, cons
     testOk1(!!greq->value);
     if(!greq->value)
         testAbort("'%s' get w/o data", name);
+
+    get->destroy();
+    chan->destroy();
+
     return greq->value;
 }
 
-void testSingle(const PDBProvider::shared_pointer& prov)
+void testSingleGet(const PDBProvider::shared_pointer& prov)
 {
+    testDiag("test single get");
     pvd::PVStructurePtr value;
 
     value = pvget(prov, "rec1", false);
@@ -79,6 +86,26 @@ void testSingle(const PDBProvider::shared_pointer& prov)
 
     value = pvget(prov, "rec1.RVAL", false);
     testFieldEqual<pvd::PVInt>(value, "value", 10);
+}
+
+void testGroupGet(const PDBProvider::shared_pointer& prov)
+{
+    testDiag("test group get");
+    pvd::PVStructurePtr value;
+
+    testDiag("get non-atomic");
+    value = pvget(prov, "grp1", false);
+    testFieldEqual<pvd::PVDouble>(value, "fld1.value", 3.0);
+    testFieldEqual<pvd::PVInt>(value,    "fld2.value", 30);
+    testFieldEqual<pvd::PVDouble>(value, "fld3.value", 4.0);
+    testFieldEqual<pvd::PVInt>(value,    "fld4.value", 40);
+
+    testDiag("get atomic");
+    value = pvget(prov, "grp1", true);
+    testFieldEqual<pvd::PVDouble>(value, "fld1.value", 3.0);
+    testFieldEqual<pvd::PVInt>(value,    "fld2.value", 30);
+    testFieldEqual<pvd::PVDouble>(value, "fld3.value", 4.0);
+    testFieldEqual<pvd::PVInt>(value,    "fld4.value", 40);
 }
 
 } // namespace
@@ -98,8 +125,14 @@ MAIN(testpdb)
 
         IOC.init();
 
-        PDBProvider::shared_pointer prov(new PDBProvider());
-        testSingle(prov);
+        {
+            PDBProvider::shared_pointer prov(new PDBProvider());
+            testSingleGet(prov);
+            testGroupGet(prov);
+        }
+        testDiag("check to see that all dbChannel are closed before IOC shuts down");
+        testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);
+        testEqual(epics::atomic::get(PDBSinglePV::ninstances), 0u);
 
     }catch(std::exception& e){
         PRINT_EXCEPTION(e);

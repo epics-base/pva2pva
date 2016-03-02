@@ -12,7 +12,7 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
-int PDBProviderDebug = 0;
+int PDBProviderDebug = 3;
 
 namespace {
 struct GroupMemberInfo {
@@ -66,14 +66,14 @@ PDBProvider::PDBProvider()
                 const char *next = strchr(pos, '|'),
                            *equal= strchr(pos, '=');
 
-                if(!equal || equal>next)
+                if(!equal || (next && equal>next))
                     throw std::runtime_error("expected '='");
 
-                info.members.push_back(GroupMemberInfo(recbase + (next ? std::string(equal+1, next-pos) : std::string(equal+1)),
+                info.members.push_back(GroupMemberInfo(recbase + (next ? std::string(equal+1, next-equal-1) : std::string(equal+1)),
                                                        std::string(pos, equal-pos)));
 
                 if(PDBProviderDebug>2) {
-                    fprintf(stderr, "  pdbGroup '%s' add %s=%s\n",
+                    fprintf(stderr, "  pdbGroup '%s' add '%s'='%s'\n",
                             info.name.c_str(),
                             info.members.back().pvfldname.c_str(),
                             info.members.back().pvname.c_str());
@@ -104,19 +104,26 @@ PDBProvider::PDBProvider()
             pvd::shared_vector<DBCH> chans(nchans);
             std::vector<dbCommon*> records(nchans);
 
+            pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
+
             for(size_t i=0; i<nchans; i++)
             {
                 GroupMemberInfo &mem = info.members[i];
+
                 DBCH chan(mem.pvname);
+
+                builder->add(mem.pvfldname, PVIF::dtype(chan));
+
                 pv->attachments[i] = mem.pvfldname;
                 records[i] = dbChannelRecord(chan);
                 chans[i].swap(chan);
             }
+
+            pv->fielddesc = builder->createStructure();
             pv->chan.swap(chans);
 
-            pv->locker.reset(dbLockerAlloc(&records[0], records.size(), 0));
-            if(!pv->locker.get())
-                throw std::runtime_error("Failed to create dbLocker");
+            DBManyLock L(&records[0], records.size(), 0);
+            pv->locker.swap(L);
 
             persist_pv_map[info.name] = pv;
 
