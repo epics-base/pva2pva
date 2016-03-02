@@ -13,19 +13,20 @@ struct PDBPV : public std::tr1::enable_shared_from_this<PDBPV>
 
     epics::pvData::StructureConstPtr fielddesc;
 
-    PDBPV(const epics::pvData::StructureConstPtr& fd) :fielddesc(fd) {}
+    PDBPV() {}
     virtual ~PDBPV() {}
 
     virtual
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
-                const epics::pvAccess::ChannelRequester::shared_pointer& req);
+                const epics::pvAccess::ChannelRequester::shared_pointer& req) =0;
 };
 
 struct PDBProvider : public epics::pvAccess::ChannelProvider
 {
     POINTER_DEFINITIONS(PDBProvider);
 
+    PDBProvider();
     virtual ~PDBProvider();
     virtual void destroy();
     virtual std::string getProviderName();
@@ -39,11 +40,11 @@ struct PDBProvider : public epics::pvAccess::ChannelProvider
                                                                    epics::pvAccess::ChannelRequester::shared_pointer const & channelRequester,
                                                                    short priority, std::string const & address);
 
-    typedef std::map<std::string, epics::pvAccess::Channel::shared_pointer> persit_chan_map_t;
-    persit_chan_map_t persit_chan_map;
+    typedef std::map<std::string, PDBPV::shared_pointer> persist_pv_map_t;
+    persist_pv_map_t persist_pv_map;
 
-    typedef weak_value_map<std::string, epics::pvAccess::Channel::shared_pointer> transient_chan_map_t;
-    transient_chan_map_t transient_chan_map;
+    typedef std::map<std::string, PDBPV::shared_pointer> transient_pv_map_t;
+    transient_pv_map_t transient_pv_map;
 };
 
 struct PDBProviderFactory : public epics::pvAccess::ChannelProviderFactory

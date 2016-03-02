@@ -13,6 +13,17 @@ DBCH::DBCH(dbChannel *ch) :chan(ch)
         throw std::invalid_argument("Invalid channel");
 }
 
+DBCH::DBCH(const std::string& name)
+    :chan(dbChannelCreate(name.c_str()))
+{
+    if(!chan)
+        throw std::invalid_argument("Invalid channel");
+    if(dbChannelOpen(chan)) {
+        dbChannelDelete(chan);
+        throw std::invalid_argument("Failed to open channel");
+    }
+}
+
 DBCH::DBCH(const char *name)
     :chan(dbChannelCreate(name))
 {

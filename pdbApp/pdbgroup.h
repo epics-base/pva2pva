@@ -16,10 +16,13 @@ struct PDBGroupPV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBGroupPV);
 
+    std::string name;
     epics::pvData::shared_vector<DBCH> chan;
+    std::vector<std::string> attachments;
     std::auto_ptr<dbLocker> locker;
 
-    PDBGroupPV(const std::vector<std::string>& names);
+    PDBGroupPV() {}
+    virtual ~PDBGroupPV() {}
 
     virtual
     epics::pvAccess::Channel::shared_pointer
@@ -33,12 +36,11 @@ struct PDBGroupChannel : public BaseChannel,
     POINTER_DEFINITIONS(PDBGroupChannel);
 
     PDBGroupPV::shared_pointer pv;
-    dbChannel *chan;
 
     PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                 const std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
-    virtual PDBGroupChannel() {}
+    virtual ~PDBGroupChannel() {}
 
     virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
             epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
@@ -53,18 +55,20 @@ struct PDBGroupGet : public epics::pvAccess::ChannelGet,
     PDBGroupChannel::shared_pointer channel;
     epics::pvAccess::ChannelGetRequester::shared_pointer requester;
 
+    bool atomic;
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;
-    std::auto_ptr<PVIF> pvif;
+    std::vector<std::tr1::shared_ptr<PVIF> > pvif;
 
-    PDBGroupGet(PDBGroupChannel::shared_pointer channel,
-                 epics::pvAccess::ChannelGetRequester::shared_pointer requester);
+    PDBGroupGet(const PDBGroupChannel::shared_pointer& channel,
+                const epics::pvAccess::ChannelGetRequester::shared_pointer& requester,
+                const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBGroupGet() {}
 
-    virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }
+    virtual void destroy() { pvif.clear(); channel.reset(); requester.reset(); }
     virtual void lock() {}
     virtual void unlock() {}
-    virtual std::tr1::shared_ptr<Channel> getChannel() { return channel; }
+    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
     virtual void cancel() {}
     virtual void lastRequest() {}
     virtual void get();

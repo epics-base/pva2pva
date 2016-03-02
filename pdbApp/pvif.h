@@ -3,8 +3,10 @@
 
 #include <map>
 
+#include <dbAccess.h>
 #include <dbChannel.h>
 #include <dbStaticLib.h>
+#include <dbLock.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
@@ -13,6 +15,7 @@ struct DBCH {
     dbChannel *chan;
     DBCH() :chan(0) {}
     explicit DBCH(dbChannel *ch);
+    explicit DBCH(const std::string& name);
     explicit DBCH(const char *name);
     ~DBCH();
 
@@ -37,7 +40,7 @@ struct pdbRecordInfo {
     {
         dbFinishEntry(&ent);
     }
-    const char *info(const char *key, const char *def)
+    const char *info(const char *key, const char *def =0)
     {
         if(dbFindInfo(&ent, key))
             return def;
@@ -45,6 +48,38 @@ struct pdbRecordInfo {
     }
 };
 
+struct pdbRecordIterator {
+    DBENTRY ent;
+    bool m_done;
+    pdbRecordIterator()
+    {
+        dbInitEntry(pdbbase, &ent);
+        m_done = dbFirstRecordType(&ent)!=0;
+        if(!m_done) m_done = dbFirstRecord(&ent)!=0;
+    }
+    ~pdbRecordIterator()
+    {
+        dbFinishEntry(&ent);
+    }
+    bool done() const { return m_done; }
+    bool next() {
+        m_done = dbNextRecord(&ent)!=0;
+        if(m_done) m_done = dbNextRecordType(&ent)!=0;
+        return m_done;
+    }
+    dbCommon* record() const {
+        return m_done ? NULL : (dbCommon*)ent.precnode->precord;
+    }
+    const char *name() const {
+        return m_done ? NULL : ((dbCommon*)ent.precnode->precord)->name;
+    }
+    const char *info(const char *key, const char *def =0)
+    {
+        if(m_done || dbFindInfo(&ent, key))
+            return def;
+        return dbGetInfoString(&ent);
+    }
+};
 
 struct DBScanLocker
 {
@@ -55,6 +90,19 @@ struct DBScanLocker
     { dbScanLock(prec); }
     ~DBScanLocker()
     { dbScanUnlock(prec); }
+};
+
+struct DBManyLocker
+{
+    dbLocker *plock;
+    DBManyLocker(dbLocker *L) :plock(L)
+    {
+        dbScanLockMany(plock);
+    }
+    ~DBManyLocker()
+    {
+        dbScanUnlockMany(plock);
+    }
 };
 
 struct PVIF {

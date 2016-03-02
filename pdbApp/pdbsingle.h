@@ -16,8 +16,10 @@ struct PDBSinglePV : public PDBPV
     POINTER_DEFINITIONS(PDBSinglePV);
 
     DBCH chan;
+    PDBProvider::shared_pointer provider;
 
-    PDBSinglePV(const char *name);
+    PDBSinglePV(const char *name,
+                const PDBProvider::shared_pointer& prov);
 
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
@@ -32,7 +34,6 @@ struct PDBSingleChannel : public BaseChannel,
     PDBSinglePV::shared_pointer pv;
 
     PDBSingleChannel(const PDBSinglePV::shared_pointer& pv,
-                const std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
     virtual ~PDBSingleChannel() {}
 
