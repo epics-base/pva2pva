@@ -7,7 +7,7 @@
 
 struct PDBProvider;
 
-struct PDBPV : public std::tr1::enable_shared_from_this<PDBPV>
+struct PDBPV
 {
     POINTER_DEFINITIONS(PDBPV);
 
@@ -22,7 +22,8 @@ struct PDBPV : public std::tr1::enable_shared_from_this<PDBPV>
                 const epics::pvAccess::ChannelRequester::shared_pointer& req) =0;
 };
 
-struct PDBProvider : public epics::pvAccess::ChannelProvider
+struct PDBProvider : public epics::pvAccess::ChannelProvider,
+                     public std::tr1::enable_shared_from_this<PDBProvider>
 {
     POINTER_DEFINITIONS(PDBProvider);
 
@@ -43,7 +44,7 @@ struct PDBProvider : public epics::pvAccess::ChannelProvider
     typedef std::map<std::string, PDBPV::shared_pointer> persist_pv_map_t;
     persist_pv_map_t persist_pv_map;
 
-    typedef std::map<std::string, PDBPV::shared_pointer> transient_pv_map_t;
+    typedef weak_value_map<std::string, PDBPV> transient_pv_map_t;
     transient_pv_map_t transient_pv_map;
 };
 

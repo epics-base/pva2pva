@@ -38,6 +38,8 @@ struct BaseChannel : public epics::pvAccess::Channel
     virtual void getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,std::string const & subField)
     { requester->getDone(epics::pvData::Status(), fielddesc); }
 
+    virtual epics::pvAccess::AccessRights getAccessRights(const epics::pvData::PVField::shared_pointer &pvField)
+    { return epics::pvAccess::readWrite; }
 
     virtual epics::pvAccess::ChannelProcess::shared_pointer createChannelProcess(
             epics::pvAccess::ChannelProcessRequester::shared_pointer const & requester,

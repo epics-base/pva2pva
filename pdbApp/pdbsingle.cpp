@@ -6,6 +6,14 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
+pva::Channel::shared_pointer
+PDBSinglePV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
+                     const pva::ChannelRequester::shared_pointer& req)
+{
+    pva::Channel::shared_pointer ret(new PDBSingleChannel(shared_from_this(), req));
+    return ret;
+}
+
 PDBSingleChannel::PDBSingleChannel(const PDBSinglePV::shared_pointer& pv,
                                    const pva::ChannelRequester::shared_pointer& req)
     :BaseChannel(dbChannelName(pv->chan), pv->provider, req, pv->fielddesc)

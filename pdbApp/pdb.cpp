@@ -163,9 +163,33 @@ PDBProvider::createChannel(std::string const & channelName,
                                                                short priority, std::string const & address)
 {
     pva::Channel::shared_pointer ret;
+    PDBPV::shared_pointer pv;
     pvd::Status status;
-    // find channel and set ret
-    status = pvd::Status(pvd::Status::STATUSTYPE_ERROR, "not found");
+    {
+        epicsGuard<epicsMutex> G(transient_pv_map.mutex());
+
+        pv = transient_pv_map.find(channelName);
+        if(!pv) {
+            persist_pv_map_t::const_iterator it=persist_pv_map.find(channelName);
+            if(it!=persist_pv_map.end()) {
+                pv = it->second;
+            }
+        }
+        if(!pv) {
+            dbChannel *pchan = dbChannelCreate(channelName.c_str());
+            if(pchan) {
+                DBCH chan(pchan);
+                pv.reset(new PDBSinglePV(chan, shared_from_this()));
+                transient_pv_map.insert(channelName, pv);
+            }
+        }
+    }
+    if(pv) {
+        ret = pv->connect(shared_from_this(), requester);
+    }
+    if(!ret) {
+        status = pvd::Status(pvd::Status::STATUSTYPE_ERROR, "not found");
+    }
     requester->channelCreated(status, ret);
     return ret;
 }

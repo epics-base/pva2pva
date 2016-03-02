@@ -11,15 +11,20 @@
 #include "pvif.h"
 #include "pdb.h"
 
-struct PDBSinglePV : public PDBPV
+struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBSinglePV>
 {
     POINTER_DEFINITIONS(PDBSinglePV);
 
     DBCH chan;
     PDBProvider::shared_pointer provider;
 
-    PDBSinglePV(const char *name,
-                const PDBProvider::shared_pointer& prov);
+    PDBSinglePV(DBCH& chan,
+                const PDBProvider::shared_pointer& prov)
+        :provider(prov)
+    {
+        this->chan.swap(chan);
+    }
+    virtual ~PDBSinglePV() {}
 
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,

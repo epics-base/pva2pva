@@ -12,7 +12,7 @@
 #include "pvif.h"
 #include "pdb.h"
 
-struct PDBGroupPV : public PDBPV
+struct PDBGroupPV : public PDBPV, public std::tr1::enable_shared_from_this<PDBGroupPV>
 {
     POINTER_DEFINITIONS(PDBGroupPV);
 
