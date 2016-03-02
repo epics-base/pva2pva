@@ -53,8 +53,9 @@ struct PDBSingleChannel : public BaseChannel,
 struct PDBSingleGet : public epics::pvAccess::ChannelGet,
         public std::tr1::enable_shared_from_this<PDBSingleGet>
 {
+    typedef epics::pvAccess::ChannelGetRequester requester_t;
     PDBSingleChannel::shared_pointer channel;
-    epics::pvAccess::ChannelGetRequester::shared_pointer requester;
+    requester_t::shared_pointer requester;
 
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;
@@ -76,8 +77,9 @@ struct PDBSingleGet : public epics::pvAccess::ChannelGet,
 struct PDBSinglePut : public epics::pvAccess::ChannelPut,
         public std::tr1::enable_shared_from_this<PDBSinglePut>
 {
+    typedef epics::pvAccess::ChannelPutRequester requester_t;
     PDBSingleChannel::shared_pointer channel;
-    epics::pvAccess::ChannelPutRequester::shared_pointer requester;
+    requester_t::shared_pointer requester;
 
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;

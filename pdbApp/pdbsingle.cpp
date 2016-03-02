@@ -73,16 +73,23 @@ PDBSingleGet::PDBSingleGet(PDBSingleChannel::shared_pointer channel,
     ,pvif(PVIF::attach(channel->pv->chan, pvf))
 {}
 
-void PDBSingleGet::get()
+namespace {
+void commonGet(PVIF *pvif, pvd::BitSet* changed)
 {
     changed->clear();
     {
-        DBScanLocker L(channel->pv->chan);
+        DBScanLocker L(pvif->chan);
         pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     }
     //TODO: report unused fields as changed?
     changed->clear();
     changed->set(0);
+}
+}
+
+void PDBSingleGet::get()
+{
+    commonGet(pvif.get(), changed.get());
     requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 
@@ -110,13 +117,6 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 
 void PDBSinglePut::get()
 {
-    changed->clear();
-    {
-        DBScanLocker L(channel->pv->chan);
-        pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
-    }
-    //TODO: report unused fields as changed?
-    changed->clear();
-    changed->set(0);
+    commonGet(pvif.get(), changed.get());
     requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
