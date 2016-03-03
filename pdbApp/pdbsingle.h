@@ -15,6 +15,11 @@ struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBS
 {
     POINTER_DEFINITIONS(PDBSinglePV);
 
+    /* this dbChannel is shared by all operations,
+     * which is safe as it's modify-able fields (pfield)
+     * are only access while the underlying record
+     * is locked.
+     */
     DBCH chan;
     PDBProvider::shared_pointer provider;
 
@@ -62,7 +67,8 @@ struct PDBSingleGet : public epics::pvAccess::ChannelGet,
     std::auto_ptr<PVIF> pvif;
 
     PDBSingleGet(const PDBSingleChannel::shared_pointer& channel,
-                 const epics::pvAccess::ChannelGetRequester::shared_pointer& requester);
+                 const epics::pvAccess::ChannelGetRequester::shared_pointer& requester,
+                 const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBSingleGet() {}
 
     virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }
@@ -85,8 +91,9 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     epics::pvData::PVStructurePtr pvf;
     std::auto_ptr<PVIF> pvif;
 
-    PDBSinglePut(PDBSingleChannel::shared_pointer channel,
-                 epics::pvAccess::ChannelPutRequester::shared_pointer requester);
+    PDBSinglePut(const PDBSingleChannel::shared_pointer& channel,
+                 const epics::pvAccess::ChannelPutRequester::shared_pointer& requester,
+                 const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBSinglePut() {}
 
     virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }

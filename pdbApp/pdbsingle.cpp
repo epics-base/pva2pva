@@ -48,7 +48,7 @@ PDBSingleChannel::createChannelGet(
         pva::ChannelGetRequester::shared_pointer const & requester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    pva::ChannelGet::shared_pointer ret(new PDBSingleGet(shared_from_this(), requester));
+    pva::ChannelGet::shared_pointer ret(new PDBSingleGet(shared_from_this(), requester, pvRequest));
     requester->channelGetConnect(pvd::Status(), ret, fielddesc);
     return ret;
 }
@@ -58,14 +58,15 @@ PDBSingleChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & requester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    pva::ChannelPut::shared_pointer ret(new PDBSinglePut(shared_from_this(), requester));
+    pva::ChannelPut::shared_pointer ret(new PDBSinglePut(shared_from_this(), requester, pvRequest));
     requester->channelPutConnect(pvd::Status(), ret, fielddesc);
     return ret;
 }
 
 
 PDBSingleGet::PDBSingleGet(const PDBSingleChannel::shared_pointer &channel,
-                           const epics::pvAccess::ChannelGetRequester::shared_pointer& requester)
+                           const epics::pvAccess::ChannelGetRequester::shared_pointer& requester,
+                           const epics::pvData::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
@@ -96,8 +97,9 @@ void PDBSingleGet::get()
 
 
 
-PDBSinglePut::PDBSinglePut(PDBSingleChannel::shared_pointer channel,
-                           pva::ChannelPutRequester::shared_pointer requester)
+PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
+                           const epics::pvAccess::ChannelPutRequester::shared_pointer &requester,
+                           const epics::pvData::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
