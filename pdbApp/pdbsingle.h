@@ -1,6 +1,8 @@
 #ifndef PDBSINGLE_H
 #define PDBSINGLE_H
 
+#include <deque>
+
 #include <dbAccess.h>
 
 #include <dbEvent.h>
@@ -50,6 +52,9 @@ struct PDBSingleChannel : public BaseChannel,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
     virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
             epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
+            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+    virtual epics::pvData::Monitor::shared_pointer createMonitor(
+            epics::pvData::MonitorRequester::shared_pointer const & requester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
     virtual void printInfo(std::ostream& out);
@@ -108,6 +113,49 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     virtual void get();
 };
 
-//struct PDBSingleMonitor : public epics::pvData::Monitor {};
+struct PDBSingleMonitor : public epics::pvAccess::Monitor,
+        public std::tr1::enable_shared_from_this<PDBSingleMonitor>
+{
+    POINTER_DEFINITIONS(PDBSingleMonitor);
+
+    typedef epics::pvAccess::MonitorRequester requester_t;
+    PDBSingleChannel::shared_pointer channel;
+
+    epicsMutex lock;
+
+    requester_t::shared_pointer requester;
+
+    epics::pvData::PVStructurePtr complete;
+    epics::pvData::BitSet changed, overflow, scratch;
+    std::auto_ptr<PVIF> pvif;
+
+    struct Event {
+        PDBSingleMonitor *self;
+        dbEventSubscription subscript;
+        unsigned dbe_mask;
+        Event(PDBSingleMonitor *m, unsigned mask);
+        ~Event();
+    };
+    Event evt_VALUE, evt_PROPERTY;
+
+    typedef std::deque<epics::pvAccess::MonitorElementPtr> buffer_t;
+    bool inoverflow;
+    bool running;
+    size_t nbuffers;
+    buffer_t inuse, empty;
+
+    PDBSingleMonitor(const PDBSingleChannel::shared_pointer& channel,
+                     const requester_t::shared_pointer& requester,
+                     const epics::pvData::PVStructure::shared_pointer& pvReq);
+    virtual ~PDBSingleMonitor() {destroy();}
+
+    virtual void destroy();
+    virtual epics::pvData::Status start();
+    virtual epics::pvData::Status stop();
+    virtual epics::pvAccess::MonitorElementPtr poll();
+    virtual void release(epics::pvAccess::MonitorElementPtr const & elem);
+    virtual void getStats(Stats& s) const;
+
+};
 
 #endif // PDBSINGLE_H

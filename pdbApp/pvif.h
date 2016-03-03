@@ -95,6 +95,28 @@ struct pdbRecordIterator {
     }
 };
 
+struct LocalFL
+{
+    db_field_log *pfl;
+    bool ours;
+    LocalFL(db_field_log *pfl, dbChannel *pchan)
+        :pfl(pfl)
+        ,ours(false)
+    {
+        if(!pfl && (ellCount(&pchan->pre_chain)!=0 || ellCount(&pchan->pre_chain)==0)) {
+            pfl = db_create_read_log(pchan);
+            if(pfl) {
+                ours = true;
+                pfl = dbChannelRunPreChain(pchan, pfl);
+                if(pfl) pfl = dbChannelRunPostChain(pchan, pfl);
+            }
+        }
+    }
+    ~LocalFL() {
+        if(ours) db_delete_field_log(pfl);
+    }
+};
+
 struct DBScanLocker
 {
     dbCommon *prec;

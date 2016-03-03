@@ -1,6 +1,8 @@
 record(ai, "rec1") {
   field(VAL, "1.0")
   field(RVAL, "10")
+  field(HOPR, "100")
+  field(LOPR, "-100")
 }
 record(ai, "rec2") {
   field(VAL, "2.0")

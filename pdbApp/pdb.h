@@ -1,9 +1,11 @@
 #ifndef PDB_H
 #define PDB_H
 
-#include "weakmap.h"
+#include <dbEvent.h>
 
 #include <pv/pvAccess.h>
+
+#include "weakmap.h"
 
 struct PDBProvider;
 
@@ -46,6 +48,8 @@ struct PDBProvider : public epics::pvAccess::ChannelProvider,
 
     typedef weak_value_map<std::string, PDBPV> transient_pv_map_t;
     transient_pv_map_t transient_pv_map;
+
+    dbEventCtx event_context;
 };
 
 struct PDBProviderFactory : public epics::pvAccess::ChannelProviderFactory

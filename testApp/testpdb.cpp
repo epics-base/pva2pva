@@ -19,6 +19,10 @@ namespace {
 template<typename PVD>
 void testFieldEqual(const pvd::PVStructurePtr& val, const char *name, typename PVD::value_type expect)
 {
+    if(!val) {
+        testFail("empty structure");
+        return;
+    }
     typename PVD::shared_pointer fval(val->getSubField<PVD>(name));
     if(!fval) {
         testFail("field '%s' with type %s does not exist", name, typeid(PVD).name());
@@ -41,37 +45,50 @@ pvd::PVStructurePtr makeRequest(bool atomic)
     return pvr;
 }
 
-struct PVPut
+struct PVConnect
 {
     TestChannelRequester::shared_pointer chreq;
     pva::Channel::shared_pointer chan;
     TestChannelFieldRequester::shared_pointer fldreq;
-    TestChannelPutRequester::shared_pointer putreq;
-    pva::ChannelPut::shared_pointer chput;
-    pvd::PVStructurePtr putval;
-    pvd::BitSetPtr putchanged;
 
-    PVPut(const pva::ChannelProvider::shared_pointer& prov, const char *name, bool atomic=true)
+    PVConnect(const pva::ChannelProvider::shared_pointer& prov, const char *name)
         :chreq(new TestChannelRequester())
         ,chan(prov->createChannel(name, chreq))
         ,fldreq(new TestChannelFieldRequester())
-        ,putreq(new TestChannelPutRequester())
     {
         if(!chan || !chan->isConnected())
             throw std::runtime_error("channel not connected");
         chan->getField(fldreq, "");
         if(!fldreq->done || !fldreq->fielddesc || fldreq->fielddesc->getType()!=pvd::structure)
             throw std::runtime_error("Failed to get fielddesc");
-        putval = pvd::getPVDataCreate()->createPVStructure(std::tr1::static_pointer_cast<const pvd::Structure>(fldreq->fielddesc));
-        pvd::PVStructurePtr pvr(makeRequest(atomic));
-        chput = chan->createChannelPut(putreq, pvr);
-        if(!chput)
-            throw std::runtime_error("Failed to create put op");
-        putchanged.reset(new pvd::BitSet());
     }
-    ~PVPut() {
-        chput->destroy();
+    virtual ~PVConnect() {
         chan->destroy();
+    }
+    pvd::StructureConstPtr dtype() {
+        return std::tr1::static_pointer_cast<const pvd::Structure>(fldreq->fielddesc);
+    }
+};
+
+struct PVPut : public PVConnect
+{
+    pvd::PVStructurePtr putval;
+    TestChannelPutRequester::shared_pointer putreq;
+    pva::ChannelPut::shared_pointer chput;
+    pvd::BitSetPtr putchanged;
+
+    PVPut(const pva::ChannelProvider::shared_pointer& prov, const char *name, bool atomic=true)
+        :PVConnect(prov, name)
+        ,putval(pvd::getPVDataCreate()->createPVStructure(dtype()))
+        ,putreq(new TestChannelPutRequester())
+        ,chput(chan->createChannelPut(putreq, makeRequest(atomic)))
+        ,putchanged(new pvd::BitSet())
+    {
+        if(!chput || !putreq->connected)
+            throw std::runtime_error("Failed to create/connect put op");
+    }
+    virtual ~PVPut() {
+        chput->destroy();
     }
     void put() {
         putreq->donePut = false;
@@ -85,6 +102,38 @@ struct PVPut
         if(!putreq->doneGet || !putreq->value)
             throw std::runtime_error("Get operation fails");
         return putreq->value;
+    }
+};
+
+struct PVMonitor : public PVConnect
+{
+    TestChannelMonitorRequester::shared_pointer monreq;
+    pva::Monitor::shared_pointer mon;
+
+    PVMonitor(const pva::ChannelProvider::shared_pointer& prov, const char *name)
+        :PVConnect(prov, name)
+        ,monreq(new TestChannelMonitorRequester())
+        ,mon(chan->createMonitor(monreq, makeRequest(false)))
+    {
+        if(!mon || !monreq->connected)
+            throw std::runtime_error("Failed to create/connect monitor");
+    }
+    virtual ~PVMonitor() {
+        mon->destroy();
+    }
+
+    struct Element {
+        pva::MonitorElementPtr elem;
+        Element(const pva::MonitorElementPtr& e) : elem(e) {}
+        pvd::BitSet& changed() { return *elem->changedBitSet; }
+        pvd::BitSet& overflow() { return *elem->overrunBitSet; }
+        pvd::PVStructure* operator->() { return elem->pvStructurePtr.get(); }
+        operator pvd::PVStructurePtr&() { return elem->pvStructurePtr; }
+        bool operator!() const { return !elem; }
+    };
+
+    Element poll() {
+        return Element(mon->poll());
     }
 };
 
@@ -135,6 +184,8 @@ void testSingleGet(const PDBProvider::shared_pointer& prov)
 
     value = pvget(prov, "rec1", false);
     testFieldEqual<pvd::PVDouble>(value, "value", 1.0);
+    testFieldEqual<pvd::PVDouble>(value, "display.limitHigh", 100.0);
+    testFieldEqual<pvd::PVDouble>(value, "display.limitLow", -100.0);
 
     value = pvget(prov, "rec1.RVAL", false);
     testFieldEqual<pvd::PVInt>(value, "value", 10);
@@ -214,6 +265,43 @@ void testGroupPut(const PDBProvider::shared_pointer& prov)
     testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
 }
 
+void testSingleMonitor(const PDBProvider::shared_pointer& prov)
+{
+    testDiag("test single monitor");
+
+    testdbPutFieldOk("rec1", DBR_DOUBLE, 1.0);
+
+    testDiag("subscribe to rec1.VAL");
+    PVMonitor mon(prov, "rec1");
+    mon.mon->start();
+
+    // start() will trigger two updates, one for DBE_VALUE|DBE_ALARM
+    // and another for DBE_PROPERTY
+    testOk1(mon.monreq->waitForEvent());
+    testDiag("Initial event");
+
+    // TODO: correctly check the first update
+    // no mather which DBE_* arrives first...
+    PVMonitor::Element e(mon.poll());
+    testOk1(!!e);
+    while(!(e = mon.poll())) {
+        testDiag("Wait initial event (part 2)");
+        mon.monreq->waitForEvent();
+    }
+
+    testOk1(!!e);
+    testFieldEqual<pvd::PVDouble>(e, "value", 1.0);
+    testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 100.0);
+    testFieldEqual<pvd::PVDouble>(e, "display.limitLow", -100.0);
+
+    e = mon.poll();
+    testOk1(!e);
+
+    testDiag("trigger new event");
+    testdbPutFieldOk("rec1", DBR_DOUBLE, 11.0);
+
+}
+
 } // namespace
 
 extern "C"
@@ -231,14 +319,22 @@ MAIN(testpdb)
 
         IOC.init();
 
-        {
-            PDBProvider::shared_pointer prov(new PDBProvider());
+        PDBProvider::shared_pointer prov(new PDBProvider());
+        try {
             testSingleGet(prov);
             testGroupGet(prov);
 
             testSinglePut(prov);
             testGroupPut(prov);
+
+            testSingleMonitor(prov);
+        }catch(...){
+            prov->destroy();
+            throw;
         }
+        prov->destroy();
+        prov.reset();
+
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
         testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);
         testEqual(epics::atomic::get(PDBSinglePV::ninstances), 0u);

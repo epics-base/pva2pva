@@ -131,11 +131,38 @@ PDBProvider::PDBProvider()
             fprintf(stderr, "%s: pdbGroup not created: %s\n", info.name.c_str(), e.what());
         }
     }
+
+    event_context = db_init_events();
+    if(!event_context)
+        throw std::runtime_error("Failed to create dbEvent context");
+    int ret = db_start_events(event_context, "PDB-event", NULL, NULL, epicsThreadPriorityCAServerLow-1);
+    if(ret!=DB_EVENT_OK)
+        throw std::runtime_error("Failed to stsart dbEvent context");
 }
 
-PDBProvider::~PDBProvider() {}
+PDBProvider::~PDBProvider()
+{
+    {
+        epicsGuard<epicsMutex> G(transient_pv_map.mutex());
+        if(event_context) {
+            /* Explicit destroy to ensure that the dbEventCtx
+             * is free'd from the event thread.
+             */
+            errlogPrintf("Warning: PDBProvider free'd without destroy().  Possible race condition\nn");
+        }
+    }
+    destroy();
+}
 
-void PDBProvider::destroy() {}
+void PDBProvider::destroy()
+{
+    dbEventCtx ctxt = NULL;
+    {
+        epicsGuard<epicsMutex> G(transient_pv_map.mutex());
+        std::swap(ctxt, event_context);
+    }
+    if(ctxt) db_close_events(ctxt);
+}
 
 std::string PDBProvider::getProviderName() { return "PDBProvider"; }
 
