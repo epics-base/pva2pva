@@ -107,6 +107,8 @@ struct PVPut : public PVConnect
 
 struct PVMonitor : public PVConnect
 {
+    POINTER_DEFINITIONS(PVMonitor);
+
     TestChannelMonitorRequester::shared_pointer monreq;
     pva::Monitor::shared_pointer mon;
 
@@ -124,17 +126,29 @@ struct PVMonitor : public PVConnect
 
     struct Element {
         pva::MonitorElementPtr elem;
-        Element(const pva::MonitorElementPtr& e) : elem(e) {}
+        pva::Monitor::shared_pointer mon;
+
+        Element(const PVMonitor& m) : mon(m.mon) {}
+        ~Element() {
+            if(elem) mon->release(elem);
+        }
+        Element& operator=(const pva::MonitorElementPtr& e) {
+            if(elem) mon->release(elem);
+            elem = e;
+            return *this;
+        }
+
         pvd::BitSet& changed() { return *elem->changedBitSet; }
         pvd::BitSet& overflow() { return *elem->overrunBitSet; }
         pvd::PVStructure* operator->() { return elem->pvStructurePtr.get(); }
         operator pvd::PVStructurePtr&() { return elem->pvStructurePtr; }
         bool operator!() const { return !elem; }
+    private:
+        Element(const Element& e);
+        Element& operator=(const Element& e);
     };
 
-    Element poll() {
-        return Element(mon->poll());
-    }
+    pva::MonitorElementPtr poll() { return mon->poll(); }
 };
 
 pvd::PVStructurePtr pvget(const pva::ChannelProvider::shared_pointer& prov, const char *name,
@@ -280,9 +294,11 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     testOk1(mon.monreq->waitForEvent());
     testDiag("Initial event");
 
+    PVMonitor::Element e(mon);
+
     // TODO: correctly check the first update
     // no mather which DBE_* arrives first...
-    PVMonitor::Element e(mon.poll());
+    e = mon.poll();
     testOk1(!!e);
     while(!(e = mon.poll())) {
         testDiag("Wait initial event (part 2)");
@@ -297,9 +313,31 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
     testOk1(!e);
 
-    testDiag("trigger new event");
+    testDiag("trigger new VALUE event");
     testdbPutFieldOk("rec1", DBR_DOUBLE, 11.0);
 
+    testDiag("Wait for event");
+    mon.monreq->waitForEvent();
+
+    e = mon.poll();
+    testOk1(!!e);
+    testFieldEqual<pvd::PVDouble>(e, "value", 11.0);
+
+    e = mon.poll();
+    testOk1(!e);
+
+    testDiag("trigger new PROPERTY event");
+    testdbPutFieldOk("rec1.HOPR", DBR_DOUBLE, 50.0);
+
+    testDiag("Wait for event");
+    mon.monreq->waitForEvent();
+
+    e = mon.poll();
+    testOk1(!!e);
+    testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 50.0);
+
+    e = mon.poll();
+    testOk1(!e);
 }
 
 } // namespace

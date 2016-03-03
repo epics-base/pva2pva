@@ -168,7 +168,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
             } else {
                 assert(!self->inoverflow);
 
-                pvd::MonitorElementPtr elem = self->empty.front();
+                pvd::MonitorElementPtr elem(self->empty.front());
                 elem->pvStructurePtr->copyUnchecked(*self->complete);
                 *elem->changedBitSet = self->scratch;
                 elem->overrunBitSet->clear(); //TODO
