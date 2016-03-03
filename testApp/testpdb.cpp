@@ -28,6 +28,52 @@ void testFieldEqual(const pvd::PVStructurePtr& val, const char *name, typename P
     }
 }
 
+struct PVPut
+{
+    TestChannelRequester::shared_pointer chreq;
+    pva::Channel::shared_pointer chan;
+    TestChannelFieldRequester::shared_pointer fldreq;
+    TestChannelPutRequester::shared_pointer putreq;
+    pva::ChannelPut::shared_pointer chput;
+    pvd::PVStructurePtr putval;
+    pvd::BitSetPtr putchanged;
+
+    PVPut(const pva::ChannelProvider::shared_pointer& prov, const char *name)
+        :chreq(new TestChannelRequester())
+        ,chan(prov->createChannel(name, chreq))
+        ,fldreq(new TestChannelFieldRequester())
+        ,putreq(new TestChannelPutRequester())
+    {
+        if(!chan || !chan->isConnected())
+            throw std::runtime_error("channel not connected");
+        chan->getField(fldreq, "");
+        if(!fldreq->done || !fldreq->fielddesc || fldreq->fielddesc->getType()!=pvd::structure)
+            throw std::runtime_error("Failed to get fielddesc");
+        putval = pvd::getPVDataCreate()->createPVStructure(std::tr1::static_pointer_cast<const pvd::Structure>(fldreq->fielddesc));
+        chput = chan->createChannelPut(putreq, putval);
+        if(!chput)
+            throw std::runtime_error("Failed to create put op");
+        putchanged.reset(new pvd::BitSet());
+    }
+    ~PVPut() {
+        chput->destroy();
+        chan->destroy();
+    }
+    void put() {
+        putreq->donePut = false;
+        chput->put(putval, putchanged);
+        if(!putreq->donePut)
+            throw std::runtime_error("Put operation fails");
+    }
+    pvd::PVStructurePtr get() {
+        putreq->doneGet = false;
+        chput->get();
+        if(!putreq->doneGet || !putreq->value)
+            throw std::runtime_error("Get operation fails");
+        return putreq->value;
+    }
+};
+
 pvd::PVStructurePtr pvget(const pva::ChannelProvider::shared_pointer& prov, const char *name,
                           bool atomic)
 {
@@ -108,6 +154,27 @@ void testGroupGet(const PDBProvider::shared_pointer& prov)
     testFieldEqual<pvd::PVInt>(value,    "fld4.value", 40);
 }
 
+void testSinglePut(const PDBProvider::shared_pointer& prov)
+{
+    testDiag("test single put");
+
+    testdbPutFieldOk("rec1", DBR_DOUBLE, 1.0);
+
+    PVPut put(prov, "rec1.VAL");
+
+    pvd::PVDoublePtr val(put.putval->getSubFieldT<pvd::PVDouble>("value"));
+    val->put(2.0);
+    put.putchanged->clear();
+    put.put();
+
+    testdbGetFieldEqual("rec1", DBR_DOUBLE, 1.0);
+
+    put.putchanged->set(val->getFieldOffset());
+    put.put();
+
+    testdbGetFieldEqual("rec1", DBR_DOUBLE, 2.0);
+}
+
 } // namespace
 
 extern "C"
@@ -129,6 +196,8 @@ MAIN(testpdb)
             PDBProvider::shared_pointer prov(new PDBProvider());
             testSingleGet(prov);
             testGroupGet(prov);
+
+            testSinglePut(prov);
         }
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
         testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);

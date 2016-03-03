@@ -108,9 +108,11 @@ PDBSinglePut::PDBSinglePut(PDBSingleChannel::shared_pointer channel,
 void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
                        pvd::BitSet::shared_pointer const & changed)
 {
+    // assume value may be a different struct each time
+    std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
     {
         DBScanLocker L(channel->pv->chan);
-        pvif->get(*changed);
+        putpvif->get(*changed);
     }
     requester->putDone(pvd::Status(), shared_from_this());
 }

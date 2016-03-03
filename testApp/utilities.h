@@ -98,6 +98,28 @@ struct TestChannelRequester : public epics::pvAccess::ChannelRequester
     bool waitForConnect();
 };
 
+struct TestChannelFieldRequester : public epics::pvAccess::GetFieldRequester
+{
+    POINTER_DEFINITIONS(TestChannelFieldRequester);
+    DUMBREQUESTER(TestChannelFieldRequester)
+
+    bool done;
+    epics::pvData::Status status;
+    epics::pvData::FieldConstPtr fielddesc;
+
+    TestChannelFieldRequester() :done(false) {}
+    virtual ~TestChannelFieldRequester() {}
+
+    virtual void getDone(
+           const epics::pvData::Status& status,
+           epics::pvData::FieldConstPtr const & field)
+    {
+        this->status = status;
+        fielddesc = field;
+        done = true;
+    }
+};
+
 struct TestChannelGetRequester : public epics::pvAccess::ChannelGetRequester
 {
     POINTER_DEFINITIONS(TestChannelGetRequester);
@@ -121,6 +143,37 @@ struct TestChannelGetRequester : public epics::pvAccess::ChannelGetRequester
     virtual void getDone(
             const epics::pvData::Status& status,
             epics::pvAccess::ChannelGet::shared_pointer const & channelGet,
+            epics::pvData::PVStructure::shared_pointer const & pvStructure,
+            epics::pvData::BitSet::shared_pointer const & bitSet);
+};
+
+struct TestChannelPutRequester : public epics::pvAccess::ChannelPutRequester
+{
+    POINTER_DEFINITIONS(TestChannelPutRequester);
+    DUMBREQUESTER(TestChannelPutRequester)
+
+    bool connected, doneGet, donePut;
+    epics::pvData::Status statusConnect, statusPut, statusGet;
+    epics::pvAccess::ChannelPut::shared_pointer put;
+    epics::pvData::Structure::const_shared_pointer fielddesc;
+    epics::pvData::PVStructure::shared_pointer value;
+    epics::pvData::BitSet::shared_pointer changed;
+
+    TestChannelPutRequester();
+    virtual ~TestChannelPutRequester();
+
+    virtual void channelPutConnect(
+            const epics::pvData::Status& status,
+            epics::pvAccess::ChannelPut::shared_pointer const & channelPut,
+            epics::pvData::Structure::const_shared_pointer const & structure);
+
+    virtual void putDone(
+            const epics::pvData::Status& status,
+            epics::pvAccess::ChannelPut::shared_pointer const & channelPut);
+
+    virtual void getDone(
+            const epics::pvData::Status& status,
+            epics::pvAccess::ChannelPut::shared_pointer const & channelPut,
             epics::pvData::PVStructure::shared_pointer const & pvStructure,
             epics::pvData::BitSet::shared_pointer const & bitSet);
 };

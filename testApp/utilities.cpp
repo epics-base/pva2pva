@@ -102,6 +102,47 @@ void TestChannelGetRequester::getDone(const epics::pvData::Status &status,
     done = true;
 }
 
+TestChannelPutRequester::TestChannelPutRequester()
+    :connected(false)
+    ,doneGet(false)
+    ,donePut(false)
+{}
+TestChannelPutRequester::~TestChannelPutRequester() {}
+
+void TestChannelPutRequester::channelPutConnect(
+        const epics::pvData::Status& status,
+        epics::pvAccess::ChannelPut::shared_pointer const & channelPut,
+        epics::pvData::Structure::const_shared_pointer const & structure)
+{
+    statusConnect = status;
+    put = channelPut;
+    fielddesc = structure;
+    connected = true;
+}
+
+void TestChannelPutRequester::putDone(
+        const epics::pvData::Status& status,
+        epics::pvAccess::ChannelPut::shared_pointer const & channelPut)
+{
+    statusPut = status;
+    put = channelPut;
+    donePut = true;
+}
+
+void TestChannelPutRequester::getDone(
+        const epics::pvData::Status& status,
+        epics::pvAccess::ChannelPut::shared_pointer const & channelPut,
+        epics::pvData::PVStructure::shared_pointer const & pvStructure,
+        epics::pvData::BitSet::shared_pointer const & bitSet)
+{
+    statusGet = status;
+    put = channelPut;
+    value = pvStructure;
+    changed = bitSet;
+    doneGet = true;
+}
+
+
 static size_t countTestChannelMonitorRequester;
 
 TestChannelMonitorRequester::TestChannelMonitorRequester()
