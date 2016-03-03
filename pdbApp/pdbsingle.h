@@ -61,8 +61,8 @@ struct PDBSingleGet : public epics::pvAccess::ChannelGet,
     epics::pvData::PVStructurePtr pvf;
     std::auto_ptr<PVIF> pvif;
 
-    PDBSingleGet(PDBSingleChannel::shared_pointer channel,
-                 epics::pvAccess::ChannelGetRequester::shared_pointer requester);
+    PDBSingleGet(const PDBSingleChannel::shared_pointer& channel,
+                 const epics::pvAccess::ChannelGetRequester::shared_pointer& requester);
     virtual ~PDBSingleGet() {}
 
     virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }

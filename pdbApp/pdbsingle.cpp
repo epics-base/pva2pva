@@ -64,8 +64,8 @@ PDBSingleChannel::createChannelPut(
 }
 
 
-PDBSingleGet::PDBSingleGet(PDBSingleChannel::shared_pointer channel,
-                           pva::ChannelGetRequester::shared_pointer requester)
+PDBSingleGet::PDBSingleGet(const PDBSingleChannel::shared_pointer &channel,
+                           const epics::pvAccess::ChannelGetRequester::shared_pointer& requester)
     :channel(channel)
     ,requester(requester)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))

@@ -28,6 +28,19 @@ void testFieldEqual(const pvd::PVStructurePtr& val, const char *name, typename P
     }
 }
 
+pvd::PVStructurePtr makeRequest(bool atomic)
+{    pvd::StructureConstPtr def(pvd::getFieldCreate()->createFieldBuilder()
+                                ->addNestedStructure("record")
+                                    ->addNestedStructure("_options")
+                                        ->add("atomic", pvd::pvBoolean)
+                                        ->endNested()
+                                    ->endNested()
+                                ->createStructure());
+     pvd::PVStructurePtr pvr(pvd::getPVDataCreate()->createPVStructure(def));
+     pvr->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
+    return pvr;
+}
+
 struct PVPut
 {
     TestChannelRequester::shared_pointer chreq;
@@ -38,7 +51,7 @@ struct PVPut
     pvd::PVStructurePtr putval;
     pvd::BitSetPtr putchanged;
 
-    PVPut(const pva::ChannelProvider::shared_pointer& prov, const char *name)
+    PVPut(const pva::ChannelProvider::shared_pointer& prov, const char *name, bool atomic=true)
         :chreq(new TestChannelRequester())
         ,chan(prov->createChannel(name, chreq))
         ,fldreq(new TestChannelFieldRequester())
@@ -50,7 +63,8 @@ struct PVPut
         if(!fldreq->done || !fldreq->fielddesc || fldreq->fielddesc->getType()!=pvd::structure)
             throw std::runtime_error("Failed to get fielddesc");
         putval = pvd::getPVDataCreate()->createPVStructure(std::tr1::static_pointer_cast<const pvd::Structure>(fldreq->fielddesc));
-        chput = chan->createChannelPut(putreq, putval);
+        pvd::PVStructurePtr pvr(makeRequest(atomic));
+        chput = chan->createChannelPut(putreq, pvr);
         if(!chput)
             throw std::runtime_error("Failed to create put op");
         putchanged.reset(new pvd::BitSet());
@@ -77,15 +91,7 @@ struct PVPut
 pvd::PVStructurePtr pvget(const pva::ChannelProvider::shared_pointer& prov, const char *name,
                           bool atomic)
 {
-    pvd::StructureConstPtr def(pvd::getFieldCreate()->createFieldBuilder()
-                               ->addNestedStructure("record")
-                                   ->addNestedStructure("_options")
-                                       ->add("atomic", pvd::pvBoolean)
-                                       ->endNested()
-                                   ->endNested()
-                               ->createStructure());
-    pvd::PVStructurePtr pvr(pvd::getPVDataCreate()->createPVStructure(def));
-    pvr->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
+    pvd::PVStructurePtr pvr(makeRequest(atomic));
 
 
     TestChannelRequester::shared_pointer req(new TestChannelRequester());
@@ -175,6 +181,39 @@ void testSinglePut(const PDBProvider::shared_pointer& prov)
     testdbGetFieldEqual("rec1", DBR_DOUBLE, 2.0);
 }
 
+void testGroupPut(const PDBProvider::shared_pointer& prov)
+{
+    testDiag("test group put");
+
+    testdbPutFieldOk("rec3", DBR_DOUBLE, 3.0);
+    testdbPutFieldOk("rec4", DBR_DOUBLE, 4.0);
+    testdbPutFieldOk("rec3.RVAL", DBR_LONG, 30);
+    testdbPutFieldOk("rec4.RVAL", DBR_LONG, 40);
+
+    PVPut put(prov, "grp1");
+
+    pvd::PVDoublePtr val(put.putval->getSubFieldT<pvd::PVDouble>("fld1.value"));
+    val->put(2.0);
+    put.putchanged->clear();
+    put.put();
+
+    testdbGetFieldEqual("rec3", DBR_DOUBLE, 3.0);
+    testdbGetFieldEqual("rec4", DBR_DOUBLE, 4.0);
+    testdbGetFieldEqual("rec3.RVAL", DBR_LONG, 30);
+    testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
+
+    put.putchanged->set(val->getFieldOffset());
+    val = put.putval->getSubFieldT<pvd::PVDouble>("fld3.value");
+    val->put(5.0);
+    put.putchanged->set(val->getFieldOffset());
+    put.put();
+
+    testdbGetFieldEqual("rec3", DBR_DOUBLE, 2.0);
+    testdbGetFieldEqual("rec4", DBR_DOUBLE, 5.0);
+    testdbGetFieldEqual("rec3.RVAL", DBR_LONG, 30);
+    testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
+}
+
 } // namespace
 
 extern "C"
@@ -198,6 +237,7 @@ MAIN(testpdb)
             testGroupGet(prov);
 
             testSinglePut(prov);
+            testGroupPut(prov);
         }
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
         testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);

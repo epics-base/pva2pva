@@ -47,6 +47,9 @@ struct PDBGroupChannel : public BaseChannel,
     virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
             epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
+    virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
+            epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
+            epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
     virtual void printInfo(std::ostream& out);
 };
@@ -75,7 +78,36 @@ struct PDBGroupGet : public epics::pvAccess::ChannelGet,
     virtual void lastRequest() {}
     virtual void get();
 };
-//struct PDBGroupPut : public epics::pvAccess::ChannelPut {};
+
+struct PDBGroupPut : public epics::pvAccess::ChannelPut,
+        public std::tr1::enable_shared_from_this<PDBGroupPut>
+{
+    typedef epics::pvAccess::ChannelPutRequester requester_t;
+    PDBGroupChannel::shared_pointer channel;
+    requester_t::shared_pointer requester;
+
+    bool atomic;
+    epics::pvData::BitSetPtr changed;
+    epics::pvData::PVStructurePtr pvf;
+    std::vector<std::tr1::shared_ptr<PVIF> > pvif;
+
+    PDBGroupPut(const PDBGroupChannel::shared_pointer &channel,
+                const epics::pvAccess::ChannelPutRequester::shared_pointer &requester,
+                const epics::pvData::PVStructure::shared_pointer& pvReq);
+    virtual ~PDBGroupPut() {}
+
+    virtual void destroy() { pvif.clear(); channel.reset(); requester.reset(); }
+    virtual void lock() {}
+    virtual void unlock() {}
+    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
+    virtual void cancel() {}
+    virtual void lastRequest() {}
+    virtual void put(
+            epics::pvData::PVStructure::shared_pointer const & pvPutStructure,
+            epics::pvData::BitSet::shared_pointer const & putBitSet);
+    virtual void get();
+};
+
 //struct PDBGroupMonitor : public epics::pvData::Monitor {};
 
 #endif // PDBGROUP_H
