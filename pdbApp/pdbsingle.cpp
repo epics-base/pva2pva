@@ -171,7 +171,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
                 pvd::MonitorElementPtr elem(self->empty.front());
                 elem->pvStructurePtr->copyUnchecked(*self->complete);
                 *elem->changedBitSet = self->scratch;
-                elem->overrunBitSet->clear(); //TODO
+                elem->overrunBitSet->clear();
 
                 if(self->inuse.empty())
                     req = self->requester;
@@ -255,6 +255,10 @@ pvd::Status PDBSingleMonitor::start()
 
     if(!running) {
         running = true;
+
+        changed.clear();
+        overflow.clear();
+
         db_event_enable(evt_VALUE.subscript);
         db_event_enable(evt_PROPERTY.subscript);
         db_post_single_event(evt_VALUE.subscript);
@@ -298,6 +302,8 @@ void PDBSingleMonitor::release(pva::MonitorElementPtr const & elem)
             elem->pvStructurePtr->copyUnchecked(*complete);
             *elem->changedBitSet = changed;
             *elem->overrunBitSet = overflow;
+            changed.clear();
+            overflow.clear();
 
             if(self->inuse.empty())
                 req = self->requester;
