@@ -188,6 +188,8 @@ public:
     //! @note that this allocates a new std::set and copies all entries
     vector_type lock_vector() const;
 
+    void lock_vector(vector_type&) const;
+
     //! Access to the weak_set internal lock
     //! for use with batch operations.
     //! @warning Use caution when swap()ing while holding this lock!
@@ -263,6 +265,13 @@ typename weak_set<T>::vector_type
 weak_set<T>::lock_vector() const
 {
     vector_type ret;
+    lock_vector(ret);
+    return ret;
+}
+
+template<typename T>
+void weak_set<T>::lock_vector(vector_type& ret) const
+{
     guard_type G(m_data->mutex);
     ret.reserve(m_data->store.size());
     for(typename store_t::const_iterator it=m_data->store.begin(),
@@ -271,7 +280,6 @@ weak_set<T>::lock_vector() const
         value_pointer P(it->lock());
         if(P) ret.push_back(P);
     }
-    return ret;
 }
 
 #endif // WEAKSET_H
