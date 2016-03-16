@@ -13,23 +13,48 @@
 #include "pvif.h"
 #include "pdb.h"
 
+struct PDBSingleMonitor;
+
 struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBSinglePV>
 {
     POINTER_DEFINITIONS(PDBSinglePV);
 
     /* this dbChannel is shared by all operations,
-     * which is safe as it's modify-able fields (pfield)
+     * which is safe as it's modify-able field(s) (addr.pfield)
      * are only access while the underlying record
      * is locked.
      */
     DBCH chan;
     PDBProvider::shared_pointer provider;
 
+    epicsMutex lock;
+
+    epics::pvData::BitSet scratch;
+    std::auto_ptr<PVIF> pvif;
+
+    epics::pvData::PVStructurePtr complete; // complete copy from subscription
+
+    typedef std::set<std::tr1::shared_ptr<PDBSingleMonitor> > interested_t;
+    interested_t interested;
+
+    struct Event {
+        PDBSinglePV *self;
+        dbEventSubscription subscript;
+        unsigned dbe_mask;
+        Event(PDBSinglePV *m, unsigned mask);
+        ~Event();
+        void enable();
+    };
+    Event evt_VALUE, evt_PROPERTY;
+    bool hadevent;
+
     static size_t ninstances;
 
     PDBSinglePV(DBCH& chan,
                 const PDBProvider::shared_pointer& prov);
     virtual ~PDBSinglePV();
+
+    void activate();
 
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
@@ -117,25 +142,12 @@ struct PDBSingleMonitor : public BaseMonitor
 {
     POINTER_DEFINITIONS(PDBSingleMonitor);
 
-    PDBSingleChannel::shared_pointer channel;
+    PDBSinglePV::shared_pointer pv;
 
-    epics::pvData::BitSet scratch;
-    std::auto_ptr<PVIF> pvif;
-
-    struct Event {
-        PDBSingleMonitor *self;
-        dbEventSubscription subscript;
-        unsigned dbe_mask;
-        Event(PDBSingleMonitor *m, unsigned mask);
-        ~Event();
-    };
-    Event evt_VALUE, evt_PROPERTY;
-
-    PDBSingleMonitor(const PDBSingleChannel::shared_pointer& channel,
+    PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
                      const requester_t::shared_pointer& requester,
                      const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBSingleMonitor() {destroy();}
-    void activate();
 
     virtual void onStart();
     virtual void onStop();

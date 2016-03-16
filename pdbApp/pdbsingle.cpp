@@ -5,6 +5,7 @@
 #include <pv/epicsException.h>
 
 #include "errlogstream.h"
+#include "helper.h"
 #include "pdbsingle.h"
 #include "pdb.h"
 
@@ -13,18 +14,94 @@ namespace pva = epics::pvAccess;
 
 size_t PDBSinglePV::ninstances;
 
+typedef epicsGuard<epicsMutex> Guard;
+
+static
+void pdb_single_event(void *user_arg, struct dbChannel *chan,
+                      int eventsRemaining, struct db_field_log *pfl)
+{
+    PDBSinglePV::Event *evt=(PDBSinglePV::Event*)user_arg;
+    try{
+        PDBSinglePV::shared_pointer self(std::tr1::static_pointer_cast<PDBSinglePV>(evt->self->shared_from_this()));
+        {
+            Guard G(self->lock); // TODO: lock order?
+
+            self->scratch.clear();
+            {
+                DBScanLocker L(dbChannelRecord(self->chan));
+                self->pvif->put(self->scratch, evt->dbe_mask, pfl);
+            }
+
+            self->hadevent = true;
+
+            FOREACH(it, end, self->interested) {
+                PDBSingleMonitor& mon = *it->get();
+                mon.post(self->scratch);
+            }
+        }
+
+    }catch(std::tr1::bad_weak_ptr&){
+        /* We are racing destruction of the PDBSingleMonitor, but things are ok.
+         * The destructor is running, but has not completed db_cancel_event()
+         * so storage is still valid.
+         * Just do nothing
+         */
+    }catch(std::exception& e){
+        errlog_ostream strm;
+        strm<<"Unhandled exception in pdb_single_event(): "<<e.what()<<"\n"
+            <<SHOW_EXCEPTION(e)<<"\n";
+    }
+}
+
+PDBSinglePV::Event::Event(PDBSinglePV *pv, unsigned mask)
+    :self(pv)
+    ,subscript(NULL)
+    ,dbe_mask(mask)
+{
+}
+
+PDBSinglePV::Event::~Event() {
+    db_cancel_event(subscript);
+}
+
+void PDBSinglePV::Event::enable()
+{
+    assert(!subscript);
+    subscript = db_add_event(self->provider->event_context,
+                             self->chan,
+                             &pdb_single_event,
+                             (void*)this,
+                             dbe_mask);
+    if(!subscript)
+        throw std::runtime_error("Failed to subscribe to dbEvent");
+}
+
 PDBSinglePV::PDBSinglePV(DBCH& chan,
             const PDBProvider::shared_pointer& prov)
     :provider(prov)
+    ,evt_VALUE(this, DBE_VALUE|DBE_ALARM)
+    ,evt_PROPERTY(this, DBE_PROPERTY)
+    ,hadevent(false)
 {
     this->chan.swap(chan);
+    evt_VALUE.enable();
+    evt_PROPERTY.enable();
     fielddesc = PVIF::dtype(this->chan);
+
+    complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
+    pvif.reset(PVIF::attach(this->chan, complete));
+
     epics::atomic::increment(ninstances);
 }
 
 PDBSinglePV::~PDBSinglePV()
 {
     epics::atomic::decrement(ninstances);
+}
+
+void PDBSinglePV::activate()
+{
+
 }
 
 pva::Channel::shared_pointer
@@ -73,8 +150,9 @@ PDBSingleChannel::createMonitor(
         pva::MonitorRequester::shared_pointer const & requester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    pva::Monitor::shared_pointer ret(new PDBSingleMonitor(shared_from_this(), requester, pvRequest));
-    ((PDBSingleMonitor*)ret.get())->activate();
+    pva::Monitor::shared_pointer ret(new PDBSingleMonitor(pv->shared_from_this(), requester, pvRequest));
+    assert(!!pv->complete);
+    ((PDBSingleMonitor*)ret.get())->connect(pv->complete);
     return ret;
 }
 
@@ -139,95 +217,55 @@ void PDBSinglePut::get()
     requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 
-typedef epicsGuard<epicsMutex> Guard;
-
-static
-void pdb_single_event(void *user_arg, struct dbChannel *chan,
-                      int eventsRemaining, struct db_field_log *pfl)
-{
-    PDBSingleMonitor::Event *evt=(PDBSingleMonitor::Event*)user_arg;
-    try{
-        PDBSingleMonitor::shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(evt->self->shared_from_this()));
-        PDBSingleMonitor::requester_t::shared_pointer req;
-        {
-            Guard G(self->lock); // TODO: lock order?
-
-            self->scratch.clear();
-            {
-                DBScanLocker L(dbChannelRecord(self->channel->pv->chan));
-                self->pvif->put(self->scratch, evt->dbe_mask, pfl);
-            }
-        }
-        self->post(self->scratch);
-
-    }catch(std::tr1::bad_weak_ptr&){
-        /* We are racing destruction of the PDBSingleMonitor, but things are ok.
-         * The destructor is running, but has not completed db_cancel_event()
-         * so storage is still valid.
-         * Just do nothing
-         */
-    }catch(std::exception& e){
-        errlog_ostream strm;
-        strm<<"Unhandled exception in pdb_single_event(): "<<e.what()<<"\n"
-            <<SHOW_EXCEPTION(e)<<"\n";
-    }
-}
-
-PDBSingleMonitor::Event::Event(PDBSingleMonitor *m, unsigned mask)
-    :self(m)
-    ,subscript(NULL)
-    ,dbe_mask(mask)
-{
-    subscript = db_add_event(self->channel->pv->provider->event_context,
-                             self->channel->pv->chan,
-                             &pdb_single_event,
-                             (void*)this,
-                             mask);
-    if(!subscript)
-        throw std::runtime_error("Failed to subscribe to dbEvent");
-}
-
-PDBSingleMonitor::Event::~Event() {
-    db_cancel_event(subscript);
-}
-
-PDBSingleMonitor::PDBSingleMonitor(const PDBSingleChannel::shared_pointer& channel,
+PDBSingleMonitor::PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
                  const requester_t::shared_pointer& requester,
                  const pvd::PVStructure::shared_pointer& pvReq)
     :BaseMonitor(requester, pvReq)
-    ,channel(channel)
-    ,evt_VALUE(this, DBE_VALUE|DBE_ALARM)
-    ,evt_PROPERTY(this, DBE_PROPERTY)
+    ,pv(pv)
 {}
-void PDBSingleMonitor::activate()
-{
-    connect(pvd::getPVDataCreate()->createPVStructure(channel->pv->fielddesc));
-    pvif.reset(PVIF::attach(channel->pv->chan, getValue()));
-}
 
 void PDBSingleMonitor::destroy()
 {
-    PDBSingleChannel::shared_pointer ch;
-    requester_t::shared_pointer req;
+    BaseMonitor::destroy();
+    PDBSinglePV::shared_pointer pv;
     {
         Guard G(lock);
-        channel.swap(ch);
+        this->pv.swap(pv);
     }
-    BaseMonitor::destroy();
 }
 
 void PDBSingleMonitor::onStart()
 {
-    guard_t G(lock);
-    db_event_enable(evt_VALUE.subscript);
-    db_event_enable(evt_PROPERTY.subscript);
-    db_post_single_event(evt_VALUE.subscript);
-    db_post_single_event(evt_PROPERTY.subscript);
+    guard_t G(pv->lock);
+
+    if(pv->interested.empty()) {
+        // first subscriber
+        pv->hadevent = false;
+        db_event_enable(pv->evt_VALUE.subscript);
+        db_event_enable(pv->evt_PROPERTY.subscript);
+        db_post_single_event(pv->evt_VALUE.subscript);
+        db_post_single_event(pv->evt_PROPERTY.subscript);
+    } else if(pv->hadevent) {
+        // new subscriber and already had initial update
+        post();
+    } // else new subscriber, but no initial update.  so just wait
+
+    shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(shared_from_this()));
+    pv->interested.insert(self);
 }
 
 void PDBSingleMonitor::onStop()
 {
-    guard_t G(lock);
-    db_event_disable(evt_VALUE.subscript);
-    db_event_disable(evt_PROPERTY.subscript);
+    guard_t G(pv->lock);
+    shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(shared_from_this()));
+
+    if(pv->interested.erase(self)==0) {
+        fprintf(stderr, "%s: oops\n", __FUNCTION__);
+    }
+
+    if(pv->interested.empty()) {
+        // last subscriber
+        db_event_disable(pv->evt_VALUE.subscript);
+        db_event_disable(pv->evt_PROPERTY.subscript);
+    }
 }
