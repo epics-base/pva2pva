@@ -269,3 +269,9 @@ void PDBSingleMonitor::onStop()
         db_event_disable(pv->evt_PROPERTY.subscript);
     }
 }
+
+void PDBSingleMonitor::requestUpdate()
+{
+    Guard G(pv->lock);
+    post();
+}

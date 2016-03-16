@@ -126,6 +126,14 @@ struct BaseChannel : public epics::pvAccess::Channel
     }
 };
 
+/**
+ * Helper which implements a Monitor queue.
+ * connect()s to a complete copy of a PVStructure.
+ * When this struct has changed, post(BitSet) should be called.
+ *
+ * Derived class may use onStart(), onStop(), and requestUpdate()
+ * to react to subscriber events.
+ */
 struct BaseMonitor : public epics::pvAccess::Monitor,
                      public std::tr1::enable_shared_from_this<BaseMonitor>
 {
@@ -307,8 +315,8 @@ public:
     // for special handling when MonitorRequester start()s or stop()s
     virtual void onStart() {}
     virtual void onStop() {}
-    //! called when a MonitorRequester callback would result in a subscription update
-    //! sub-class may apply necessary locking, update .complete, .changed, and .overflow, then call post()
+    //! called when within release() when the opportunity exists to end the overflow condition
+    //! May do nothing, or lock and call post()
     virtual void requestUpdate() {guard_t G(lock); post();}
 
     virtual void destroy()

@@ -151,6 +151,7 @@ struct PDBSingleMonitor : public BaseMonitor
 
     virtual void onStart();
     virtual void onStop();
+    virtual void requestUpdate();
 
     virtual void destroy();
 };
