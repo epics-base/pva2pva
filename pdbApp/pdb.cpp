@@ -88,6 +88,8 @@ PDBProvider::PDBProvider()
         }
     }
 
+    pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
+
     FOREACH(it, end, groups)
     {
         GroupInfo &info=it->second;
@@ -103,8 +105,6 @@ PDBProvider::PDBProvider()
             //pv->chan.resize(nchans);
             pvd::shared_vector<DBCH> chans(nchans);
             std::vector<dbCommon*> records(nchans);
-
-            pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
 
             for(size_t i=0; i<nchans; i++)
             {

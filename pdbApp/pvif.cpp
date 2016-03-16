@@ -58,6 +58,7 @@ namespace {
 
 struct pvCommon {
     dbChannel *chan;
+    short dbr; // actual requested DBR_*
 
     pvd::BitSet maskAlways, maskVALUE, maskALARM, maskPROPERTY;
 
@@ -176,7 +177,7 @@ void putTime(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     metaTIME meta;
     long options = (int)metaTIME::mask, nReq = 0;
 
-    long status = dbChannelGet(pv.chan, dbChannelFieldType(pv.chan), &meta, &options, &nReq, pfl);
+    long status = dbChannelGet(pv.chan, pv.dbr, &meta, &options, &nReq, pfl);
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
@@ -206,11 +207,11 @@ void putValue(const pvScalar& pv, unsigned dbe, db_field_log *pfl)
     dbrbuf buf;
     long nReq = 1;
 
-    long status = dbChannelGet(pv.chan, dbChannelFieldType(pv.chan), &buf, NULL, &nReq, pfl);
+    long status = dbChannelGet(pv.chan, pv.dbr, &buf, NULL, &nReq, pfl);
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
-    switch(dbChannelFieldType(pv.chan)) {
+    switch(pv.dbr) {
 #define CASE(FTYPE) case DBR_##FTYPE: pv.value->putFrom(buf.dbf_##FTYPE); break
     CASE(CHAR);
     CASE(UCHAR);
@@ -235,7 +236,7 @@ void getValue(const pvScalar& pv)
 {
     dbrbuf buf;
 
-    switch(dbChannelFieldType(pv.chan)) {
+    switch(pv.dbr) {
 #define CASE(FTYPE, PTYPE) case DBR_##FTYPE: buf.dbf_##FTYPE = pv.value->getAs<PTYPE>(); break
     CASE(CHAR, pvd::int8);
     CASE(UCHAR, pvd::uint8);
@@ -257,14 +258,14 @@ void getValue(const pvScalar& pv)
         throw std::runtime_error("getValue unsupported DBR code");
     }
 
-    long status = dbChannelPut(pv.chan, dbChannelFieldType(pv.chan), &buf, 1);
+    long status = dbChannelPut(pv.chan, pv.dbr, &buf, 1);
     if(status)
         throw std::runtime_error("dbPut for meta fails");
 }
 
 void getValue(const pvArray& pv)
 {
-    short dbr = dbChannelFieldType(pv.chan);
+    short dbr = pv.dbr;
     pvd::shared_vector<const void> buf;
 
     assert(dbr!=DBR_STRING);
@@ -279,7 +280,7 @@ void getValue(const pvArray& pv)
 
 void putValue(const pvArray& pv, unsigned dbe, db_field_log *pfl)
 {
-    short dbr = dbChannelFieldType(pv.chan);
+    short dbr = pv.dbr;
     long nReq = dbChannelFinalElements(pv.chan);
 
     assert(dbr!=DBR_STRING);
@@ -301,7 +302,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     META meta;
     long options = (int)META::mask, nReq = 0;
 
-    long status = dbChannelGet(pv.chan, dbChannelFieldType(pv.chan), &meta, &options, &nReq, pfl);
+    long status = dbChannelGet(pv.chan, pv.dbr, &meta, &options, &nReq, pfl);
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
@@ -358,9 +359,10 @@ struct PVIFScalarNumeric : public PVIF
 {
     PVM pvmeta;
 
-    PVIFScalarNumeric(dbChannel *ch, const epics::pvData::PVStructurePtr& p) : PVIF(ch, p)
+    PVIFScalarNumeric(dbChannel *ch, short dbr, const epics::pvData::PVStructurePtr& p) : PVIF(ch, p)
     {
         pvmeta.chan = ch;
+        pvmeta.dbr = dbr;
         attachAll(pvmeta, p);
     }
     virtual ~PVIFScalarNumeric() {}
@@ -455,12 +457,12 @@ PVIF* PVIF::attach(dbChannel* chan, const epics::pvData::PVStructurePtr& root)
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvScalar, metaLONG>(chan, root);
+            return new PVIFScalarNumeric<pvScalar, metaLONG>(chan, dbr, root);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(chan, root);
+            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(chan, dbr, root);
         case DBR_ENUM:
-            return new PVIFScalarNumeric<pvScalar, metaENUM>(chan, root);
+            return new PVIFScalarNumeric<pvScalar, metaENUM>(chan, dbr, root);
         }
     } else {
         switch(dbr) {
@@ -470,10 +472,10 @@ PVIF* PVIF::attach(dbChannel* chan, const epics::pvData::PVStructurePtr& root)
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvArray, metaLONG>(chan, root);
+            return new PVIFScalarNumeric<pvArray, metaLONG>(chan, dbr, root);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(chan, root);
+            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(chan, dbr, root);
         }
     }
 
