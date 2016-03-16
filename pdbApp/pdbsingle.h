@@ -113,20 +113,13 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     virtual void get();
 };
 
-struct PDBSingleMonitor : public epics::pvAccess::Monitor,
-        public std::tr1::enable_shared_from_this<PDBSingleMonitor>
+struct PDBSingleMonitor : public BaseMonitor
 {
     POINTER_DEFINITIONS(PDBSingleMonitor);
 
-    typedef epics::pvAccess::MonitorRequester requester_t;
     PDBSingleChannel::shared_pointer channel;
 
-    epicsMutex lock;
-
-    requester_t::shared_pointer requester;
-
-    epics::pvData::PVStructurePtr complete;
-    epics::pvData::BitSet changed, overflow, scratch;
+    epics::pvData::BitSet scratch;
     std::auto_ptr<PVIF> pvif;
 
     struct Event {
@@ -138,24 +131,16 @@ struct PDBSingleMonitor : public epics::pvAccess::Monitor,
     };
     Event evt_VALUE, evt_PROPERTY;
 
-    typedef std::deque<epics::pvAccess::MonitorElementPtr> buffer_t;
-    bool inoverflow;
-    bool running;
-    size_t nbuffers;
-    buffer_t inuse, empty;
-
     PDBSingleMonitor(const PDBSingleChannel::shared_pointer& channel,
                      const requester_t::shared_pointer& requester,
                      const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBSingleMonitor() {destroy();}
+    void activate();
+
+    virtual void onStart();
+    virtual void onStop();
 
     virtual void destroy();
-    virtual epics::pvData::Status start();
-    virtual epics::pvData::Status stop();
-    virtual epics::pvAccess::MonitorElementPtr poll();
-    virtual void release(epics::pvAccess::MonitorElementPtr const & elem);
-    virtual void getStats(Stats& s) const;
-
 };
 
 #endif // PDBSINGLE_H

@@ -74,7 +74,7 @@ PDBSingleChannel::createMonitor(
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
     pva::Monitor::shared_pointer ret(new PDBSingleMonitor(shared_from_this(), requester, pvRequest));
-    requester->monitorConnect(pvd::Status(), ret, pv->fielddesc);
+    ((PDBSingleMonitor*)ret.get())->activate();
     return ret;
 }
 
@@ -147,44 +147,18 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
 {
     PDBSingleMonitor::Event *evt=(PDBSingleMonitor::Event*)user_arg;
     try{
-        PDBSingleMonitor::shared_pointer self(evt->self->shared_from_this());
+        PDBSingleMonitor::shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(evt->self->shared_from_this()));
         PDBSingleMonitor::requester_t::shared_pointer req;
         {
             Guard G(self->lock); // TODO: lock order?
-
-            if(!self->running) return; // ignore
 
             self->scratch.clear();
             {
                 DBScanLocker L(dbChannelRecord(self->channel->pv->chan));
                 self->pvif->put(self->scratch, evt->dbe_mask, pfl);
             }
-
-            if(self->empty.empty()){
-                self->changed |= self->scratch;
-                self->overflow |= self->scratch;
-                self->inoverflow = true;
-
-            } else {
-                assert(!self->inoverflow);
-
-                pvd::MonitorElementPtr elem(self->empty.front());
-                elem->pvStructurePtr->copyUnchecked(*self->complete);
-                *elem->changedBitSet = self->scratch;
-                elem->overrunBitSet->clear();
-
-                if(self->inuse.empty())
-                    req = self->requester;
-
-                self->inuse.push_back(elem);
-                self->empty.pop_front();
-            }
         }
-
-        if(req) {
-            //TODO: in worker/pool?
-            req->monitorEvent(self);
-        }
+        self->post(self->scratch);
 
     }catch(std::tr1::bad_weak_ptr&){
         /* We are racing destruction of the PDBSingleMonitor, but things are ok.
@@ -220,109 +194,40 @@ PDBSingleMonitor::Event::~Event() {
 PDBSingleMonitor::PDBSingleMonitor(const PDBSingleChannel::shared_pointer& channel,
                  const requester_t::shared_pointer& requester,
                  const pvd::PVStructure::shared_pointer& pvReq)
-    :channel(channel)
-    ,requester(requester)
+    :BaseMonitor(requester, pvReq)
+    ,channel(channel)
     ,evt_VALUE(this, DBE_VALUE|DBE_ALARM)
     ,evt_PROPERTY(this, DBE_PROPERTY)
-    ,inoverflow(false)
-    ,running(false)
-    ,nbuffers(2)
+{}
+void PDBSingleMonitor::activate()
 {
-    pvd::PVDataCreatePtr create(pvd::getPVDataCreate());
-    pvd::StructureConstPtr fielddesc(channel->pv->fielddesc);
-
-    complete = create->createPVStructure(fielddesc);
-    pvif.reset(PVIF::attach(channel->pv->chan, complete));
-
-    empty.resize(nbuffers);
-    for(size_t i=0; i<empty.size(); i++) {
-        empty[i].reset(new pva::MonitorElement(create->createPVStructure(fielddesc)));
-    }
+    connect(pvd::getPVDataCreate()->createPVStructure(channel->pv->fielddesc));
+    pvif.reset(PVIF::attach(channel->pv->chan, getValue()));
 }
 
 void PDBSingleMonitor::destroy()
 {
+    PDBSingleChannel::shared_pointer ch;
     requester_t::shared_pointer req;
     {
         Guard G(lock);
-        req.swap(requester);
+        channel.swap(ch);
     }
+    BaseMonitor::destroy();
 }
 
-pvd::Status PDBSingleMonitor::start()
+void PDBSingleMonitor::onStart()
 {
-    Guard G(lock);
-
-    if(!running) {
-        running = true;
-
-        changed.clear();
-        overflow.clear();
-
-        db_event_enable(evt_VALUE.subscript);
-        db_event_enable(evt_PROPERTY.subscript);
-        db_post_single_event(evt_VALUE.subscript);
-        db_post_single_event(evt_PROPERTY.subscript);
-        inoverflow = empty.empty();
-    }
-    return pvd::Status();
+    guard_t G(lock);
+    db_event_enable(evt_VALUE.subscript);
+    db_event_enable(evt_PROPERTY.subscript);
+    db_post_single_event(evt_VALUE.subscript);
+    db_post_single_event(evt_PROPERTY.subscript);
 }
 
-pvd::Status PDBSingleMonitor::stop()
+void PDBSingleMonitor::onStop()
 {
-    Guard G(lock);
-
-    if(running) {
-        running = false;
-        db_event_disable(evt_VALUE.subscript);
-        db_event_disable(evt_PROPERTY.subscript);
-    }
-    return pvd::Status();
-}
-
-pva::MonitorElementPtr PDBSingleMonitor::poll()
-{
-    Guard G(lock);
-    pva::MonitorElementPtr ret;
-    if(!inuse.empty()) {
-        ret = inuse.front();
-        inuse.pop_front();
-    }
-    return ret;
-}
-
-void PDBSingleMonitor::release(pva::MonitorElementPtr const & elem)
-{
-    PDBSingleMonitor::shared_pointer self(shared_from_this());
-    PDBSingleMonitor::requester_t::shared_pointer req;
-    {
-        Guard G(lock);
-
-        if(inoverflow) {
-            elem->pvStructurePtr->copyUnchecked(*complete);
-            *elem->changedBitSet = changed;
-            *elem->overrunBitSet = overflow;
-            changed.clear();
-            overflow.clear();
-
-            if(self->inuse.empty())
-                req = self->requester;
-
-            inuse.push_back(elem);
-
-        } else {
-            empty.push_back(elem);
-        }
-    }
-    if(req) {
-        //TODO: in worker/pool?
-        req->monitorEvent(self);
-    }
-}
-
-void PDBSingleMonitor::getStats(Stats& s) const
-{
-    s.nempty = empty.size();
-    s.nfilled = inuse.size();
-    s.noutstanding = nbuffers - s.nempty - s.nfilled;
+    guard_t G(lock);
+    db_event_disable(evt_VALUE.subscript);
+    db_event_disable(evt_PROPERTY.subscript);
 }

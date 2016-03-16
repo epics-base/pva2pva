@@ -11,6 +11,7 @@
 
 #include <pv/pvAccess.h>
 
+#include "pvahelper.h"
 #include "weakmap.h"
 #include "weakset.h"
 
@@ -204,14 +205,13 @@ struct TestChannelMonitorRequester : public epics::pvData::MonitorRequester
     bool waitForEvent();
 };
 
-struct TestPVChannel : public epics::pvAccess::Channel
+struct TestPVChannel : public BaseChannel
 {
     POINTER_DEFINITIONS(TestPVChannel);
     DUMBREQUESTER(TestPVChannel)
     std::tr1::weak_ptr<TestPVChannel> weakself;
 
     const std::tr1::shared_ptr<TestPV> pv;
-    std::tr1::shared_ptr<epics::pvAccess::ChannelRequester> requester;
     ConnectionState state;
 
     typedef weak_set<TestPVMonitor> monitors_t;
@@ -221,42 +221,15 @@ struct TestPVChannel : public epics::pvAccess::Channel
                   const std::tr1::shared_ptr<epics::pvAccess::ChannelRequester>& req);
     virtual ~TestPVChannel();
 
-    virtual void destroy();
-
-    virtual std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> getProvider();
     virtual std::string getRemoteAddress() { return "localhost:1234"; }
     virtual ConnectionState getConnectionState();
-    virtual std::string getChannelName();
-    virtual std::tr1::shared_ptr<epics::pvAccess::ChannelRequester> getChannelRequester()
-    { return std::tr1::shared_ptr<epics::pvAccess::ChannelRequester>(requester); }
-    virtual bool isConnected();
-    virtual void getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,std::string const & subField);
-    virtual epics::pvAccess::AccessRights getAccessRights(epics::pvData::PVField::shared_pointer const & pvField)
-    { return epics::pvAccess::readWrite; }
 
-    virtual epics::pvAccess::ChannelProcess::shared_pointer createChannelProcess(
-            epics::pvAccess::ChannelProcessRequester::shared_pointer const & channelProcessRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
-    virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
-            epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
-    virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
-            epics::pvAccess::ChannelPutRequester::shared_pointer const & channelPutRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
-    virtual epics::pvAccess::ChannelPutGet::shared_pointer createChannelPutGet(
-            epics::pvAccess::ChannelPutGetRequester::shared_pointer const & channelPutGetRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
-    virtual epics::pvAccess::ChannelRPC::shared_pointer createChannelRPC(
-            epics::pvAccess::ChannelRPCRequester::shared_pointer const & channelRPCRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+    virtual void getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,std::string const & subField);
+
     virtual epics::pvData::Monitor::shared_pointer createMonitor(
             epics::pvData::MonitorRequester::shared_pointer const & monitorRequester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
-    virtual epics::pvAccess::ChannelArray::shared_pointer createChannelArray(
-            epics::pvAccess::ChannelArrayRequester::shared_pointer const & channelArrayRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
-    virtual void printInfo() {}
     virtual void printInfo(std::ostream& out) {}
 };
 

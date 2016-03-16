@@ -201,8 +201,8 @@ static size_t countTestPVChannel;
 
 TestPVChannel::TestPVChannel(const std::tr1::shared_ptr<TestPV> &pv,
                              const std::tr1::shared_ptr<pva::ChannelRequester> &req)
-    :pv(pv)
-    ,requester(req)
+    :BaseChannel(pv->name, pv->provider, req, pv->dtype)
+    ,pv(pv)
     ,state(CONNECTED)
 {
     epicsAtomicIncrSizeT(&countTestPVChannel);
@@ -216,30 +216,10 @@ TestPVChannel::~TestPVChannel()
     epicsAtomicDecrSizeT(&countTestPVChannel);
 }
 
-void TestPVChannel::destroy()
-{
-    std::tr1::shared_ptr<TestProvider> P(pv->provider);
-    Guard G(P->lock);
-    requester.reset();
-    state = DESTROYED;
-}
-
-std::tr1::shared_ptr<pva::ChannelProvider>
-TestPVChannel::getProvider()
-{ return pv->provider; }
-
 TestPVChannel::ConnectionState TestPVChannel::getConnectionState()
 {
     Guard G(pv->provider->lock);
     return state;
-}
-
-std::string TestPVChannel::getChannelName()
-{ return pv->name; }
-
-bool TestPVChannel::isConnected()
-{
-    return getConnectionState()==CONNECTED;
 }
 
 void TestPVChannel::getField(pva::GetFieldRequester::shared_pointer const & requester,std::string const & subField)
@@ -248,64 +228,6 @@ void TestPVChannel::getField(pva::GetFieldRequester::shared_pointer const & requ
 
     //TODO subField?
     requester->getDone(pvd::Status(), pv->dtype);
-}
-
-pva::ChannelProcess::shared_pointer
-TestPVChannel::createChannelProcess(
-        pva::ChannelProcessRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelProcess::shared_pointer ret;
-    requester->channelProcessConnect(pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Not implemented"), ret);
-    return ret;
-}
-
-pva::ChannelGet::shared_pointer
-TestPVChannel::createChannelGet(
-        pva::ChannelGetRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelGet::shared_pointer ret;
-    requester->channelGetConnect(pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Not implemented"),
-                       ret,
-                       pvd::StructureConstPtr());
-    return ret;
-}
-
-pva::ChannelPut::shared_pointer
-TestPVChannel::createChannelPut(
-        pva::ChannelPutRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelPut::shared_pointer ret;
-    requester->channelPutConnect(pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                 ret,
-                                 pvd::StructureConstPtr());
-    return ret;
-}
-
-pva::ChannelPutGet::shared_pointer
-TestPVChannel::createChannelPutGet(
-        pva::ChannelPutGetRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelPutGet::shared_pointer ret;
-    requester->channelPutGetConnect(pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                    ret,
-                                    pvd::StructureConstPtr(),
-                                    pvd::StructureConstPtr());
-    return ret;
-}
-
-pva::ChannelRPC::shared_pointer
-TestPVChannel::createChannelRPC(
-        pva::ChannelRPCRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelRPC::shared_pointer ret;
-    requester->channelRPCConnect(pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                 ret);
-    return ret;
 }
 
 pvd::Monitor::shared_pointer
@@ -322,18 +244,6 @@ TestPVChannel::createMonitor(
     }
     testDiag("TestPVChannel::createMonitor %s %p", pv->name.c_str(), ret.get());
     requester->monitorConnect(pvd::Status(), ret, pv->dtype);
-    return ret;
-}
-
-pva::ChannelArray::shared_pointer
-TestPVChannel::createChannelArray(
-        pva::ChannelArrayRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelArray::shared_pointer ret;
-    requester->channelArrayConnect(pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                   ret,
-                                   pvd::Array::const_shared_pointer());
     return ret;
 }
 

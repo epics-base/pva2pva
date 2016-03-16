@@ -1,6 +1,8 @@
 #ifndef PVAHELPER_H
 #define PVAHELPER_H
 
+#include <deque>
+
 #include <epicsGuard.h>
 
 #include <pv/pvAccess.h>
@@ -20,13 +22,22 @@ struct BaseChannel : public epics::pvAccess::Channel
     typedef epicsGuard<epicsMutex> guard_t;
     const std::string pvname;
     std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> provider;
-    epics::pvAccess::ChannelRequester::shared_pointer requester;
+    typedef epics::pvAccess::ChannelRequester::shared_pointer requester_t;
+    requester_t requester;
     const epics::pvData::StructureConstPtr fielddesc;
 
     // assume Requester methods not called after destory()
     virtual std::string getRequesterName() { guard_t G(lock); return requester->getRequesterName(); }
 
-    virtual void destroy() { guard_t G(lock); provider.reset(); requester.reset(); }
+    virtual void destroy() {
+        std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> prov;
+        requester_t req;
+        {
+            guard_t G(lock);
+            provider.swap(prov);
+            requester.swap(req);
+        }
+    }
 
     virtual std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> getProvider() { guard_t G(lock); return provider; }
     virtual std::string getRemoteAddress() { guard_t G(lock); return requester->getRequesterName(); }
@@ -112,6 +123,275 @@ struct BaseChannel : public epics::pvAccess::Channel
     virtual void printInfo() { printInfo(std::cout); }
     virtual void printInfo(std::ostream& out) {
         out<<"Channel '"<<pvname<<"' "<<getRemoteAddress()<<"\n";
+    }
+};
+
+struct BaseMonitor : public epics::pvAccess::Monitor,
+                     public std::tr1::enable_shared_from_this<BaseMonitor>
+{
+    POINTER_DEFINITIONS(BaseMonitor);
+
+    typedef epics::pvAccess::MonitorRequester requester_t;
+
+    mutable epicsMutex lock; // not held during any callback
+    typedef epicsGuard<epicsMutex> guard_t;
+
+private:
+    requester_t::shared_pointer requester;
+
+    epics::pvData::PVStructurePtr complete;
+    epics::pvData::BitSet changed, overflow;
+
+    typedef std::deque<epics::pvAccess::MonitorElementPtr> buffer_t;
+    bool inoverflow;
+    bool running;
+    size_t nbuffers;
+    buffer_t inuse, empty;
+
+public:
+    BaseMonitor(const requester_t::shared_pointer& requester,
+                const epics::pvData::PVStructure::shared_pointer& pvReq)
+        :requester(requester)
+        ,inoverflow(false)
+        ,running(false)
+        ,nbuffers(2)
+    {}
+
+    virtual ~BaseMonitor() {destroy();}
+
+    inline const epics::pvData::PVStructurePtr& getValue() { return complete; }
+
+    //! Must call before first post().  Sets .complete and calls monitorConnect()
+    //! @note that value will never by accessed except by post() and requestUpdate()
+    void connect(const epics::pvData::PVStructurePtr& value)
+    {
+        epics::pvData::StructureConstPtr dtype(value->getStructure());
+        epics::pvData::PVDataCreatePtr create(epics::pvData::getPVDataCreate());
+        BaseMonitor::shared_pointer self;
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            assert(!complete); // can't call twice
+
+            self = shared_from_this();
+            req = requester;
+
+            complete = value;
+            empty.resize(nbuffers);
+            for(size_t i=0; i<empty.size(); i++) {
+                empty[i].reset(new epics::pvAccess::MonitorElement(create->createPVStructure(dtype)));
+            }
+        }
+        epics::pvData::Status sts;
+        req->monitorConnect(sts, self, dtype);
+    }
+
+    struct no_overflow {};
+
+    //! post update if queue not full, if full return false w/o overflow
+    bool post(const epics::pvData::BitSet& updated, no_overflow)
+    {
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            if(!complete || !running) return false;
+
+            changed |= updated;
+
+            if(empty.empty()) return false;
+
+            if(p_postone())
+                req = requester;
+            inoverflow = false;
+        }
+        if(req) req->monitorEvent(shared_from_this());
+        return true;
+    }
+
+    //! post update of pending changes.  eg. call from requestUpdate()
+    bool post()
+    {
+        bool oflow;
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            if(!complete || !running) return false;
+
+            if(empty.empty()) {
+                oflow = inoverflow = true;
+
+            } else {
+
+                if(p_postone())
+                    req = requester;
+                oflow = inoverflow = false;
+            }
+        }
+        if(req) req->monitorEvent(shared_from_this());
+        return !oflow;
+    }
+
+    //! post update with changed and overflowed masks (eg. when updates were lost in some upstream queue)
+    bool post(const epics::pvData::BitSet& updated, const epics::pvData::BitSet& overflowed)
+    {
+        bool oflow;
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            if(!complete || !running) return false;
+
+            if(empty.empty()) {
+                oflow = inoverflow = true;
+                overflow |= overflowed;
+                overflow.or_and(updated, changed);
+                changed |= updated;
+
+            } else {
+
+                if(p_postone())
+                    req = requester;
+                oflow = inoverflow = false;
+            }
+        }
+        if(req) req->monitorEvent(shared_from_this());
+        return !oflow;
+    }
+
+    //! post update with changed
+    bool post(const epics::pvData::BitSet& updated) {
+        bool oflow;
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            if(!complete || !running) return false;
+
+            if(empty.empty()) {
+                oflow = inoverflow = true;
+                overflow.or_and(updated, changed);
+                changed |= updated;
+
+            } else {
+
+                if(p_postone())
+                    req = requester;
+                oflow = inoverflow = false;
+            }
+        }
+        if(req) req->monitorEvent(shared_from_this());
+        return !oflow;
+    }
+
+private:
+    bool p_postone()
+    {
+        bool ret;
+        // assume lock is held
+        assert(!empty.empty());
+
+        epics::pvAccess::MonitorElementPtr& elem = empty.front();
+
+        elem->pvStructurePtr->copyUnchecked(*complete);
+        *elem->changedBitSet = changed;
+        *elem->overrunBitSet = overflow;
+
+        overflow.clear();
+        changed.clear();
+
+        ret = inuse.empty();
+        inuse.push_back(elem);
+        empty.pop_front();
+        return ret;
+    }
+public:
+
+    // for special handling when MonitorRequester start()s or stop()s
+    virtual void onStart() {}
+    virtual void onStop() {}
+    //! called when a MonitorRequester callback would result in a subscription update
+    //! sub-class may apply necessary locking, update .complete, .changed, and .overflow, then call post()
+    virtual void requestUpdate() {guard_t G(lock); post();}
+
+    virtual void destroy()
+    {
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            if(running) {
+                running = false;
+                this->onStop();
+            }
+            requester.swap(req);
+        }
+    }
+
+private:
+    virtual epics::pvData::Status start()
+    {
+        epics::pvData::Status ret;
+        bool notify = false;
+        BaseMonitor::shared_pointer self;
+        {
+            guard_t G(lock);
+            if(running) return ret;
+            running = true;
+            if(!complete) return ret; // haveType() not called (error?)
+            inoverflow = empty.empty();
+            if(!inoverflow) {
+
+                // post complete event
+                overflow.clear();
+                changed.clear();
+                changed.set(0);
+                notify = true;
+            }
+        }
+        if(notify) onStart(); // may result in post()
+        return ret;
+    }
+
+    virtual epics::pvData::Status stop()
+    {
+        BaseMonitor::shared_pointer self;
+        bool notify;
+        epics::pvData::Status ret;
+        {
+            guard_t G(lock);
+            notify = running;
+            running = false;
+        }
+        if(notify) onStop();
+        return ret;
+    }
+
+    virtual epics::pvAccess::MonitorElementPtr poll()
+    {
+        epics::pvAccess::MonitorElementPtr ret;
+        guard_t G(lock);
+        if(running && complete && !inuse.empty()) {
+            ret = inuse.front();
+            inuse.pop_front();
+        }
+        return ret;
+    }
+
+    virtual void release(epics::pvAccess::MonitorElementPtr const & elem)
+    {
+        BaseMonitor::shared_pointer self;
+        requester_t::shared_pointer req;
+        {
+            guard_t G(lock);
+            empty.push_back(elem);
+            if(inoverflow)
+                this->requestUpdate(); // may result in post()
+        }
+    }
+public:
+    virtual void getStats(Stats& s) const
+    {
+        guard_t G(lock);
+        s.nempty = empty.size();
+        s.nfilled = inuse.size();
+        s.noutstanding = nbuffers - s.nempty - s.nfilled;
     }
 };
 
