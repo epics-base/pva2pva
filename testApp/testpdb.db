@@ -20,3 +20,15 @@ record(ai, "rec4") {
   field(RVAL, "40")
   info(pdbGroup, "grp1|fld3=VAL|fld4=RVAL")
 }
+
+record(ai, "rec5") {
+  field(VAL, "5.0")
+  field(RVAL, "50")
+  info(pdbGroup, "grp2|fld1=VAL|fld3=RVAL")
+}
+record(ai, "rec6") {
+  field(VAL, "6.0")
+  field(RVAL, "60")
+  info(pdbGroup, "grp2|fld2=VAL")
+  info(pdbTrigger, "grp2|fld2>fld1,fld2")
+}

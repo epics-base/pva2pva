@@ -273,23 +273,16 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     PVMonitor mon(prov, "rec1");
     mon.mon->start();
 
-    // start() will trigger two updates, one for DBE_VALUE|DBE_ALARM
-    // and another for DBE_PROPERTY
     testOk1(mon.monreq->waitForEvent());
     testDiag("Initial event");
 
     PVMonitor::Element e(mon);
 
-    // TODO: correctly check the first update
-    // no mather which DBE_* arrives first...
     e = mon.poll();
-    testOk1(!!e);
-    while(!(e = mon.poll())) {
-        testDiag("Wait initial event (part 2)");
-        mon.monreq->waitForEvent();
-    }
 
     testOk1(!!e);
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{0, 1, 3, 4, 11, 12, 14, 15, 17, 18}");
+    else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "value", 1.0);
     testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 100.0);
     testFieldEqual<pvd::PVDouble>(e, "display.limitLow", -100.0);
@@ -378,6 +371,59 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 32.0);
 }
 
+void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
+{
+    testDiag("test group monitor w/ triggers");
+
+    testdbPutFieldOk("rec5", DBR_DOUBLE, 5.0);
+    testdbPutFieldOk("rec6", DBR_DOUBLE, 6.0);
+    testdbPutFieldOk("rec5.RVAL", DBR_LONG, 50);
+
+    testDiag("subscribe to grp2");
+    PVMonitor mon(prov, "grp2");
+    PVMonitor::Element e(mon);
+
+    testOk1(mon.mon->start().isOK());
+
+    testDiag("Wait for initial event");
+    testOk1(mon.monreq->waitForEvent());
+    testDiag("Initial event");
+
+    e = mon.poll();
+    testOk1(!!e);
+
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{0, 2, 4, 5, 12, 13, 15, 16, 18, 19, 32, 33, 35, 36, 38, 39, 42, 44, 45, 52, 53, 55, 56, 58, 59}");
+    else testFail("oops");
+
+    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 5.0);
+    testFieldEqual<pvd::PVDouble>(e, "fld2.value", 6.0);
+    testFieldEqual<pvd::PVInt>(e,    "fld3.value", 0); // not triggered -> no update.  only get/set
+
+    e = mon.poll();
+    testOk1(!e);
+
+    testdbPutFieldOk("rec5.RVAL", DBR_LONG, 60); // no trigger -> no event
+    testdbPutFieldOk("rec5", DBR_DOUBLE, 15.0); // no trigger -> no event
+    testdbPutFieldOk("rec6", DBR_DOUBLE, 16.0); // event triggered
+
+    testDiag("Wait for event");
+    testOk1(mon.monreq->waitForEvent());
+    testDiag("event");
+
+    e = mon.poll();
+    testOk1(!!e);
+
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5, 42, 44, 45}");
+    else testFail("oops");
+
+    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 15.0);
+    testFieldEqual<pvd::PVDouble>(e, "fld2.value", 16.0);
+    testFieldEqual<pvd::PVInt>(e,    "fld3.value", 0); // not triggered -> no update.  only get/set
+
+    e = mon.poll();
+    testOk1(!e);
+}
+
 } // namespace
 
 extern "C"
@@ -405,6 +451,7 @@ MAIN(testpdb)
 
             testSingleMonitor(prov);
             testGroupMonitor(prov);
+            testGroupMonitorTriggers(prov);
         }catch(...){
             prov->destroy();
             throw;

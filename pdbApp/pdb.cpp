@@ -125,7 +125,7 @@ struct PDBProcessor
 
             curgroup->members.push_back(GroupMemberInfo(recbase + dbf, pvf));
             curgroup->members.back().index = curgroup->members.size()-1;
-            curgroup->members_map[curgroup->name] = curgroup->members.back().index;
+            curgroup->members_map[pvf] = curgroup->members.back().index;
 
             if(PDBProviderDebug>2) {
                 fprintf(stderr, "  pdb map '%s.%s' <-> '%s'\n",
@@ -164,20 +164,10 @@ struct PDBProcessor
             Splitter sep(trigs.c_str(), ',');
             std::string target;
 
-            if(PDBProviderDebug>2)
-                fprintf(stderr, "  pdb trg '%s.%s' -> ",
-                        curgroup->name.c_str(), pvf.c_str());
-
             while(sep.snip(target)) {
                 curgroup->hastriggers = true;
                 it->second.insert(target);
-                if(PDBProviderDebug<=2) continue;
-                fprintf(stderr, "'%s.%s'", curgroup->name.c_str(), target.c_str());
-                if(!!sep) fprintf(stderr, ", ");
             }
-
-            if(PDBProviderDebug>2)
-                fprintf(stderr, "\n");
         }
     }
 
@@ -200,12 +190,19 @@ struct PDBProcessor
                     }
                     GroupMemberInfo& srcmem = info.members[it2x->second];
 
+                    if(PDBProviderDebug>2)
+                        fprintf(stderr, "  pdb trg '%s.%s'  -> ",
+                                info.name.c_str(), src.c_str());
+
                     FOREACH(it3, end3, targets) { // for each trigger target
                         const std::string& target = *it3;
 
                         if(target=="*") {
-                            for(size_t i=0; i<srcmem.triggers.size(); i++)
+                            for(size_t i=0; i<info.members.size(); i++) {
                                 srcmem.triggers.insert(i);
+                                if(PDBProviderDebug>2)
+                                    fprintf(stderr, "%s, ", info.members[i].pvfldname.c_str());
+                            }
 
                         } else {
 
@@ -219,8 +216,12 @@ struct PDBProcessor
 
                             // and finally, update source BitSet
                             srcmem.triggers.insert(targetmem.index);
+                            if(PDBProviderDebug>2)
+                                fprintf(stderr, "%s, ", info.members[targetmem.index].pvfldname.c_str());
                         }
                     }
+
+                    if(PDBProviderDebug>2) fprintf(stderr, "\n");
                 }
             } else {
                 if(PDBProviderDebug>1) fprintf(stderr, "  pdb default triggers for '%s'\n", info.name.c_str());
@@ -407,8 +408,11 @@ PDBProvider::PDBProvider()
 
                 info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);
 
-                if(!info.triggers.empty())
+                if(!info.triggers.empty()) {
+                    printf("##### setup VALUE %s\n", dbChannelName(info.chan));
                     info.evt_VALUE.create(event_context, info.chan, &pdb_group_event, DBE_VALUE|DBE_ALARM);
+                } else
+                    printf("##### skip  VALUE %s\n", dbChannelName(info.chan));
             }
         }
     }catch(...){
