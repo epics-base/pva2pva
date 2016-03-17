@@ -12,9 +12,11 @@
 #include "pvif.h"
 #include "pdb.h"
 
-struct PDBGroupPV : public PDBPV, public std::tr1::enable_shared_from_this<PDBGroupPV>
+struct PDBGroupPV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBGroupPV);
+    weak_pointer weakself;
+    inline shared_pointer shared_from_this() { return shared_pointer(weakself); }
 
     std::string name;
     epics::pvData::shared_vector<DBCH> chan;

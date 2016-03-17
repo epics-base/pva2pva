@@ -134,10 +134,11 @@ struct BaseChannel : public epics::pvAccess::Channel
  * Derived class may use onStart(), onStop(), and requestUpdate()
  * to react to subscriber events.
  */
-struct BaseMonitor : public epics::pvAccess::Monitor,
-                     public std::tr1::enable_shared_from_this<BaseMonitor>
+struct BaseMonitor : public epics::pvAccess::Monitor
 {
     POINTER_DEFINITIONS(BaseMonitor);
+    weak_pointer weakself;
+    inline shared_pointer shared_from_this() { return shared_pointer(weakself); }
 
     typedef epics::pvAccess::MonitorRequester requester_t;
 
@@ -175,13 +176,12 @@ public:
     {
         epics::pvData::StructureConstPtr dtype(value->getStructure());
         epics::pvData::PVDataCreatePtr create(epics::pvData::getPVDataCreate());
-        BaseMonitor::shared_pointer self;
+        BaseMonitor::shared_pointer self(shared_from_this());
         requester_t::shared_pointer req;
         {
             guard_t G(lock);
             assert(!complete); // can't call twice
 
-            self = shared_from_this();
             req = requester;
 
             complete = value;

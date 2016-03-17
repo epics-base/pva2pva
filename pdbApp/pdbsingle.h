@@ -15,9 +15,11 @@
 
 struct PDBSingleMonitor;
 
-struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBSinglePV>
+struct PDBSinglePV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBSinglePV);
+    weak_pointer weakself;
+    inline shared_pointer shared_from_this() { return shared_pointer(weakself); }
 
     /* this dbChannel is shared by all operations,
      * which is safe as it's modify-able field(s) (addr.pfield)
@@ -37,15 +39,7 @@ struct PDBSinglePV : public PDBPV, public std::tr1::enable_shared_from_this<PDBS
     typedef std::set<std::tr1::shared_ptr<PDBSingleMonitor> > interested_t;
     interested_t interested;
 
-    struct Event {
-        PDBSinglePV *self;
-        dbEventSubscription subscript;
-        unsigned dbe_mask;
-        Event(PDBSinglePV *m, unsigned mask);
-        ~Event();
-        void enable();
-    };
-    Event evt_VALUE, evt_PROPERTY;
+    DBEvent evt_VALUE, evt_PROPERTY;
     bool hadevent;
 
     static size_t ninstances;

@@ -7,6 +7,7 @@
 #include <dbChannel.h>
 #include <dbStaticLib.h>
 #include <dbLock.h>
+#include <dbEvent.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
@@ -92,6 +93,25 @@ struct pdbRecordIterator {
         if(m_done || dbFindInfo(&ent, key))
             return def;
         return dbGetInfoString(&ent);
+    }
+};
+
+struct DBEvent
+{
+    dbEventSubscription subscript;
+    unsigned dbe_mask;
+    void *self;
+    DBEvent(void* s) :subscript(NULL), self(s) {}
+    ~DBEvent() {destroy();}
+    void create(dbEventCtx ctx, dbChannel *ch, EVENTFUNC *fn, unsigned mask)
+    {
+        subscript = db_add_event(ctx, ch, fn, this, mask);
+        if(!subscript)
+            throw std::runtime_error("Failed to subscribe to dbEvent");
+        dbe_mask = mask;
+    }
+    void destroy() {
+        if(subscript) db_cancel_event(subscript);
     }
 };
 

@@ -20,9 +20,9 @@ static
 void pdb_single_event(void *user_arg, struct dbChannel *chan,
                       int eventsRemaining, struct db_field_log *pfl)
 {
-    PDBSinglePV::Event *evt=(PDBSinglePV::Event*)user_arg;
+    DBEvent *evt=(DBEvent*)user_arg;
     try{
-        PDBSinglePV::shared_pointer self(std::tr1::static_pointer_cast<PDBSinglePV>(evt->self->shared_from_this()));
+        PDBSinglePV::shared_pointer self(std::tr1::static_pointer_cast<PDBSinglePV>(((PDBSinglePV*)evt->self)->shared_from_this()));
         {
             Guard G(self->lock); // TODO: lock order?
 
@@ -53,39 +53,14 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
     }
 }
 
-PDBSinglePV::Event::Event(PDBSinglePV *pv, unsigned mask)
-    :self(pv)
-    ,subscript(NULL)
-    ,dbe_mask(mask)
-{
-}
-
-PDBSinglePV::Event::~Event() {
-    db_cancel_event(subscript);
-}
-
-void PDBSinglePV::Event::enable()
-{
-    assert(!subscript);
-    subscript = db_add_event(self->provider->event_context,
-                             self->chan,
-                             &pdb_single_event,
-                             (void*)this,
-                             dbe_mask);
-    if(!subscript)
-        throw std::runtime_error("Failed to subscribe to dbEvent");
-}
-
 PDBSinglePV::PDBSinglePV(DBCH& chan,
             const PDBProvider::shared_pointer& prov)
     :provider(prov)
-    ,evt_VALUE(this, DBE_VALUE|DBE_ALARM)
-    ,evt_PROPERTY(this, DBE_PROPERTY)
+    ,evt_VALUE(this)
+    ,evt_PROPERTY(this)
     ,hadevent(false)
 {
     this->chan.swap(chan);
-    evt_VALUE.enable();
-    evt_PROPERTY.enable();
     fielddesc = PVIF::dtype(this->chan);
 
     complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
@@ -101,7 +76,8 @@ PDBSinglePV::~PDBSinglePV()
 
 void PDBSinglePV::activate()
 {
-
+    evt_VALUE.create(provider->event_context, this->chan, &pdb_single_event, DBE_VALUE|DBE_ALARM);
+    evt_PROPERTY.create(provider->event_context, this->chan, &pdb_single_event, DBE_PROPERTY);
 }
 
 pva::Channel::shared_pointer
@@ -117,6 +93,7 @@ PDBSingleChannel::PDBSingleChannel(const PDBSinglePV::shared_pointer& pv,
     :BaseChannel(dbChannelName(pv->chan), pv->provider, req, pv->fielddesc)
     ,pv(pv)
 {
+    assert(!!this->pv);
 }
 
 void PDBSingleChannel::printInfo(std::ostream& out)
@@ -150,9 +127,10 @@ PDBSingleChannel::createMonitor(
         pva::MonitorRequester::shared_pointer const & requester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    pva::Monitor::shared_pointer ret(new PDBSingleMonitor(pv->shared_from_this(), requester, pvRequest));
+    PDBSingleMonitor::shared_pointer ret(new PDBSingleMonitor(pv->shared_from_this(), requester, pvRequest));
+    ret->weakself = ret;
     assert(!!pv->complete);
-    ((PDBSingleMonitor*)ret.get())->connect(pv->complete);
+    ret->connect(pv->complete);
     return ret;
 }
 

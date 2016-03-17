@@ -100,6 +100,7 @@ PDBProvider::PDBProvider()
             const size_t nchans = info.members.size();
 
             PDBGroupPV::shared_pointer pv(new PDBGroupPV());
+            pv->weakself = pv;
             pv->name = info.name;
             pv->attachments.resize(nchans);
             //pv->chan.resize(nchans);
@@ -236,6 +237,9 @@ PDBProvider::createChannel(std::string const & channelName,
                 DBCH chan(pchan);
                 pv.reset(new PDBSinglePV(chan, shared_from_this()));
                 transient_pv_map.insert(channelName, pv);
+                PDBSinglePV::shared_pointer spv = std::tr1::static_pointer_cast<PDBSinglePV>(pv);
+                spv->weakself = spv;
+                spv->activate();
             }
         }
     }
