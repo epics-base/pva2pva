@@ -21,22 +21,43 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
     unsigned idx = evt->index;
     try{
         PDBGroupPV::shared_pointer self(std::tr1::static_pointer_cast<PDBGroupPV>(((PDBGroupPV*)evt->self)->shared_from_this()));
+        PDBGroupPV::Info& info = self->members[idx];
 
         {
             Guard G(self->lock); // TODO: lock order?
 
-            self->scratch.clear();
+            if(evt->dbe_mask&DBE_PROPERTY)
             {
-                DBScanLocker L(dbChannelRecord(self->chan[idx]));
-                self->pvif[idx]->put(self->scratch, evt->dbe_mask, pfl);
+                DBScanLocker L(dbChannelRecord(info.chan));
+                self->members[idx].pvif->put(self->scratch, evt->dbe_mask, pfl);
+
+                if(!info.had_initial_PROPERTY) {
+                    info.had_initial_PROPERTY = true;
+                    self->initial_waits--;
+                }
+            } else {
+
+                DBManyLocker L(info.locker); // lock only those records in the triggers list
+                FOREACH(it, end, info.triggers)
+                {
+                    size_t i = *it;
+                    LocalFL FL(i==idx ? pfl : NULL, self->members[i].chan); // for fields other than idx, creata a read fl if needed
+                    self->members[i].pvif->put(self->scratch, evt->dbe_mask, FL.pfl);
+                }
+
+                if(info.had_initial_VALUE) {
+                    info.had_initial_VALUE = true;
+                    self->initial_waits--;
+                }
             }
 
-            self->hadevent = true;
+            if(self->initial_waits>0) return; // don't post() until all subscriptions get initial updates
 
             FOREACH(it, end, self->interested) {
                 PDBGroupMonitor& mon = *it->get();
                 mon.post(self->scratch);
             }
+            self->scratch.clear();
         }
 
     }catch(std::tr1::bad_weak_ptr&){
@@ -133,12 +154,14 @@ PDBGroupGet::PDBGroupGet(const PDBGroupChannel::shared_pointer &channel,
         }
     }
 
-    const size_t npvs = channel->pv->attachments.size();
+    const size_t npvs = channel->pv->members.size();
     pvif.resize(npvs);
     for(size_t i=0; i<npvs; i++)
     {
-        pvif[i].reset(PVIF::attach(channel->pv->chan[i],
-                               pvf->getSubFieldT<pvd::PVStructure>(channel->pv->attachments[i])
+        PDBGroupPV::Info& info = channel->pv->members[i];
+
+        pvif[i].reset(PVIF::attach(info.chan,
+                               pvf->getSubFieldT<pvd::PVStructure>(info.attachment)
                                ));
     }
 }
@@ -156,7 +179,9 @@ void PDBGroupGet::get()
 
         for(size_t i=0; i<npvs; i++)
         {
-            DBScanLocker L(dbChannelRecord(channel->pv->chan[i]));
+            PDBGroupPV::Info& info = channel->pv->members[i];
+
+            DBScanLocker L(dbChannelRecord(info.chan));
             pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
         }
     }
@@ -185,12 +210,14 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
         }
     }
 
-    const size_t npvs = channel->pv->attachments.size();
+    const size_t npvs = channel->pv->members.size();
     pvif.resize(npvs);
     for(size_t i=0; i<npvs; i++)
     {
-        pvif[i].reset(PVIF::attach(channel->pv->chan[i],
-                               pvf->getSubFieldT<pvd::PVStructure>(channel->pv->attachments[i])
+        PDBGroupPV::Info& info = channel->pv->members[i];
+
+        pvif[i].reset(PVIF::attach(info.chan,
+                               pvf->getSubFieldT<pvd::PVStructure>(info.attachment)
                                ));
     }
 }
@@ -199,13 +226,15 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
                        pvd::BitSet::shared_pointer const & changed)
 {
     // assume value may be a different struct each time... lot of wasted prep work
-    const size_t npvs = channel->pv->attachments.size();
+    const size_t npvs = channel->pv->members.size();
     std::vector<std::tr1::shared_ptr<PVIF> > putpvif(npvs);
 
     for(size_t i=0; i<npvs; i++)
     {
-        putpvif[i].reset(PVIF::attach(channel->pv->chan[i],
-                               value->getSubFieldT<pvd::PVStructure>(channel->pv->attachments[i])
+        PDBGroupPV::Info& info = channel->pv->members[i];
+
+        putpvif[i].reset(PVIF::attach(info.chan,
+                               value->getSubFieldT<pvd::PVStructure>(info.attachment)
                                ));
     }
 
@@ -216,7 +245,9 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     } else {
         for(size_t i=0; i<npvs; i++)
         {
-            DBScanLocker L(dbChannelRecord(channel->pv->chan[i]));
+            PDBGroupPV::Info& info = channel->pv->members[i];
+
+            DBScanLocker L(dbChannelRecord(info.chan));
             putpvif[i]->get(*changed);
         }
     }
@@ -237,7 +268,9 @@ void PDBGroupPut::get()
 
         for(size_t i=0; i<npvs; i++)
         {
-            DBScanLocker L(dbChannelRecord(channel->pv->chan[i]));
+            PDBGroupPV::Info& info = channel->pv->members[i];
+
+            DBScanLocker L(dbChannelRecord(info.chan));
             pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
         }
     }
@@ -270,14 +303,26 @@ void PDBGroupMonitor::onStart()
 
     if(pv->interested.empty()) {
         // first subscriber
-        pv->hadevent = false;
-        for(size_t i=0; i<pv->evts_VALUE.size(); i++) {
-            if(!!pv->evts_VALUE[i]) db_event_enable(pv->evts_VALUE[i].subscript);
-            db_event_enable(pv->evts_PROPERTY[i].subscript);
-            if(!!pv->evts_VALUE[i]) db_post_single_event(pv->evts_VALUE[i].subscript);
-            db_post_single_event(pv->evts_PROPERTY[i].subscript);
+        size_t ievts = 0;
+        for(size_t i=0; i<pv->members.size(); i++) {
+            PDBGroupPV::Info& info = pv->members[i];
+
+            if(!!info.evt_VALUE) {
+                db_event_enable(info.evt_VALUE.subscript);
+                db_post_single_event(info.evt_VALUE.subscript);
+                ievts++;
+                info.had_initial_VALUE = false;
+            } else {
+                info.had_initial_VALUE = true;
+            }
+            db_event_enable(info.evt_PROPERTY.subscript);
+            db_post_single_event(info.evt_PROPERTY.subscript);
+            ievts++;
+            info.had_initial_PROPERTY = false;
         }
-    } else if(pv->hadevent) {
+        pv->initial_waits = ievts;
+        pv->scratch.clear();
+    } else if(pv->initial_waits==0) {
         // new subscriber and already had initial update
         post();
     } // else new subscriber, but no initial update.  so just wait
@@ -297,9 +342,13 @@ void PDBGroupMonitor::onStop()
 
     if(pv->interested.empty()) {
         // last subscriber
-        for(size_t i=0; i<pv->evts_VALUE.size(); i++) {
-            if(!!pv->evts_VALUE[i]) db_event_disable(pv->evts_VALUE[i].subscript);
-            db_event_disable(pv->evts_PROPERTY[i].subscript);
+        for(size_t i=0; i<pv->members.size(); i++) {
+            PDBGroupPV::Info& info = pv->members[i];
+
+            if(!!info.evt_VALUE) {
+                db_event_disable(info.evt_VALUE.subscript);
+            }
+            db_event_disable(info.evt_PROPERTY.subscript);
         }
     }
 }

@@ -27,21 +27,30 @@ struct PDBGroupPV : public PDBPV
 
     // get/put/monitor
     std::string name;
-    epics::pvData::shared_vector<DBCH> chan;
-    std::vector<std::string> attachments;
-    std::vector<epics::pvData::BitSet> triggers;
-    DBManyLock locker;
+
+    struct Info {
+        DBCH chan;
+        std::string attachment;
+        std::vector<size_t> triggers;
+        DBManyLock locker; // lock only those channels being triggered
+        std::auto_ptr<PVIF> pvif;
+        DBEvent evt_VALUE, evt_PROPERTY;
+        bool had_initial_VALUE, had_initial_PROPERTY;
+
+        Info() :had_initial_VALUE(false), had_initial_PROPERTY(false) {}
+    };
+    epics::pvData::shared_vector<Info> members;
+
+    DBManyLock locker; // all member channels
 
     // monitor only
     epics::pvData::BitSet scratch;
-    std::vector<std::tr1::shared_ptr<PVIF> > pvif;
-    epics::pvData::shared_vector<DBEvent> evts_VALUE, evts_PROPERTY;
 
     epics::pvData::PVStructurePtr complete; // complete copy from subscription
 
     typedef std::set<std::tr1::shared_ptr<PDBGroupMonitor> > interested_t;
     interested_t interested;
-    bool hadevent;
+    size_t initial_waits;
 
     static size_t ninstances;
 

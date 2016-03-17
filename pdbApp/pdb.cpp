@@ -43,7 +43,7 @@ struct Splitter {
 struct GroupMemberInfo {
     GroupMemberInfo(const std::string& a, const std::string& b) :pvname(a), pvfldname(b) {}
     std::string pvname, pvfldname;
-    pvd::BitSet triggers; // indices in GroupInfo::members which are post()d on events from pvfldname
+    std::set<size_t> triggers; // indices in GroupInfo::members which are post()d on events from pvfldname
     size_t index; // index in GroupInfo::members
 };
 
@@ -123,7 +123,7 @@ struct PDBProcessor
                 throw std::runtime_error(strm.str());
             }
 
-            curgroup->members.push_back(GroupMemberInfo(recbase + dbf, dbf));
+            curgroup->members.push_back(GroupMemberInfo(recbase + dbf, pvf));
             curgroup->members.back().index = curgroup->members.size()-1;
             curgroup->members_map[curgroup->name] = curgroup->members.back().index;
 
@@ -204,8 +204,8 @@ struct PDBProcessor
                         const std::string& target = *it3;
 
                         if(target=="*") {
-                            for(size_t i=0; i<info.members.size(); i++)
-                                srcmem.triggers.set(i);
+                            for(size_t i=0; i<srcmem.triggers.size(); i++)
+                                srcmem.triggers.insert(i);
 
                         } else {
 
@@ -218,7 +218,7 @@ struct PDBProcessor
                             const GroupMemberInfo& targetmem = info.members[it3x->second];
 
                             // and finally, update source BitSet
-                            srcmem.triggers.set(targetmem.index);
+                            srcmem.triggers.insert(targetmem.index);
                         }
                     }
                 }
@@ -228,7 +228,7 @@ struct PDBProcessor
                 FOREACH(it2, end2, info.members) {
                     GroupMemberInfo& mem = *it2;
 
-                    mem.triggers.set(mem.index); // default is self trigger
+                    mem.triggers.insert(mem.index); // default is self trigger
                 }
             }
         }
@@ -323,31 +323,52 @@ PDBProvider::PDBProvider()
             PDBGroupPV::shared_pointer pv(new PDBGroupPV());
             pv->weakself = pv;
             pv->name = info.name;
-            pv->attachments.resize(nchans);
-            pv->triggers.resize(nchans);
-            pvd::shared_vector<DBCH> chans(nchans);
+
+            pvd::shared_vector<PDBGroupPV::Info> members(nchans);
+
             std::vector<dbCommon*> records(nchans);
 
             for(size_t i=0; i<nchans; i++)
             {
                 GroupMemberInfo &mem = info.members[i];
+                PDBGroupPV::Info& info = members[i];
 
                 DBCH chan(mem.pvname);
 
                 builder->add(mem.pvfldname, PVIF::dtype(chan));
 
-                pv->triggers[i].swap(mem.triggers);
-                pv->attachments[i] = mem.pvfldname;
-                records[i] = dbChannelRecord(chan);
-                chans[i].swap(chan);
+                info.attachment = mem.pvfldname;
+                info.chan.swap(chan);
+
+                info.triggers.reserve(mem.triggers.size());
+                FOREACH(idx, endidx, mem.triggers) {
+                    info.triggers.push_back(*idx);
+                }
+
+                records[i] = dbChannelRecord(info.chan);
             }
+            pv->members.swap(members);
 
             pv->fielddesc = builder->createStructure();
             pv->complete = pvbuilder->createPVStructure(pv->fielddesc);
-            pv->chan.swap(chans);
 
             DBManyLock L(&records[0], records.size(), 0);
             pv->locker.swap(L);
+
+            for(size_t i=0; i<nchans; i++)
+            {
+                PDBGroupPV::Info& info = pv->members[i];
+
+                if(info.triggers.empty()) continue;
+
+                std::vector<dbCommon*> trig_records(info.triggers.size());
+                for(size_t idx=0; idx<trig_records.size(); idx++) {
+                    trig_records[idx] = records[info.triggers[idx]];
+                }
+
+                DBManyLock L(&trig_records[0], trig_records.size(), 0);
+                info.locker.swap(L);
+            }
 
             persist_pv_map[info.name] = pv;
 
@@ -371,30 +392,24 @@ PDBProvider::PDBProvider()
             PDBGroupPV *pv = dynamic_cast<PDBGroupPV*>(ppv.get());
             if(!pv)
                 continue;
-            const size_t nchans = pv->chan.size();
 
             // prepare for monitor
 
-            pv->pvif.resize(nchans);
-            epics::pvData::shared_vector<DBEvent> values(nchans), props(nchans);
-
-            for(size_t i=0; i<nchans; i++)
+            size_t i=0;
+            FOREACH(it, end, pv->members)
             {
-                pv->pvif[i].reset(PVIF::attach(pv->chan[i],
-                                               pv->complete->getSubFieldT<pvd::PVStructure>(pv->attachments[i])));
-                values[i].index = props[i].index = i;
-                values[i].self  = props[i].self  = pv;
+                PDBGroupPV::Info& info = *it;
+                info.evt_VALUE.index = info.evt_PROPERTY.index = i++;
+                info.evt_VALUE.self = info.evt_PROPERTY.self = pv;
 
-                props[i].create(event_context, pv->chan[i], &pdb_group_event, DBE_PROPERTY);
+                info.pvif.reset(PVIF::attach(info.chan,
+                                             pv->complete->getSubFieldT<pvd::PVStructure>(info.attachment)));
 
-                // only subscribe for value change if triggers are active
-                if(pv->triggers.empty())
-                    continue;
-                values[i].create(event_context, pv->chan[i], &pdb_group_event, DBE_VALUE|DBE_ALARM);
+                info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);
+
+                if(!info.triggers.empty())
+                    info.evt_VALUE.create(event_context, info.chan, &pdb_group_event, DBE_VALUE|DBE_ALARM);
             }
-
-            pv->evts_VALUE.swap(values);
-            pv->evts_PROPERTY.swap(props);
         }
     }catch(...){
         db_close_events(event_context);
