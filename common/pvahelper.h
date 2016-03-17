@@ -256,6 +256,7 @@ public:
 
             } else {
 
+                changed |= updated;
                 if(p_postone())
                     req = requester;
                 oflow = inoverflow = false;
@@ -280,6 +281,7 @@ public:
 
             } else {
 
+                changed |= updated;
                 if(p_postone())
                     req = requester;
                 oflow = inoverflow = false;

@@ -305,6 +305,8 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{1, 3, 4}");
+    else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "value", 11.0);
 
     e = mon.poll();
@@ -318,6 +320,8 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{11, 12, 14, 15, 17, 18}");
+    else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 50.0);
 
     e = mon.poll();
@@ -346,6 +350,8 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
     testOk1(!!e);
 
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{0, 2, 4, 5, 12, 13, 15, 16, 18, 19, 22, 24, 25, 32, 33, 35, 36, 38, 39, 42, 44, 45, 52, 53, 55, 56, 58, 59, 62, 64, 65, 72, 73, 75, 76, 78, 79}");
+    else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 3.0);
     testFieldEqual<pvd::PVInt>(e,    "fld2.value", 30);
     testFieldEqual<pvd::PVDouble>(e, "fld3.value", 4.0);
@@ -354,6 +360,22 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     testFieldEqual<pvd::PVDouble>(e, "fld1.display.limitLow", -200.0);
     testFieldEqual<pvd::PVDouble>(e, "fld2.display.limitHigh", 2147483647.0);
     testFieldEqual<pvd::PVDouble>(e, "fld2.display.limitLow", -2147483648.0);
+
+    e = mon.poll();
+    testOk1(!e);
+
+    testdbPutFieldOk("rec3", DBR_DOUBLE, 32.0);
+
+    testDiag("Wait for event");
+    testOk1(mon.monreq->waitForEvent());
+    testDiag("event");
+
+    e = mon.poll();
+    testOk1(!!e);
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5}");
+    else testFail("oops");
+
+    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 32.0);
 }
 
 } // namespace

@@ -322,6 +322,7 @@ void PDBGroupMonitor::onStart()
         }
         pv->initial_waits = ievts;
         pv->scratch.clear();
+        pv->scratch.set(0);
     } else if(pv->initial_waits==0) {
         // new subscriber and already had initial update
         post();

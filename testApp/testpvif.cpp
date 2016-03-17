@@ -75,6 +75,9 @@ void testScalar()
     pvif_li->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_li);
 
+    testEqual(toString(mask), "{2, 4, 5, 12, 13, 15, 16, 18, 19}");
+    mask.clear();
+
     dbScanLock((dbCommon*)prec_ai);
     prec_ai->time.secPastEpoch = 0x12345678;
     prec_ai->time.nsec = 12345678;
@@ -82,11 +85,17 @@ void testScalar()
     pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
+    testEqual(toString(mask), "{22, 24, 25, 32, 33, 35, 36, 38, 39, 42, 44, 45, 52, 53, 55, 56, 58, 59}");
+    mask.clear();
+
     dbScanLock((dbCommon*)prec_mbbi);
     prec_mbbi->time.secPastEpoch = 0x12345678;
     prec_mbbi->time.nsec = 12345678;
     pvif_mbbi->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_mbbi);
+
+    testEqual(toString(mask), "{63, 64, 66, 67}");
+    mask.clear();
 
     testFieldEqual<pvd::PVInt>(root, "li.value", 102042);
     testFieldEqual<pvd::PVInt>(root, "li.alarm.severity", 1);
@@ -129,6 +138,11 @@ void testScalar()
     root->getSubFieldT<pvd::PVInt>("li.value")->put(102043);
     root->getSubFieldT<pvd::PVDouble>("ai.value")->put(44.4);
     root->getSubFieldT<pvd::PVInt>("mbbi.value.index")->put(2);
+
+    mask.clear();
+    mask.set(root->getSubFieldT<pvd::PVInt>("li.value")->getFieldOffset());
+    mask.set(root->getSubFieldT<pvd::PVDouble>("ai.value")->getFieldOffset());
+    mask.set(root->getSubFieldT<pvd::PVInt>("mbbi.value.index")->getFieldOffset());
 
     dbScanLock((dbCommon*)prec_li);
     pvif_li->get(mask);

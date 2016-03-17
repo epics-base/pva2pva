@@ -86,6 +86,8 @@ struct TestMonitor {
         testOk1(mreq->eventCnt==1);
         pvd::MonitorElementPtr elem(mon->poll());
         testOk1(!!elem.get());
+        if(!!elem.get()) testEqual(toString(*elem->changedBitSet), "{0}");
+        else testFail("oops");
         testOk1(elem && elem->pvStructurePtr->getSubFieldT<pvd::PVInt>("x")->get()==1);
 
         if(elem) mon->release(elem);
