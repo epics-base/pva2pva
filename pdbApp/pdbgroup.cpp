@@ -272,9 +272,9 @@ void PDBGroupMonitor::onStart()
         // first subscriber
         pv->hadevent = false;
         for(size_t i=0; i<pv->evts_VALUE.size(); i++) {
-            db_event_enable(pv->evts_VALUE[i].subscript);
+            if(!!pv->evts_VALUE[i]) db_event_enable(pv->evts_VALUE[i].subscript);
             db_event_enable(pv->evts_PROPERTY[i].subscript);
-            db_post_single_event(pv->evts_VALUE[i].subscript);
+            if(!!pv->evts_VALUE[i]) db_post_single_event(pv->evts_VALUE[i].subscript);
             db_post_single_event(pv->evts_PROPERTY[i].subscript);
         }
     } else if(pv->hadevent) {
@@ -298,7 +298,7 @@ void PDBGroupMonitor::onStop()
     if(pv->interested.empty()) {
         // last subscriber
         for(size_t i=0; i<pv->evts_VALUE.size(); i++) {
-            db_event_disable(pv->evts_VALUE[i].subscript);
+            if(!!pv->evts_VALUE[i]) db_event_disable(pv->evts_VALUE[i].subscript);
             db_event_disable(pv->evts_PROPERTY[i].subscript);
         }
     }

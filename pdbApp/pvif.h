@@ -115,6 +115,7 @@ struct DBEvent
     void destroy() {
         if(subscript) db_cancel_event(subscript);
     }
+    bool operator!() const { return !subscript; }
 private:
     DBEvent(const DBEvent&);
     DBEvent& operator=(const DBEvent&);

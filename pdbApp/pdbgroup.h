@@ -29,6 +29,7 @@ struct PDBGroupPV : public PDBPV
     std::string name;
     epics::pvData::shared_vector<DBCH> chan;
     std::vector<std::string> attachments;
+    std::vector<epics::pvData::BitSet> triggers;
     DBManyLock locker;
 
     // monitor only
