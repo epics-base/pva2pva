@@ -40,7 +40,7 @@ struct PDBSinglePV : public PDBPV
     interested_t interested;
 
     DBEvent evt_VALUE, evt_PROPERTY;
-    bool hadevent;
+    bool hadevent_VALUE, hadevent_PROPERTY;
 
     static size_t ninstances;
 

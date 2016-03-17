@@ -301,6 +301,9 @@ void PDBGroupMonitor::onStart()
 {
     guard_t G(pv->lock);
 
+    pv->scratch.clear();
+    pv->scratch.set(0);
+
     if(pv->interested.empty()) {
         // first subscriber
         size_t ievts = 0;
@@ -321,8 +324,6 @@ void PDBGroupMonitor::onStart()
             info.had_initial_PROPERTY = false;
         }
         pv->initial_waits = ievts;
-        pv->scratch.clear();
-        pv->scratch.set(0);
     } else if(pv->initial_waits==0) {
         // new subscriber and already had initial update
         post();

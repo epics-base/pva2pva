@@ -26,18 +26,24 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
         {
             Guard G(self->lock); // TODO: lock order?
 
-            self->scratch.clear();
             {
                 DBScanLocker L(dbChannelRecord(self->chan));
                 self->pvif->put(self->scratch, evt->dbe_mask, pfl);
             }
 
-            self->hadevent = true;
+            if(evt->dbe_mask&DBE_PROPERTY)
+                self->hadevent_PROPERTY = true;
+            else
+                self->hadevent_VALUE = true;
+
+            if(!self->hadevent_VALUE || !self->hadevent_PROPERTY)
+                return;
 
             FOREACH(it, end, self->interested) {
                 PDBSingleMonitor& mon = *it->get();
                 mon.post(self->scratch);
             }
+            self->scratch.clear();
         }
 
     }catch(std::tr1::bad_weak_ptr&){
@@ -58,7 +64,8 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
     :provider(prov)
     ,evt_VALUE(this)
     ,evt_PROPERTY(this)
-    ,hadevent(false)
+    ,hadevent_VALUE(false)
+    ,hadevent_PROPERTY(false)
 {
     this->chan.swap(chan);
     fielddesc = PVIF::dtype(this->chan);
@@ -216,14 +223,17 @@ void PDBSingleMonitor::onStart()
 {
     guard_t G(pv->lock);
 
+    pv->scratch.clear();
+    pv->scratch.set(0);
     if(pv->interested.empty()) {
         // first subscriber
-        pv->hadevent = false;
+        pv->hadevent_VALUE = false;
+        pv->hadevent_PROPERTY = false;
         db_event_enable(pv->evt_VALUE.subscript);
         db_event_enable(pv->evt_PROPERTY.subscript);
         db_post_single_event(pv->evt_VALUE.subscript);
         db_post_single_event(pv->evt_PROPERTY.subscript);
-    } else if(pv->hadevent) {
+    } else if(pv->hadevent_VALUE && pv->hadevent_PROPERTY) {
         // new subscriber and already had initial update
         post();
     } // else new subscriber, but no initial update.  so just wait
