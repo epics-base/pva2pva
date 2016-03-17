@@ -45,7 +45,7 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                     self->members[i].pvif->put(self->scratch, evt->dbe_mask, FL.pfl);
                 }
 
-                if(info.had_initial_VALUE) {
+                if(!info.had_initial_VALUE) {
                     info.had_initial_VALUE = true;
                     self->initial_waits--;
                 }

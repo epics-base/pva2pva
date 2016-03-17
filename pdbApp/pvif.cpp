@@ -315,19 +315,19 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     }
     if(dbe&DBE_PROPERTY) {
 #undef FMAP
-#define FMAP(MNAME, FNAME) if(pv.MNAME) pv.MNAME->put(meta.FNAME)
-        FMAP(displayHigh, upper_disp_limit);
-        FMAP(displayLow, lower_disp_limit);
-        FMAP(controlHigh, upper_ctrl_limit);
-        FMAP(controlLow, lower_ctrl_limit);
-        FMAP(egu, units);
+#define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->put(meta.FNAME)
+        FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, displayHigh, upper_disp_limit);
+        FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, displayLow, lower_disp_limit);
+        FMAP(DBR_CTRL_DOUBLE|DBR_CTRL_DOUBLE, controlHigh, upper_ctrl_limit);
+        FMAP(DBR_CTRL_DOUBLE|DBR_CTRL_DOUBLE, controlLow, lower_ctrl_limit);
+        FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, egu, units);
 #undef FMAP
-#define FMAP(MNAME, FNAME) if(pv.MNAME) pv.MNAME->putFrom(meta.FNAME)
-        FMAP(prec, precision.dp);
-        FMAP(warnHigh, upper_warning_limit);
-        FMAP(warnLow,  lower_warning_limit);
-        FMAP(alarmHigh, upper_alarm_limit);
-        FMAP(alarmLow,  lower_alarm_limit);
+#define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->putFrom(meta.FNAME)
+        FMAP(DBR_GR_DOUBLE, prec, precision.dp);
+        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, warnHigh, upper_warning_limit);
+        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, warnLow,  lower_warning_limit);
+        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, alarmHigh, upper_alarm_limit);
+        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, alarmLow,  lower_alarm_limit);
 #undef FMAP
         if(pv.enumopts) {
             pvd::shared_vector<std::string> strs(meta.no_str);

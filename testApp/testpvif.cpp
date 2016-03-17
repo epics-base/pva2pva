@@ -37,18 +37,26 @@ void testScalar()
 
     DBCH chan_li("test:li");
     DBCH chan_ai("test:ai");
+    DBCH chan_ai_rval("test:ai.RVAL");
     DBCH chan_mbbi("test:mbbi");
-    testOk1(dbChannelFieldType(chan_li)==DBR_LONG);
-    testOk1(dbChannelFieldType(chan_ai)==DBR_DOUBLE);
-    testOk1(dbChannelFieldType(chan_mbbi)==DBR_ENUM);
+    testEqual(dbChannelFieldType(chan_li), DBR_LONG);
+    testEqual(dbChannelFieldType(chan_ai), DBR_DOUBLE);
+    testEqual(dbChannelFieldType(chan_ai_rval), DBR_LONG);
+    testEqual(dbChannelFieldType(chan_mbbi), DBR_ENUM);
+    testEqual(dbChannelFinalFieldType(chan_li), DBR_LONG);
+    testEqual(dbChannelFinalFieldType(chan_ai), DBR_DOUBLE);
+    testEqual(dbChannelFinalFieldType(chan_ai_rval), DBR_LONG);
+    testEqual(dbChannelFinalFieldType(chan_mbbi), DBR_ENUM);
 
     pvd::StructureConstPtr dtype_li(PVIF::dtype(chan_li));
     pvd::StructureConstPtr dtype_ai(PVIF::dtype(chan_ai));
+    pvd::StructureConstPtr dtype_ai_rval(PVIF::dtype(chan_ai_rval));
     pvd::StructureConstPtr dtype_mbbi(PVIF::dtype(chan_mbbi));
 
     pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                       ->add("li", dtype_li)
                                       ->add("ai", dtype_ai)
+                                      ->add("ai_rval", dtype_ai_rval)
                                       ->add("mbbi", dtype_mbbi)
                                       ->createStructure());
 
@@ -56,6 +64,7 @@ void testScalar()
 
     std::auto_ptr<PVIF> pvif_li(PVIF::attach(chan_li, root->getSubField<pvd::PVStructure>("li")));
     std::auto_ptr<PVIF> pvif_ai(PVIF::attach(chan_ai, root->getSubField<pvd::PVStructure>("ai")));
+    std::auto_ptr<PVIF> pvif_ai_rval(PVIF::attach(chan_ai_rval, root->getSubField<pvd::PVStructure>("ai_rval")));
     std::auto_ptr<PVIF> pvif_mbbi(PVIF::attach(chan_mbbi, root->getSubField<pvd::PVStructure>("mbbi")));
 
     pvd::BitSet mask;
@@ -70,6 +79,7 @@ void testScalar()
     prec_ai->time.secPastEpoch = 0x12345678;
     prec_ai->time.nsec = 12345678;
     pvif_ai->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+    pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
     dbScanLock((dbCommon*)prec_mbbi);
@@ -78,27 +88,36 @@ void testScalar()
     pvif_mbbi->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_mbbi);
 
-    testOk1(root->getSubFieldT<pvd::PVInt>("li.value")->get()==102042);
-    testOk1(root->getSubFieldT<pvd::PVInt>("li.alarm.severity")->get()==1);
-    testOk1(root->getSubFieldT<pvd::PVLong>("li.timeStamp.secondsPastEpoch")->get()==0x12345678);
-    testOk1(root->getSubFieldT<pvd::PVInt>("li.timeStamp.nanoseconds")->get()==12345678);
-    testOk1(root->getSubFieldT<pvd::PVDouble>("li.display.limitHigh")->get()==100.0);
-    testOk1(root->getSubFieldT<pvd::PVDouble>("li.display.limitLow")->get()==10.0);
-    testOk1(root->getSubFieldT<pvd::PVString>("li.display.units")->get()=="arb");
+    testFieldEqual<pvd::PVInt>(root, "li.value", 102042);
+    testFieldEqual<pvd::PVInt>(root, "li.alarm.severity", 1);
+    testFieldEqual<pvd::PVLong>(root, "li.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVInt>(root, "li.timeStamp.nanoseconds", 12345678);
+    testFieldEqual<pvd::PVDouble>(root, "li.display.limitHigh", 100.0);
+    testFieldEqual<pvd::PVDouble>(root, "li.display.limitLow", 10.0);
+    testFieldEqual<pvd::PVString>(root, "li.display.units", "arb");
 
-    testOk1(root->getSubFieldT<pvd::PVDouble>("ai.value")->get()==42.2);
-    testOk1(root->getSubFieldT<pvd::PVInt>("ai.alarm.severity")->get()==2);
-    testOk1(root->getSubFieldT<pvd::PVLong>("ai.timeStamp.secondsPastEpoch")->get()==0x12345678);
-    testOk1(root->getSubFieldT<pvd::PVInt>("ai.timeStamp.nanoseconds")->get()==12345678);
-    testOk1(root->getSubFieldT<pvd::PVDouble>("ai.display.limitHigh")->get()==200.0);
-    testOk1(root->getSubFieldT<pvd::PVDouble>("ai.display.limitLow")->get()==20.0);
-    testOk1(root->getSubFieldT<pvd::PVString>("ai.display.format")->get()=="2");
-    testOk1(root->getSubFieldT<pvd::PVString>("ai.display.units")->get()=="foo");
+    testFieldEqual<pvd::PVDouble>(root, "ai.value", 42.2);
+    testFieldEqual<pvd::PVInt>(root, "ai.alarm.severity", 2);
+    testFieldEqual<pvd::PVLong>(root, "ai.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVInt>(root, "ai.timeStamp.nanoseconds", 12345678);
+    testFieldEqual<pvd::PVDouble>(root, "ai.display.limitHigh", 200.0);
+    testFieldEqual<pvd::PVDouble>(root, "ai.display.limitLow", 20.0);
+    testFieldEqual<pvd::PVString>(root, "ai.display.format", "2");
+    testFieldEqual<pvd::PVString>(root, "ai.display.units", "foo");
 
-    testOk1(root->getSubFieldT<pvd::PVInt>("mbbi.value.index")->get()==1);
-    testOk1(root->getSubFieldT<pvd::PVInt>("mbbi.alarm.severity")->get()==0);
-    testOk1(root->getSubFieldT<pvd::PVLong>("mbbi.timeStamp.secondsPastEpoch")->get()==0x12345678);
-    testOk1(root->getSubFieldT<pvd::PVInt>("mbbi.timeStamp.nanoseconds")->get()==12345678);
+    testFieldEqual<pvd::PVInt>(root, "ai_rval.value", 1234);
+    testFieldEqual<pvd::PVInt>(root, "ai_rval.alarm.severity", 2);
+    testFieldEqual<pvd::PVLong>(root, "ai_rval.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVInt>(root, "ai_rval.timeStamp.nanoseconds", 12345678);
+    testFieldEqual<pvd::PVDouble>(root, "ai_rval.display.limitHigh", 2147483647.0);
+    testFieldEqual<pvd::PVDouble>(root, "ai_rval.display.limitLow", -2147483648.0);
+    testFieldEqual<pvd::PVString>(root, "ai_rval.display.format", "");
+    testFieldEqual<pvd::PVString>(root, "ai_rval.display.units", "");
+
+    testFieldEqual<pvd::PVInt>(root, "mbbi.value.index", 1);
+    testFieldEqual<pvd::PVInt>(root, "mbbi.alarm.severity", 0);
+    testFieldEqual<pvd::PVLong>(root, "mbbi.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVInt>(root, "mbbi.timeStamp.nanoseconds", 12345678);
     {
         pvd::PVStringArray::const_svector choices(root->getSubFieldT<pvd::PVStringArray>("mbbi.value.choices")->view());
         testOk1(choices.size()==3);

@@ -12,6 +12,8 @@ record(ai, "rec3") {
   field(VAL, "3.0")
   field(RVAL, "30")
   info(pdbGroup, "grp1|fld1=VAL|fld2=RVAL")
+  field(HOPR, "200")
+  field(LOPR, "-200")
 }
 record(ai, "rec4") {
   field(VAL, "4.0")

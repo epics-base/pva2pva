@@ -60,6 +60,22 @@ void testEqualx(const char *nLHS, const char *nRHS, LHS l, RHS r)
 }
 #define testEqual(LHS, RHS) testEqualx(#LHS, #RHS, LHS, RHS)
 
+template<typename PVD>
+void testFieldEqual(const epics::pvData::PVStructurePtr& val, const char *name, typename PVD::value_type expect)
+{
+    if(!val) {
+        testFail("empty structure");
+        return;
+    }
+    typename PVD::shared_pointer fval(val->getSubField<PVD>(name));
+    if(!fval) {
+        testFail("field '%s' with type %s does not exist", name, typeid(PVD).name());
+    } else {
+        typename PVD::value_type actual(fval->get());
+        testEqualx(name, "expect", actual, expect);
+    }
+}
+
 // Boilerplate reduction for accessing a scalar field
 template<typename T>
 struct ScalarAccessor {

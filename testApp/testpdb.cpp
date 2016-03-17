@@ -16,22 +16,6 @@ namespace pva = epics::pvAccess;
 
 namespace {
 
-template<typename PVD>
-void testFieldEqual(const pvd::PVStructurePtr& val, const char *name, typename PVD::value_type expect)
-{
-    if(!val) {
-        testFail("empty structure");
-        return;
-    }
-    typename PVD::shared_pointer fval(val->getSubField<PVD>(name));
-    if(!fval) {
-        testFail("field '%s' with type %s does not exist", name, typeid(PVD).name());
-    } else {
-        typename PVD::value_type actual(fval->get());
-        testEqualx(name, "expect", actual, expect);
-    }
-}
-
 pvd::PVStructurePtr makeRequest(bool atomic)
 {    pvd::StructureConstPtr def(pvd::getFieldCreate()->createFieldBuilder()
                                 ->addNestedStructure("record")
@@ -351,7 +335,25 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
 
     testDiag("subscribe to grp1");
     PVMonitor mon(prov, "grp1");
-    mon.mon->start();
+    PVMonitor::Element e(mon);
+
+    testOk1(mon.mon->start().isOK());
+
+    testDiag("Wait for initial event");
+    testOk1(mon.monreq->waitForEvent());
+    testDiag("Initial event");
+
+    e = mon.poll();
+    testOk1(!!e);
+
+    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 3.0);
+    testFieldEqual<pvd::PVInt>(e,    "fld2.value", 30);
+    testFieldEqual<pvd::PVDouble>(e, "fld3.value", 4.0);
+    testFieldEqual<pvd::PVInt>(e,    "fld4.value", 40);
+    testFieldEqual<pvd::PVDouble>(e, "fld1.display.limitHigh", 200.0);
+    testFieldEqual<pvd::PVDouble>(e, "fld1.display.limitLow", -200.0);
+    testFieldEqual<pvd::PVDouble>(e, "fld2.display.limitHigh", 2147483647.0);
+    testFieldEqual<pvd::PVDouble>(e, "fld2.display.limitLow", -2147483648.0);
 }
 
 } // namespace
