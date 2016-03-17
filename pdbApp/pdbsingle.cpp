@@ -41,7 +41,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
         }
 
     }catch(std::tr1::bad_weak_ptr&){
-        /* We are racing destruction of the PDBSingleMonitor, but things are ok.
+        /* We are racing destruction of the PDBSinglePV, but things are ok.
          * The destructor is running, but has not completed db_cancel_event()
          * so storage is still valid.
          * Just do nothing

@@ -89,6 +89,7 @@ PDBProvider::PDBProvider()
     }
 
     pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
+    pvd::PVDataCreatePtr pvbuilder(pvd::getPVDataCreate());
 
     FOREACH(it, end, groups)
     {
@@ -103,7 +104,6 @@ PDBProvider::PDBProvider()
             pv->weakself = pv;
             pv->name = info.name;
             pv->attachments.resize(nchans);
-            //pv->chan.resize(nchans);
             pvd::shared_vector<DBCH> chans(nchans);
             std::vector<dbCommon*> records(nchans);
 
@@ -121,6 +121,7 @@ PDBProvider::PDBProvider()
             }
 
             pv->fielddesc = builder->createStructure();
+            pv->complete = pvbuilder->createPVStructure(pv->fielddesc);
             pv->chan.swap(chans);
 
             DBManyLock L(&records[0], records.size(), 0);
@@ -139,6 +140,40 @@ PDBProvider::PDBProvider()
     int ret = db_start_events(event_context, "PDB-event", NULL, NULL, epicsThreadPriorityCAServerLow-1);
     if(ret!=DB_EVENT_OK)
         throw std::runtime_error("Failed to stsart dbEvent context");
+
+    try {
+        FOREACH(it, end, persist_pv_map)
+        {
+            const PDBPV::shared_pointer& ppv = it->second;
+            PDBGroupPV *pv = dynamic_cast<PDBGroupPV*>(ppv.get());
+            if(!pv)
+                continue;
+            const size_t nchans = pv->chan.size();
+
+            // prepare for monitor
+
+            pv->pvif.resize(nchans);
+            epics::pvData::shared_vector<DBEvent> values(nchans), props(nchans);
+
+            for(size_t i=0; i<nchans; i++)
+            {
+                pv->pvif[i].reset(PVIF::attach(pv->chan[i],
+                                               pv->complete->getSubFieldT<pvd::PVStructure>(pv->attachments[i])));
+
+                values[i].create(event_context, pv->chan[i], &pdb_group_event, DBE_VALUE|DBE_ALARM);
+                values[i].self = pv;
+                props[i].create(event_context, pv->chan[i], &pdb_group_event, DBE_PROPERTY);
+                props[i].self = pv;
+                values[i].index = props[i].index = i;
+            }
+
+            pv->evts_VALUE.swap(values);
+            pv->evts_PROPERTY.swap(props);
+        }
+    }catch(...){
+        db_close_events(event_context);
+        throw;
+    }
 }
 
 PDBProvider::~PDBProvider()
@@ -158,10 +193,13 @@ PDBProvider::~PDBProvider()
 void PDBProvider::destroy()
 {
     dbEventCtx ctxt = NULL;
+    persist_pv_map_t ppv;
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
+        persist_pv_map.swap(ppv);
         std::swap(ctxt, event_context);
     }
+    ppv.clear(); // indirectly calls all db_cancel_events()
     if(ctxt) db_close_events(ctxt);
 }
 

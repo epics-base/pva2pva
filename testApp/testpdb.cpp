@@ -340,6 +340,20 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     testOk1(!e);
 }
 
+void testGroupMonitor(const PDBProvider::shared_pointer& prov)
+{
+    testDiag("test group monitor");
+
+    testdbPutFieldOk("rec3", DBR_DOUBLE, 3.0);
+    testdbPutFieldOk("rec4", DBR_DOUBLE, 4.0);
+    testdbPutFieldOk("rec3.RVAL", DBR_LONG, 30);
+    testdbPutFieldOk("rec4.RVAL", DBR_LONG, 40);
+
+    testDiag("subscribe to grp1");
+    PVMonitor mon(prov, "grp1");
+    mon.mon->start();
+}
+
 } // namespace
 
 extern "C"
@@ -366,6 +380,7 @@ MAIN(testpdb)
             testGroupPut(prov);
 
             testSingleMonitor(prov);
+            testGroupMonitor(prov);
         }catch(...){
             prov->destroy();
             throw;

@@ -101,7 +101,9 @@ struct DBEvent
     dbEventSubscription subscript;
     unsigned dbe_mask;
     void *self;
-    DBEvent(void* s) :subscript(NULL), self(s) {}
+    unsigned index;
+    DBEvent() :subscript(NULL), self(NULL), index(0) {}
+    DBEvent(void* s) :subscript(NULL), self(s), index(0) {}
     ~DBEvent() {destroy();}
     void create(dbEventCtx ctx, dbChannel *ch, EVENTFUNC *fn, unsigned mask)
     {
@@ -113,6 +115,9 @@ struct DBEvent
     void destroy() {
         if(subscript) db_cancel_event(subscript);
     }
+private:
+    DBEvent(const DBEvent&);
+    DBEvent& operator=(const DBEvent&);
 };
 
 struct LocalFL

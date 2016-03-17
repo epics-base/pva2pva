@@ -12,16 +12,35 @@
 #include "pvif.h"
 #include "pdb.h"
 
+struct PDBGroupMonitor;
+
+void pdb_group_event(void *user_arg, struct dbChannel *chan,
+                     int eventsRemaining, struct db_field_log *pfl);
+
 struct PDBGroupPV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBGroupPV);
     weak_pointer weakself;
     inline shared_pointer shared_from_this() { return shared_pointer(weakself); }
 
+    epicsMutex lock;
+
+    // get/put/monitor
     std::string name;
     epics::pvData::shared_vector<DBCH> chan;
     std::vector<std::string> attachments;
     DBManyLock locker;
+
+    // monitor only
+    epics::pvData::BitSet scratch;
+    std::vector<std::tr1::shared_ptr<PVIF> > pvif;
+    epics::pvData::shared_vector<DBEvent> evts_VALUE, evts_PROPERTY;
+
+    epics::pvData::PVStructurePtr complete; // complete copy from subscription
+
+    typedef std::set<std::tr1::shared_ptr<PDBGroupMonitor> > interested_t;
+    interested_t interested;
+    bool hadevent;
 
     static size_t ninstances;
 
@@ -51,6 +70,9 @@ struct PDBGroupChannel : public BaseChannel,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
     virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
             epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
+            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+    virtual epics::pvData::Monitor::shared_pointer createMonitor(
+            epics::pvData::MonitorRequester::shared_pointer const & requester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
     virtual void printInfo(std::ostream& out);
@@ -110,6 +132,25 @@ struct PDBGroupPut : public epics::pvAccess::ChannelPut,
     virtual void get();
 };
 
-//struct PDBGroupMonitor : public epics::pvData::Monitor {};
+struct PDBGroupMonitor : public BaseMonitor
+{
+    POINTER_DEFINITIONS(PDBGroupMonitor);
+
+    PDBGroupPV::shared_pointer pv;
+
+    bool atomic;
+
+    PDBGroupMonitor(const PDBGroupPV::shared_pointer& pv,
+                     const requester_t::shared_pointer& requester,
+                     const epics::pvData::PVStructure::shared_pointer& pvReq);
+    virtual ~PDBGroupMonitor() {destroy();}
+
+    virtual void onStart();
+    virtual void onStop();
+    virtual void requestUpdate();
+
+    virtual void destroy();
+
+};
 
 #endif // PDBGROUP_H
