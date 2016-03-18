@@ -17,6 +17,23 @@ pdbcore_SRCS += pdbgroup.cpp
 
 pdbcore_LIBS += pvAccess pvData Com
 
+FINAL_LOCATION ?= $(shell $(PERL) $(TOOLS)/fullPathName.pl $(INSTALL_LOCATION))
+
+USR_CPPFLAGS += -DFINAL_LOCATION="\"$(FINAL_LOCATION)\""
+
+PROD_IOC += softIocPVA
+
+softIocPVA_SRCS += softMain.cpp
+softIocPVA_SRCS += softIocPVA_registerRecordDeviceDriver.cpp
+
+softIocPVA_LIBS += pdbcore pvAccess pvData $(MBLIB)
+softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
+
+DBD += softIocPVA.dbd
+
+softIocPVA_DBD += softIoc.dbd
+softIocPVA_DBD += qsrv.dbd
+
 #===========================
 
 include $(TOP)/configure/RULES
