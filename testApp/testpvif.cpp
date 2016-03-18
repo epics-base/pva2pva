@@ -75,7 +75,7 @@ void testScalar()
     pvif_li->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_li);
 
-    testEqual(toString(mask), "{2, 4, 5, 12, 13, 15, 16, 18, 19}");
+    testEqual(toString(mask), "{2, 4, 5, 8, 9, 12, 13, 15, 16, 18, 19}");
     mask.clear();
 
     dbScanLock((dbCommon*)prec_ai);
@@ -85,7 +85,7 @@ void testScalar()
     pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
-    testEqual(toString(mask), "{22, 24, 25, 32, 33, 35, 36, 38, 39, 42, 44, 45, 52, 53, 55, 56, 58, 59}");
+    testEqual(toString(mask), "{22, 24, 25, 28, 29, 32, 33, 35, 36, 38, 39, 42, 44, 45, 48, 49, 52, 53, 55, 56, 58, 59}");
     mask.clear();
 
     dbScanLock((dbCommon*)prec_mbbi);
@@ -94,12 +94,12 @@ void testScalar()
     pvif_mbbi->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_mbbi);
 
-    testEqual(toString(mask), "{63, 64, 66, 67}");
+    testEqual(toString(mask), "{63, 64, 66, 67, 70, 71}");
     mask.clear();
 
     testFieldEqual<pvd::PVInt>(root, "li.value", 102042);
     testFieldEqual<pvd::PVInt>(root, "li.alarm.severity", 1);
-    testFieldEqual<pvd::PVLong>(root, "li.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVLong>(root, "li.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
     testFieldEqual<pvd::PVInt>(root, "li.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitHigh", 100.0);
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitLow", 10.0);
@@ -107,7 +107,7 @@ void testScalar()
 
     testFieldEqual<pvd::PVDouble>(root, "ai.value", 42.2);
     testFieldEqual<pvd::PVInt>(root, "ai.alarm.severity", 2);
-    testFieldEqual<pvd::PVLong>(root, "ai.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVLong>(root, "ai.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
     testFieldEqual<pvd::PVInt>(root, "ai.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitHigh", 200.0);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitLow", 20.0);
@@ -116,7 +116,7 @@ void testScalar()
 
     testFieldEqual<pvd::PVInt>(root, "ai_rval.value", 1234);
     testFieldEqual<pvd::PVInt>(root, "ai_rval.alarm.severity", 2);
-    testFieldEqual<pvd::PVLong>(root, "ai_rval.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVLong>(root, "ai_rval.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
     testFieldEqual<pvd::PVInt>(root, "ai_rval.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "ai_rval.display.limitHigh", 2147483647.0);
     testFieldEqual<pvd::PVDouble>(root, "ai_rval.display.limitLow", -2147483648.0);
@@ -125,7 +125,7 @@ void testScalar()
 
     testFieldEqual<pvd::PVInt>(root, "mbbi.value.index", 1);
     testFieldEqual<pvd::PVInt>(root, "mbbi.alarm.severity", 0);
-    testFieldEqual<pvd::PVLong>(root, "mbbi.timeStamp.secondsPastEpoch", 0x12345678);
+    testFieldEqual<pvd::PVLong>(root, "mbbi.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
     testFieldEqual<pvd::PVInt>(root, "mbbi.timeStamp.nanoseconds", 12345678);
     {
         pvd::PVStringArray::const_svector choices(root->getSubFieldT<pvd::PVStringArray>("mbbi.value.choices")->view());

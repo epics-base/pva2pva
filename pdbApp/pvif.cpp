@@ -60,7 +60,7 @@ struct pvCommon {
     dbChannel *chan;
     short dbr; // actual requested DBR_*
 
-    pvd::BitSet maskAlways, maskVALUE, maskALARM, maskPROPERTY;
+    pvd::BitSet maskALWAYS, maskVALUE, maskALARM, maskPROPERTY;
 
     pvd::PVLongPtr sec;
     pvd::PVIntPtr status, severity, nsec;
@@ -145,8 +145,8 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
         if(pvm.MNAME) pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
     FMAP(status, PVInt, "alarm.status", ALARM);
     FMAP(severity, PVInt, "alarm.severity", ALARM);
-    FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", Always);
-    FMAP(nsec, PVInt, "timeStamp.nanoseconds", Always);
+    FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
+    FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
     FMAP(displayHigh, PVDouble, "display.limitHigh", PROPERTY);
     FMAP(displayLow, PVDouble, "display.limitLow", PROPERTY);
     FMAP(controlHigh, PVDouble, "control.limitHigh", PROPERTY);
@@ -181,7 +181,7 @@ void putTime(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
-    pv.sec->put(meta.time.secPastEpoch);
+    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     pv.nsec->put(meta.time.nsec);
     if(dbe&DBE_ALARM) {
         pv.status->put(meta.status);
@@ -307,7 +307,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
         throw std::runtime_error("dbGet for meta fails");
 
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
-    FMAP(sec, time.secPastEpoch);
+    FMAP(sec, time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     FMAP(nsec, time.nsec);
     if(dbe&DBE_ALARM) {
         FMAP(status, status);
@@ -371,6 +371,7 @@ struct PVIFScalarNumeric : public PVIF
     {
         try{
             putAll<PVM, META>(pvmeta, dbe, pfl);
+            mask |= pvmeta.maskALWAYS;
             if(dbe&(DBE_VALUE|DBE_ARCHIVE))
                 mask |= pvmeta.maskVALUE;
             if(dbe&DBE_ALARM)

@@ -281,8 +281,7 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
 
     testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{0, 1, 3, 4, 11, 12, 14, 15, 17, 18}");
-    else testFail("oops");
+    testOk1(!!e && e.elem->changedBitSet->get(0));
     testFieldEqual<pvd::PVDouble>(e, "value", 1.0);
     testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 100.0);
     testFieldEqual<pvd::PVDouble>(e, "display.limitLow", -100.0);
@@ -298,7 +297,7 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{1, 3, 4}");
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{1, 3, 4, 7, 8}");
     else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "value", 11.0);
 
@@ -313,7 +312,7 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{11, 12, 14, 15, 17, 18}");
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{7, 8, 11, 12, 14, 15, 17, 18}");
     else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 50.0);
 
@@ -343,8 +342,7 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
     testOk1(!!e);
 
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{0, 2, 4, 5, 12, 13, 15, 16, 18, 19, 22, 24, 25, 32, 33, 35, 36, 38, 39, 42, 44, 45, 52, 53, 55, 56, 58, 59, 62, 64, 65, 72, 73, 75, 76, 78, 79}");
-    else testFail("oops");
+    testOk1(!!e && e.elem->changedBitSet->get(0));
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 3.0);
     testFieldEqual<pvd::PVInt>(e,    "fld2.value", 30);
     testFieldEqual<pvd::PVDouble>(e, "fld3.value", 4.0);
@@ -365,7 +363,7 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5}");
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5, 8, 9}");
     else testFail("oops");
 
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 32.0);
@@ -392,8 +390,7 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
     testOk1(!!e);
 
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{0, 2, 4, 5, 12, 13, 15, 16, 18, 19, 32, 33, 35, 36, 38, 39, 42, 44, 45, 52, 53, 55, 56, 58, 59}");
-    else testFail("oops");
+    testOk1(!!e && e.elem->changedBitSet->get(0));
 
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 5.0);
     testFieldEqual<pvd::PVDouble>(e, "fld2.value", 6.0);
@@ -413,7 +410,7 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
     testOk1(!!e);
 
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5, 42, 44, 45}");
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5, 8, 9, 42, 44, 45, 48, 49}");
     else testFail("oops");
 
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 15.0);
