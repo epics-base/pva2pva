@@ -405,4 +405,35 @@ public:
     }
 };
 
+template<class CP>
+struct BaseChannelProviderFactory : epics::pvAccess::ChannelProviderFactory
+{
+    typedef CP provider_type;
+    std::string name;
+    epicsMutex lock;
+    std::tr1::weak_ptr<CP> last_shared;
+
+    BaseChannelProviderFactory(const char *name) :name(name) {}
+    virtual ~BaseChannelProviderFactory() {}
+
+    virtual std::string getFactoryName() { return name; }
+
+    virtual epics::pvAccess::ChannelProvider::shared_pointer sharedInstance()
+    {
+        epicsGuard<epicsMutex> G(lock);
+        std::tr1::shared_ptr<CP> ret(last_shared.lock());
+        if(!ret) {
+            ret.reset(new CP());
+            last_shared = ret;
+        }
+        return ret;
+    }
+
+    virtual epics::pvAccess::ChannelProvider::shared_pointer newInstance(const std::tr1::shared_ptr<epics::pvAccess::Configuration>&)
+    {
+        std::tr1::shared_ptr<CP> ret(new CP());
+        return ret;
+    }
+};
+
 #endif // PVAHELPER_H
