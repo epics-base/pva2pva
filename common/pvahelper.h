@@ -324,14 +324,17 @@ public:
     virtual void destroy()
     {
         requester_t::shared_pointer req;
+        bool run;
         {
             guard_t G(lock);
-            if(running) {
+            run = running;
+            if(run) {
                 running = false;
-                this->onStop();
             }
             requester.swap(req);
         }
+        if(run)
+            this->onStop();
     }
 
 private:
@@ -387,13 +390,14 @@ private:
     virtual void release(epics::pvAccess::MonitorElementPtr const & elem)
     {
         BaseMonitor::shared_pointer self;
-        requester_t::shared_pointer req;
         {
             guard_t G(lock);
             empty.push_back(elem);
             if(inoverflow)
-                this->requestUpdate(); // may result in post()
+                self = weakself.lock(); //TODO: concurrent release?
         }
+        if(self)
+            self->requestUpdate(); // may result in post()
     }
 public:
     virtual void getStats(Stats& s) const
