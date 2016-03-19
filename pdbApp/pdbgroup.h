@@ -25,6 +25,8 @@ struct PDBGroupPV : public PDBPV
 
     epicsMutex lock;
 
+    bool pgatomic, monatomic;
+
     // get/put/monitor
     std::string name;
 

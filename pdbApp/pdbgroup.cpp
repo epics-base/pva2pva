@@ -26,28 +26,32 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
         {
             Guard G(self->lock); // TODO: lock order?
 
-            if(evt->dbe_mask&DBE_PROPERTY)
-            {
-                DBScanLocker L(dbChannelRecord(info.chan));
-                self->members[idx].pvif->put(self->scratch, evt->dbe_mask, pfl);
-
+            if(!(evt->dbe_mask&DBE_PROPERTY)) {
+                if(!info.had_initial_VALUE) {
+                    info.had_initial_VALUE = true;
+                    self->initial_waits--;
+                }
+            } else {
                 if(!info.had_initial_PROPERTY) {
                     info.had_initial_PROPERTY = true;
                     self->initial_waits--;
                 }
+            }
+
+            if(evt->dbe_mask&DBE_PROPERTY || !self->monatomic)
+            {
+                DBScanLocker L(dbChannelRecord(info.chan));
+                self->members[idx].pvif->put(self->scratch, evt->dbe_mask, pfl);
+
             } else {
 
                 DBManyLocker L(info.locker); // lock only those records in the triggers list
                 FOREACH(it, end, info.triggers)
                 {
                     size_t i = *it;
-                    LocalFL FL(i==idx ? pfl : NULL, self->members[i].chan); // for fields other than idx, creata a read fl if needed
+                    // go get a consistent snapshot we must ignore the db_field_log which came through the dbEvent buffer
+                    LocalFL FL(NULL, self->members[i].chan); // create a read fl if needed
                     self->members[i].pvif->put(self->scratch, evt->dbe_mask, FL.pfl);
-                }
-
-                if(!info.had_initial_VALUE) {
-                    info.had_initial_VALUE = true;
-                    self->initial_waits--;
                 }
             }
 
@@ -74,6 +78,9 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
 }
 
 PDBGroupPV::PDBGroupPV()
+    :pgatomic(false)
+    ,monatomic(false)
+    ,initial_waits(0)
 {
     epics::atomic::increment(ninstances);
 }
@@ -141,7 +148,7 @@ PDBGroupGet::PDBGroupGet(const PDBGroupChannel::shared_pointer &channel,
                          const pvd::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
-    ,atomic(false)
+    ,atomic(channel->pv->pgatomic)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
 {
@@ -197,7 +204,7 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
                          const epics::pvData::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
-    ,atomic(false)
+    ,atomic(channel->pv->pgatomic)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
 {

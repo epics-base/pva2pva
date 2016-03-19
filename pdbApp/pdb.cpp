@@ -325,6 +325,9 @@ PDBProvider::PDBProvider()
             pv->weakself = pv;
             pv->name = info.name;
 
+            pv->pgatomic = info.atomic;
+            pv->monatomic = info.hastriggers;
+
             pvd::shared_vector<PDBGroupPV::Info> members(nchans);
 
             std::vector<dbCommon*> records(nchans);
