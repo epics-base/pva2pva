@@ -325,7 +325,7 @@ PDBProvider::PDBProvider()
             pv->weakself = pv;
             pv->name = info.name;
 
-            pv->pgatomic = info.atomic;
+            pv->pgatomic = info.atomic!=GroupInfo::False; // default true if Unset
             pv->monatomic = info.hastriggers;
 
             pvd::shared_vector<PDBGroupPV::Info> members(nchans);
