@@ -50,6 +50,9 @@ testpdb_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
 testpdb_LIBS += testutils pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 TESTS += testpdb
 
+PROD_HOST += check_consist
+check_consist_SRCS += check_consist.cpp
+check_consist_LIBS += testutils pvAccess pvData Com
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 

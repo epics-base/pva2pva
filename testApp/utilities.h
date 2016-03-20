@@ -218,6 +218,7 @@ struct TestChannelMonitorRequester : public epics::pvData::MonitorRequester
     virtual void monitorEvent(epics::pvData::MonitorPtr const & monitor);
     virtual void unlisten(epics::pvData::MonitorPtr const & monitor);
 
+    bool waitForConnect();
     bool waitForEvent();
 };
 

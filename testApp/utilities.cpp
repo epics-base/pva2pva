@@ -186,6 +186,16 @@ void TestChannelMonitorRequester::unlisten(pvd::MonitorPtr const & monitor)
     wait.trigger();
 }
 
+bool TestChannelMonitorRequester::waitForConnect()
+{
+    Guard G(lock);
+    while(!connected) {
+        UnGuard U(G);
+        wait.wait();
+    }
+    return true;
+}
+
 bool TestChannelMonitorRequester::waitForEvent()
 {
     Guard G(lock);
