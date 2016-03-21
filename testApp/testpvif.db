@@ -25,4 +25,5 @@ record(mbbi, "test:mbbi") {
   field(ZRVL, "1")
   field(ONVL, "0")
   field(TWVL, "3")
+  info(pdbUserTag, "nslsb4")
 }

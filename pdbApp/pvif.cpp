@@ -60,10 +60,12 @@ struct pvCommon {
     dbChannel *chan;
     short dbr; // actual requested DBR_*
 
+    pvd::uint32 nsecMask;
+
     pvd::BitSet maskALWAYS, maskVALUE, maskALARM, maskPROPERTY;
 
     pvd::PVLongPtr sec;
-    pvd::PVIntPtr status, severity, nsec;
+    pvd::PVIntPtr status, severity, nsec, userTag;
 
     pvd::PVDoublePtr displayLow, displayHigh, controlLow, controlHigh;
     pvd::PVStringPtr egu;
@@ -73,6 +75,8 @@ struct pvCommon {
     pvd::PVScalarPtr prec;
 
     pvd::PVStringArrayPtr enumopts;
+
+    pvCommon() :chan(NULL), dbr(0), nsecMask(0) {}
 };
 
 struct pvScalar : public pvCommon {
@@ -181,8 +185,12 @@ void putTime(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
-    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
-    pv.nsec->put(meta.time.nsec);
+    pvd::int32 nsec = meta.time.nsec;
+    if(pv.nsecMask) {
+        pv.userTag->put(nsec&pv.nsecMask);
+        nsec &= ~pv.nsecMask;
+    }
+    pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     if(dbe&DBE_ALARM) {
         pv.status->put(meta.status);
         pv.severity->put(meta.severity);
@@ -306,9 +314,14 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
+    pvd::int32 nsec = meta.time.nsec;
+    if(pv.nsecMask) {
+        pv.userTag->put(nsec&pv.nsecMask);
+        nsec &= ~pv.nsecMask;
+    }
+    pv.nsec->put(nsec);
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
     FMAP(sec, time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
-    FMAP(nsec, time.nsec);
     if(dbe&DBE_ALARM) {
         FMAP(status, status);
         FMAP(severity, severity);
@@ -361,9 +374,30 @@ struct PVIFScalarNumeric : public PVIF
 
     PVIFScalarNumeric(dbChannel *ch, short dbr, const epics::pvData::PVStructurePtr& p) : PVIF(ch, p)
     {
+        pdbRecordIterator info(chan);
+
         pvmeta.chan = ch;
         pvmeta.dbr = dbr;
         attachAll(pvmeta, p);
+        const char *UT = info.info("pdbUserTag");
+        if(UT && strncmp(UT, "nslsb", 5)==0) {
+            try{
+                pvmeta.nsecMask = epics::pvData::castUnsafe<unsigned>(std::string(&UT[5]));
+            }catch(std::exception& e){
+                std::cerr<<dbChannelRecord(ch)->name<<" : pdbUserTag nslsb requires a number not '"<<UT[5]<<"'\n";
+            }
+        }
+        if(pvmeta.nsecMask>0 && pvmeta.nsecMask<=32) {
+            pvmeta.userTag = p->getSubField<pvd::PVInt>("timeStamp.userTag");
+            if(!pvmeta.userTag) {
+                pvmeta.nsecMask = 0; // struct doesn't have userTag
+            } else {
+                pvd::uint64 mask = (1<<pvmeta.nsecMask)-1;
+                pvmeta.nsecMask = mask;
+                pvmeta.maskALWAYS.set(pvmeta.userTag->getFieldOffset());
+            }
+        } else
+            pvmeta.nsecMask = 0;
     }
     virtual ~PVIFScalarNumeric() {}
 

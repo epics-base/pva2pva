@@ -63,6 +63,13 @@ struct pdbRecordIterator {
             m_done = dbNextRecordType(&ent)!=0;
         }
     }
+    pdbRecordIterator(const dbChannel *chan)
+    {
+        dbInitEntry(pdbbase, &ent);
+        if(dbFindRecord(&ent, dbChannelRecord(chan)->name)!=0)
+            throw std::runtime_error("Record not found");
+        m_done = false;
+    }
     ~pdbRecordIterator()
     {
         dbFinishEntry(&ent);
