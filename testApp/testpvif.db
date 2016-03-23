@@ -27,3 +27,6 @@ record(mbbi, "test:mbbi") {
   field(TWVL, "3")
   info(pdbUserTag, "nslsb4")
 }
+record(stringin, "test:si") {
+  field(VAL, "hello")
+}

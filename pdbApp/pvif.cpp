@@ -142,6 +142,21 @@ struct metaENUM {
     enum {mask = DBR_STATUS | DBR_TIME | DBR_ENUM_STRS};
 };
 
+struct metaSTRING {
+    DBRstatus
+    DBRtime
+
+    // similar junk
+    DBRenumStrs
+    DBRunits
+    DBRprecision
+    DBRgrLong
+    DBRctrlLong
+    DBRalLong
+
+    enum {mask = DBR_STATUS | DBR_TIME};
+};
+
 // lookup fields and populate pvCommon.  Non-existant fields will be NULL.
 void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
 {
@@ -262,6 +277,7 @@ void getValue(const pvScalar& pv)
         strncpy(buf.dbf_STRING, val.c_str(), sizeof(buf.dbf_STRING));
         buf.dbf_STRING[sizeof(buf.dbf_STRING)-1] = '\0';
     }
+        break;
     default:
         throw std::runtime_error("getValue unsupported DBR code");
     }
@@ -470,8 +486,8 @@ pvd::StructureConstPtr PVIF::dtype(dbChannel* chan)
     if(dbr==DBR_ENUM)
         return pvd::getStandardField()->enumerated("alarm,timeStamp");
 
+    //TODO: ,valueAlarm for numeric
     std::string options("alarm,timeStamp,display,control");
-
 
     if(maxelem==1)
         return pvd::getStandardField()->scalar(pvt, options);
@@ -499,6 +515,8 @@ PVIF* PVIF::attach(dbChannel* chan, const epics::pvData::PVStructurePtr& root)
             return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(chan, dbr, root);
         case DBR_ENUM:
             return new PVIFScalarNumeric<pvScalar, metaENUM>(chan, dbr, root);
+        case DBR_STRING:
+            return new PVIFScalarNumeric<pvScalar, metaSTRING>(chan, dbr, root);
         }
     } else {
         switch(dbr) {

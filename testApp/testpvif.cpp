@@ -5,6 +5,7 @@
 #include <longinRecord.h>
 #include <aiRecord.h>
 #include <mbbiRecord.h>
+#include <stringinRecord.h>
 
 #include "pvif.h"
 #include "utilities.h"
@@ -27,6 +28,7 @@ void testScalar()
     testdbReadDatabase("testpvif.db", NULL, NULL);
 
     longinRecord *prec_li = (longinRecord*)testdbRecordPtr("test:li");
+    stringinRecord *prec_si = (stringinRecord*)testdbRecordPtr("test:si");
     aiRecord *prec_ai = (aiRecord*)testdbRecordPtr("test:ai");
     mbbiRecord *prec_mbbi = (mbbiRecord*)testdbRecordPtr("test:mbbi");
 
@@ -36,10 +38,12 @@ void testScalar()
     testdbGetFieldEqual("test:mbbi", DBR_SHORT, 1);
 
     DBCH chan_li("test:li");
+    DBCH chan_si("test:si");
     DBCH chan_ai("test:ai");
     DBCH chan_ai_rval("test:ai.RVAL");
     DBCH chan_mbbi("test:mbbi");
     testEqual(dbChannelFieldType(chan_li), DBR_LONG);
+    testEqual(dbChannelFieldType(chan_si), DBR_STRING);
     testEqual(dbChannelFieldType(chan_ai), DBR_DOUBLE);
     testEqual(dbChannelFieldType(chan_ai_rval), DBR_LONG);
     testEqual(dbChannelFieldType(chan_mbbi), DBR_ENUM);
@@ -49,12 +53,14 @@ void testScalar()
     testEqual(dbChannelFinalFieldType(chan_mbbi), DBR_ENUM);
 
     pvd::StructureConstPtr dtype_li(PVIF::dtype(chan_li));
+    pvd::StructureConstPtr dtype_si(PVIF::dtype(chan_si));
     pvd::StructureConstPtr dtype_ai(PVIF::dtype(chan_ai));
     pvd::StructureConstPtr dtype_ai_rval(PVIF::dtype(chan_ai_rval));
     pvd::StructureConstPtr dtype_mbbi(PVIF::dtype(chan_mbbi));
 
     pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                       ->add("li", dtype_li)
+                                      ->add("si", dtype_si)
                                       ->add("ai", dtype_ai)
                                       ->add("ai_rval", dtype_ai_rval)
                                       ->add("mbbi", dtype_mbbi)
@@ -63,6 +69,7 @@ void testScalar()
     pvd::PVStructurePtr root(pvd::getPVDataCreate()->createPVStructure(dtype_root));
 
     std::auto_ptr<PVIF> pvif_li(PVIF::attach(chan_li, root->getSubField<pvd::PVStructure>("li")));
+    std::auto_ptr<PVIF> pvif_si(PVIF::attach(chan_si, root->getSubField<pvd::PVStructure>("si")));
     std::auto_ptr<PVIF> pvif_ai(PVIF::attach(chan_ai, root->getSubField<pvd::PVStructure>("ai")));
     std::auto_ptr<PVIF> pvif_ai_rval(PVIF::attach(chan_ai_rval, root->getSubField<pvd::PVStructure>("ai_rval")));
     std::auto_ptr<PVIF> pvif_mbbi(PVIF::attach(chan_mbbi, root->getSubField<pvd::PVStructure>("mbbi")));
@@ -78,6 +85,15 @@ void testScalar()
     testEqual(toString(mask), "{2, 4, 5, 8, 9, 12, 13, 16, 18, 19}");
     mask.clear();
 
+    dbScanLock((dbCommon*)prec_si);
+    prec_si->time.secPastEpoch = 0x12345678;
+    prec_si->time.nsec = 12345678;
+    pvif_si->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+    dbScanUnlock((dbCommon*)prec_si);
+
+    testEqual(toString(mask), "{22, 24, 25, 28, 29, 32, 33, 36, 38, 39}");
+    mask.clear();
+
     dbScanLock((dbCommon*)prec_ai);
     prec_ai->time.secPastEpoch = 0x12345678;
     prec_ai->time.nsec = 12345678;
@@ -85,7 +101,7 @@ void testScalar()
     pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
-    testEqual(toString(mask), "{22, 24, 25, 28, 29, 32, 33, 36, 38, 39, 42, 44, 45, 48, 49, 52, 53, 56, 58, 59}");
+    testEqual(toString(mask), "{42, 44, 45, 48, 49, 52, 53, 56, 58, 59, 62, 64, 65, 68, 69, 72, 73, 76, 78, 79}");
     mask.clear();
 
     dbScanLock((dbCommon*)prec_mbbi);
@@ -94,7 +110,7 @@ void testScalar()
     pvif_mbbi->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_mbbi);
 
-    testEqual(toString(mask), "{63, 64, 66, 67, 70, 71, 72}");
+    testEqual(toString(mask), "{83, 84, 86, 87, 90, 91, 92}");
     mask.clear();
 
     testFieldEqual<pvd::PVInt>(root, "li.value", 102042);
@@ -104,6 +120,11 @@ void testScalar()
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitHigh", 100.0);
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitLow", 10.0);
     testFieldEqual<pvd::PVString>(root, "li.display.units", "arb");
+
+    testFieldEqual<pvd::PVString>(root, "si.value", "hello");
+    testFieldEqual<pvd::PVInt>(root, "si.alarm.severity", 0);
+    testFieldEqual<pvd::PVLong>(root, "si.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
+    testFieldEqual<pvd::PVInt>(root, "si.timeStamp.nanoseconds", 12345678);
 
     testFieldEqual<pvd::PVDouble>(root, "ai.value", 42.2);
     testFieldEqual<pvd::PVInt>(root, "ai.alarm.severity", 2);
@@ -138,18 +159,25 @@ void testScalar()
     }
 
     root->getSubFieldT<pvd::PVInt>("li.value")->put(102043);
+    root->getSubFieldT<pvd::PVString>("si.value")->put("world");
     root->getSubFieldT<pvd::PVDouble>("ai.value")->put(44.4);
     root->getSubFieldT<pvd::PVInt>("mbbi.value.index")->put(2);
 
     mask.clear();
-    mask.set(root->getSubFieldT<pvd::PVInt>("li.value")->getFieldOffset());
-    mask.set(root->getSubFieldT<pvd::PVDouble>("ai.value")->getFieldOffset());
-    mask.set(root->getSubFieldT<pvd::PVInt>("mbbi.value.index")->getFieldOffset());
+    mask.set(root->getSubFieldT("li.value")->getFieldOffset());
+    mask.set(root->getSubFieldT("si.value")->getFieldOffset());
+    mask.set(root->getSubFieldT("ai.value")->getFieldOffset());
+    mask.set(root->getSubFieldT("mbbi.value.index")->getFieldOffset());
 
     dbScanLock((dbCommon*)prec_li);
     pvif_li->get(mask);
     testOk1(prec_li->val==102043);
     dbScanUnlock((dbCommon*)prec_li);
+
+    dbScanLock((dbCommon*)prec_si);
+    pvif_si->get(mask);
+    testOk1(strcmp(prec_si->val, "world")==0);
+    dbScanUnlock((dbCommon*)prec_si);
 
     dbScanLock((dbCommon*)prec_ai);
     pvif_ai->get(mask);
