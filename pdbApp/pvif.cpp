@@ -156,7 +156,7 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
     FMAP(controlHigh, PVDouble, "control.limitHigh", PROPERTY);
     FMAP(controlLow, PVDouble, "control.limitLow", PROPERTY);
     FMAP(egu, PVString, "display.units", PROPERTY);
-    FMAP(prec,  PVScalar, "display.format", PROPERTY);
+    //FMAP(prec,  PVScalar, "display.format", PROPERTY);
     FMAP(warnHigh, PVScalar, "alarm.highWarningLimit", PROPERTY);
     FMAP(warnLow,  PVScalar, "alarm.lowWarningLimit", PROPERTY);
     FMAP(alarmHigh, PVScalar, "alarm.highAlarmLimit", PROPERTY);
@@ -336,7 +336,8 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
         FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, egu, units);
 #undef FMAP
 #define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->putFrom(meta.FNAME)
-        FMAP(DBR_GR_DOUBLE, prec, precision.dp);
+        // not handling precision until I get a better idea of what 'format' is supposed to be...
+        //FMAP(prec,  PVScalar, "display.format", PROPERTY);
         FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, warnHigh, upper_warning_limit);
         FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, warnLow,  lower_warning_limit);
         FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, alarmHigh, upper_alarm_limit);

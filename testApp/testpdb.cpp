@@ -312,7 +312,7 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{7, 8, 11, 12, 14, 15, 17, 18}");
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{7, 8, 11, 12, 15, 17, 18}");
     else testFail("oops");
     testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 50.0);
 

@@ -75,7 +75,7 @@ void testScalar()
     pvif_li->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_li);
 
-    testEqual(toString(mask), "{2, 4, 5, 8, 9, 12, 13, 15, 16, 18, 19}");
+    testEqual(toString(mask), "{2, 4, 5, 8, 9, 12, 13, 16, 18, 19}");
     mask.clear();
 
     dbScanLock((dbCommon*)prec_ai);
@@ -85,7 +85,7 @@ void testScalar()
     pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
-    testEqual(toString(mask), "{22, 24, 25, 28, 29, 32, 33, 35, 36, 38, 39, 42, 44, 45, 48, 49, 52, 53, 55, 56, 58, 59}");
+    testEqual(toString(mask), "{22, 24, 25, 28, 29, 32, 33, 36, 38, 39, 42, 44, 45, 48, 49, 52, 53, 56, 58, 59}");
     mask.clear();
 
     dbScanLock((dbCommon*)prec_mbbi);
@@ -111,7 +111,7 @@ void testScalar()
     testFieldEqual<pvd::PVInt>(root, "ai.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitHigh", 200.0);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitLow", 20.0);
-    testFieldEqual<pvd::PVString>(root, "ai.display.format", "2");
+    testFieldEqual<pvd::PVString>(root, "ai.display.format", "");
     testFieldEqual<pvd::PVString>(root, "ai.display.units", "foo");
 
     testFieldEqual<pvd::PVInt>(root, "ai_rval.value", 1234);
