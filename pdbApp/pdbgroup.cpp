@@ -160,6 +160,7 @@ PDBGroupGet::PDBGroupGet(const PDBGroupChannel::shared_pointer &channel,
             requester->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
         }
     }
+    pvf->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
 
     const size_t npvs = channel->pv->members.size();
     pvif.resize(npvs);
@@ -216,6 +217,7 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
             requester->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
         }
     }
+    pvf->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
 
     const size_t npvs = channel->pv->members.size();
     pvif.resize(npvs);

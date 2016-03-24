@@ -307,9 +307,15 @@ struct PDBProcessor
 PDBProvider::PDBProvider()
 {
     PDBProcessor proc;
-
-    pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
+    pvd::FieldCreatePtr fcreate(pvd::getFieldCreate());
     pvd::PVDataCreatePtr pvbuilder(pvd::getPVDataCreate());
+
+    pvd::StructureConstPtr _options(fcreate->createFieldBuilder()
+                                    ->addNestedStructure("_options")
+                                        ->add("queueSize", pvd::pvUInt)
+                                        ->add("atomic", pvd::pvBoolean)
+                                    ->endNested()
+                                    ->createStructure());
 
     // assemble group PVD structure definitions and build dbLockers
     FOREACH(it, end, proc.groups)
@@ -331,6 +337,9 @@ PDBProvider::PDBProvider()
             pvd::shared_vector<PDBGroupPV::Info> members(nchans);
 
             std::vector<dbCommon*> records(nchans);
+
+            pvd::FieldBuilderPtr builder(fcreate->createFieldBuilder());
+            builder->add("record", _options);
 
             for(size_t i=0; i<nchans; i++)
             {
@@ -355,6 +364,8 @@ PDBProvider::PDBProvider()
 
             pv->fielddesc = builder->createStructure();
             pv->complete = pvbuilder->createPVStructure(pv->fielddesc);
+
+            pv->complete->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(pv->monatomic);
 
             DBManyLock L(&records[0], records.size(), 0);
             pv->locker.swap(L);
