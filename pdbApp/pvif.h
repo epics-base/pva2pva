@@ -13,6 +13,20 @@
 #include <pv/pvData.h>
 
 epics::pvData::ScalarType DBR2PVD(short dbr);
+short PVD2DBR(epics::pvData::ScalarType pvt);
+
+union dbrbuf {
+        epicsInt8		dbf_CHAR;
+        epicsUInt8		dbf_UCHAR;
+        epicsInt16		dbf_SHORT;
+        epicsUInt16		dbf_USHORT;
+        epicsEnum16		dbf_ENUM;
+        epicsInt32		dbf_LONG;
+        epicsUInt32		dbf_ULONG;
+        epicsFloat32	dbf_FLOAT;
+        epicsFloat64    dbf_DOUBLE;
+        char		dbf_STRING[MAX_STRING_SIZE];
+};
 
 struct DBCH {
     dbChannel *chan;
@@ -167,7 +181,12 @@ struct DBManyLock
 {
     dbLocker *plock;
     DBManyLock() :plock(NULL) {}
-    DBManyLock(dbCommon **precs, size_t nrecs, unsigned flags=0)
+    DBManyLock(const std::vector<dbCommon*>& recs, unsigned flags)
+        :plock(dbLockerAlloc(&recs[0], recs.size(), flags))
+    {
+        if(!plock) throw std::invalid_argument("Failed to create locker");
+    }
+    DBManyLock(dbCommon * const *precs, size_t nrecs, unsigned flags=0)
         :plock(dbLockerAlloc(precs, nrecs, flags))
     {
         if(!plock) throw std::invalid_argument("Failed to create locker");
@@ -175,6 +194,9 @@ struct DBManyLock
     ~DBManyLock() { if(plock) dbLockerFree(plock); }
     void swap(DBManyLock& O) { std::swap(plock, O.plock); }
     operator dbLocker*() { return plock; }
+private:
+    DBManyLock(const DBManyLock&);
+    DBManyLock& operator=(const DBManyLock&);
 };
 
 struct DBManyLocker

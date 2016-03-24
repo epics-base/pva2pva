@@ -212,19 +212,6 @@ void putTime(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     }
 }
 
-union dbrbuf {
-        epicsInt8		dbf_CHAR;
-        epicsUInt8		dbf_UCHAR;
-        epicsInt16		dbf_SHORT;
-        epicsUInt16		dbf_USHORT;
-        epicsEnum16		dbf_ENUM;
-        epicsInt32		dbf_LONG;
-        epicsUInt32		dbf_ULONG;
-        epicsFloat32	dbf_FLOAT;
-        epicsFloat64    dbf_DOUBLE;
-        char		dbf_STRING[MAX_STRING_SIZE];
-};
-
 void putValue(const pvScalar& pv, unsigned dbe, db_field_log *pfl)
 {
     dbrbuf buf;
@@ -449,20 +436,29 @@ struct PVIFScalarNumeric : public PVIF
 pvd::ScalarType DBR2PVD(short dbr)
 {
     switch(dbr) {
-#define MAP(DTYPE, PTYPE) case DBR_##DTYPE: return pvd::pv##PTYPE
-    MAP(CHAR, Byte);
-    MAP(UCHAR, UByte);
-    MAP(SHORT, Short);
-    MAP(USHORT, UShort);
-    MAP(ENUM, Int); // yes really, Base uses SHORT (16-bit) while PVD uses Int (32-bit)
-    MAP(LONG, Int);
-    MAP(ULONG, UInt);
-    MAP(FLOAT, Float);
-    MAP(DOUBLE, Double);
-    MAP(STRING, String);
-#undef MAP
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: return pvd::pv##PVACODE;
+#define CASE_ENUM
+#define CASE_SKIP_BOOL
+#include "pvatypemap.h"
+#undef CASE_ENUM
+#undef CASE_SKIP_BOOL
+#undef CASE
+    case DBF_STRING: return pvd::pvString;
     default:
         throw std::invalid_argument("Unsupported DBR code");
+    }
+}
+
+short PVD2DBR(pvd::ScalarType pvt)
+{
+    switch(pvt) {
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: return DBR_##DBFTYPE;
+#define CASE_SQUEEZE_INT64
+#include "pvatypemap.h"
+#undef CASE_SQUEEZE_INT64
+#undef CASE
+    default:
+        throw std::invalid_argument("Unsupported pvType code");
     }
 }
 
