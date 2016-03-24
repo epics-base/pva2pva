@@ -27,6 +27,8 @@ namespace pva = epics::pvAccess;
 
 extern "C" void (*dbAddLinkHook)(struct link *link, short dbfType);
 
+int pvaLinkDebug = 4;
+
 namespace {
 
 typedef epicsGuard<pvd::Mutex> Guard;
@@ -136,6 +138,8 @@ struct pvaLinkChannel : public pva::ChannelRequester, pva::MonitorRequester,
         std::cerr<<"pvaLink: channel destroy "<<name<<"\n";
     }
 
+    void triggerProc(bool atomic=false);
+
     static void scan(void* arg, epicsJobMode mode);
 
     virtual std::string getRequesterName() { return "pvaLink"; }
@@ -226,6 +230,10 @@ struct pvaLink
         epicsUInt16 sevr;
         epicsTimeStamp time;
         Value() :valid(false) {}
+        void clear() {
+            valid = false;
+            valueA.clear();
+        }
     };
 
     Value atomcache;
@@ -345,6 +353,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
 {
     Guard G(lock);
     assert(chan==channel);
+    if(pvaLinkDebug>3) std::cerr<<"pvaLink channelStateChange "<<name<<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
     if(connectionState==pva::Channel::CONNECTED) {
         pvd::PVStructurePtr pvreq(pvaGlobal->create->createPVStructure(pvaGlobal->reqtype));
 
@@ -365,6 +374,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
             chanmon.reset();
             std::cerr<<"pvaLink: monitor destroy "<<name<<"\n";
         }
+        triggerProc();
     }
 }
 
@@ -372,6 +382,7 @@ void pvaLinkChannel::monitorConnect(pvd::Status const & status,
                                     pva::Monitor::shared_pointer const & monitor,
                                     pvd::StructureConstPtr const & structure)
 {
+    if(pvaLinkDebug>3) std::cerr<<"pvaLink monitorEvent "<<name<<"\n";
     if(!status.isSuccess()) {
         errlogPrintf("pvaLink connect monitor fails %s: %s\n", name.c_str(), status.getMessage().c_str());
         return;
@@ -397,6 +408,7 @@ void pvaLinkChannel::monitorConnect(pvd::Status const & status,
 void pvaLinkChannel::monitorEvent(pva::Monitor::shared_pointer const & monitor)
 {
     Guard G(lock);
+    if(pvaLinkDebug>3) std::cerr<<"pvaLink monitorEvent "<<name<<"\n";
     if(!lastval) return;
 
     pva::MonitorElementPtr elem;
@@ -406,7 +418,7 @@ void pvaLinkChannel::monitorEvent(pva::Monitor::shared_pointer const & monitor)
     while(!!(elem=monitor->poll())) {
         try{
             lastval->copyUnchecked(*elem->pvStructurePtr, *elem->changedBitSet);
-            atomic = isatomic->getAs<pvd::boolean>();
+            atomic = isatomic ? isatomic->getAs<pvd::boolean>() : false;
             updated = true;
 
             monitor->release(elem);
@@ -416,22 +428,25 @@ void pvaLinkChannel::monitorEvent(pva::Monitor::shared_pointer const & monitor)
         }
     }
 
-    bool doscan = false;
-    if(updated) {
-        // check if we actually need to scan anything
-        FOREACH(it, end, links) {
-            pvaLink* L = *it;
-            struct pv_link *ppv_link = &L->plink->value.pv_link;
+    if(updated) triggerProc(atomic);
+}
 
-            if ((ppv_link->pvlMask & pvlOptCP) ||
-                    ((ppv_link->pvlMask & pvlOptCPP) && L->plink->precord->scan == 0))
-            {
-                doscan = true;
-            }
+// caller must have channel's lock
+void pvaLinkChannel::triggerProc(bool atomic)
+{
+    bool doscan = false;
+    // check if we actually need to scan anything
+    FOREACH(it, end, links) {
+        pvaLink* L = *it;
+        struct pv_link *ppv_link = &L->plink->value.pv_link;
+
+        if ((ppv_link->pvlMask & pvlOptCP) ||
+                ((ppv_link->pvlMask & pvlOptCPP) && L->plink->precord->scan == 0))
+        {
+            doscan = true;
         }
     }
     if(doscan && !scanself) { // need to scan, and not already queued, then queue
-        std::cerr<<"pvaLink: queue scan from "<<name<<"\n";
         if(epicsJobQueue(scanjob)) {
             errlogPrintf("pvaLink: failed to queue scan from %s\n", name.c_str());
         } else {
@@ -446,6 +461,8 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
     pvaLinkChannel *selfraw = (pvaLinkChannel*)arg;
     pvaGlobal_t::Scan myscan;
     try {
+        if(pvaLinkDebug>3) std::cerr<<"pvaLink scan "<<selfraw->name<<"\n";
+
         std::tr1::shared_ptr<pvaLinkChannel> self;
 
         Guard G(selfraw->lock);
@@ -469,8 +486,6 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
 
         pvaGlobal->scanmagic.set(usecached ? &myscan : NULL);
 
-        std::cerr<<"pvaLink: scan from "<<self->name<<" "<<(usecached?" use cached":"")<<"\n";
-
         {
             UnGuard U(G);
             // we may scan a record after the originating link is re-targeted
@@ -493,7 +508,7 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
         if(usecached) {
             FOREACH(it, end, links) {
                 pvaLink *link = *it;
-                link->atomcache.valid = false;
+                link->atomcache.clear();
             }
         }
 
@@ -615,7 +630,7 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
     TRY {
         if(pvaGlobal->scanmagic.get()) {
             const void *buf;
-            size_t count = pnRequest ? *pnRequest : 0;
+            size_t count = pnRequest ? *pnRequest : 1;
             if(self->atomcache.scalar) {
                 buf = (void*)&self->atomcache.valueS;
                 count = std::min((size_t)1u, count);
@@ -627,6 +642,8 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
             pvd::castUnsafeV(count, DBR2PVD(dbrType), pbuffer, self->atomcache.etype, buf);
             *psevr = self->atomcache.sevr;
             *pstat = *psevr ? LINK_ALARM : 0;
+            if(pnRequest) *pnRequest = count;
+            return 0;
         }
 
         Guard G(self->lchan->lock);
@@ -637,6 +654,7 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
             long nelem = std::min(*pnRequest, (long)arrval.size());
 
             pvd::castUnsafeV(nelem, DBR2PVD(dbrType), pbuffer, arrval.original_type(), arrval.data());
+            if(pnRequest) *pnRequest = nelem;
 
             *psevr = self->sevr->getAs<epicsUInt16>();
         } else if(self->valueS) {
@@ -658,6 +676,7 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
             default:
                 throw std::runtime_error("putValue unsupported DBR code");
             }
+            if(pnRequest) *pnRequest = 1;
 
             *psevr = self->sevr->getAs<epicsUInt16>();
         } else {
@@ -883,6 +902,7 @@ void installPVAAddLinkHook()
 {
     initHookRegister(&initPVALink);
     iocshRegister<int, &pvalr>("pvalr", "level");
+    iocshVariable<int, &pvaLinkDebug>("pvaLinkDebug");
 }
 
 epicsExportRegistrar(installPVAAddLinkHook);
