@@ -190,8 +190,26 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
     // assume value may be a different struct each time
     std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
     {
-        DBScanLocker L(channel->pv->chan);
+        dbChannel *chan = channel->pv->chan;
+        DBScanLocker L(chan);
         putpvif->get(*changed);
+
+        dbCommon *precord = dbChannelRecord(chan);
+        if (dbChannelField(chan) == &precord->proc ||
+            (dbChannelFldDes(chan)->process_passive &&
+             precord->scan == 0)) {
+            if (precord->pact) {
+                if (precord->tpro)
+                    printf("%s: Active %s\n",
+                        epicsThreadGetNameSelf(), precord->name);
+                precord->rpro = TRUE;
+            } else {
+                /* indicate that dbPutField called dbProcess */
+                precord->putf = TRUE;
+                dbProcess(precord);
+            }
+        }
+
     }
     requester->putDone(pvd::Status(), shared_from_this());
 }
