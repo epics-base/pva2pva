@@ -2,6 +2,7 @@
 #include <set>
 #include <map>
 
+#define EPICS_DBCA_PRIVATE_API
 #include <epicsGuard.h>
 #include <dbAccess.h>
 #include <dbCommon.h>
@@ -323,6 +324,32 @@ void pvaLinkChannel::monitorEvent(pva::Monitor::shared_pointer const & monitor)
     errlogPrintf("pvaLink " #LOC " fails %s: %s\n", plink->precord->name, e.what()); \
 }
 
+void pvaReportLink(const struct link *plink, dbLinkReportInfo *pinfo)
+{
+    const char * fname = dbGetFieldName(pinfo->pentry),
+               * rname = dbGetRecordName(pinfo->pentry);
+
+    TRY {
+        pinfo->connected = self->lchan->chan && self->lchan->chanmon;
+
+        if(pinfo->connected) {
+            pinfo->readable = 1;
+
+            if (pinfo->filter==dbLinkReportAll || pinfo->filter==dbLinkReportConnected) {
+                printf(LSET_REPORT_INDENT "%28s.%-4s ==> pva://%s.%s\n",
+                       rname, fname,
+                       self->name.c_str(), self->field.c_str());
+            }
+        } else {
+            if (pinfo->filter==dbLinkReportAll || pinfo->filter==dbLinkReportDisconnected) {
+                printf(LSET_REPORT_INDENT "%28s.%-4s --> pva://%s.%s\n",
+                       rname, fname,
+                       self->name.c_str(), self->field.c_str());
+            }
+        }
+    }CATCH(pvaReportLink)
+}
+
 void pvaRemoveLink(struct dbLocker *locker, struct link *plink)
 {
     try {
@@ -330,6 +357,7 @@ void pvaRemoveLink(struct dbLocker *locker, struct link *plink)
         assert(self->alive);
         Guard G(self->lchan->lock);
 
+        plink->value.pv_link.backend = NULL;
         plink->value.pv_link.pvt = NULL;
         plink->value.pv_link.pvt = 0;
         plink->value.pv_link.pvlMask = 0;
@@ -531,6 +559,8 @@ void pvaScanForward(struct link *plink)
 }
 
 lset pva_lset = {
+    LSET_API_VERSION,
+    &pvaReportLink,
     &pvaRemoveLink,
     &pvaIsConnected,
     &pvaGetDBFtype,
@@ -552,31 +582,34 @@ void (*nextAddLinkHook)(struct link *link, short dbfType);
 
 void pvaAddLinkHook(struct link *link, short dbfType)
 {
+    const char *target = link->value.pv_link.pvname;
+
+    if(strncmp(target, "pva://", 6)!=0) {
+        if(nextAddLinkHook)
+            (*nextAddLinkHook)(link, dbfType);
+        return;
+    }
+
+    assert(link->precord);
+    assert(link->type == PV_LINK);
+
+    target += 6; // skip "pva://"
+
     try {
-        assert(link->precord);
-        assert(link->type == PV_LINK);
-        const char *target = link->value.pv_link.pvname;
 
         std::cerr<<"pvaLink '"<<target<<"'\n";
 
-        if(strncmp(target, "pva://", 6)==0) {
-            target += 6;
+        std::auto_ptr<pvaLink> pvt(new pvaLink(link, target, dbfType));
 
-            std::auto_ptr<pvaLink> pvt(new pvaLink(link, target, dbfType));
+        link->value.pv_link.pvt = pvt.release();
+        link->value.pv_link.backend = "pva";
+        link->type = CA_LINK;
+        link->lset = &pva_lset;
 
-            link->type = CA_LINK;
-            link->lset = &pva_lset;
-            link->value.pv_link.pvt = pvt.release();
-
-            return;
-        }
-
-        return;
     }catch(std::exception& e){
         errlogPrintf("Error setting up pva link: %s : %s\n", link->value.pv_link.pvname, e.what());
+        // return w/ lset==NULL results in an invalid link (all operations error)
     }
-    if(nextAddLinkHook)
-        (*nextAddLinkHook)(link, dbfType);
 }
 
 void initPVALink(initHookState state)
