@@ -12,6 +12,8 @@
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
 
+epics::pvData::ScalarType DBR2PVD(short dbr);
+
 struct DBCH {
     dbChannel *chan;
     DBCH() :chan(0) {}

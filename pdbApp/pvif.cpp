@@ -444,7 +444,9 @@ struct PVIFScalarNumeric : public PVIF
 
 };
 
-static pvd::ScalarType DBR2PVD(short dbr)
+} // namespace
+
+pvd::ScalarType DBR2PVD(short dbr)
 {
     switch(dbr) {
 #define MAP(DTYPE, PTYPE) case DBR_##DTYPE: return pvd::pv##PTYPE
@@ -463,8 +465,6 @@ static pvd::ScalarType DBR2PVD(short dbr)
         throw std::invalid_argument("Unsupported DBR code");
     }
 }
-
-} // namespace
 
 void PVIF::Init()
 {
