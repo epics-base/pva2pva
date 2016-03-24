@@ -118,18 +118,15 @@ void iocshRegister(const char *name,
     iocshRegister(&info.def, &detail::call3<A, B, C, fn>);
 }
 
-template<typename V>
-struct iocshVariable
+template<typename V, V* addr>
+void iocshVariable(const char *name)
 {
-    iocshVariable(V* ptr, const char *name)
-    {
-        def.name = name;
-        def.type = (iocshArgType)detail::getarg<V>::argtype;
-        def.pval = (void*)ptr;
-        iocshRegisterVariable(&def);
-    }
-private:
-    iocshVarDef def;
-};
+    static iocshVarDef def[2];
+    def[0].name = name;
+    def[0].pval = (void*)addr;
+    def[0].type = (iocshArgType)detail::getarg<V>::argtype;
+    def[1].name = NULL;
+    iocshRegisterVariable(def);
+}
 
 #endif // IOCSHELPER_H
