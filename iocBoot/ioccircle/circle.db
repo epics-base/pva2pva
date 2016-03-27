@@ -9,7 +9,7 @@ record(ao, "circle:step") {
 record(ao, "circle:period") {
   field(VAL , "1.0")
   field(PINI, "YES")
-  field(OUT , "circle:y.ODLY NPP")
+  field(OUT , "circle:tick.ODLY NPP")
 #  field(TPRO, "1")
 }
 
@@ -23,7 +23,9 @@ record(calc, "circle:angle") {
   field(FLNK, "circle:x")
   field(PREC, "3")
 #  field(TPRO, "1")
-  info(pdbGroup, "circle|angle=VAL")
+  info(pdbGroup0, "circle|angle=VAL")
+  info(pdbGroup1, "line|a=VAL")
+  alias("line:a")
 }
 
 record(calc, "circle:x") {
@@ -40,10 +42,17 @@ record(calc, "circle:y") {
   field(CALC, "sin(A*PI/180)")
   field(TSEL, "circle:angle.TIME")
   field(PREC, "3")
-  field(FLNK, "circle:tick")
+  field(FLNK, "line:b")
   info(pdbGroup, "circle|y=VAL")
   info(pdbTrigger,"circle|y>*")
 
+}
+
+record(ai, "line:b") {
+  field(INP, "line:a NPP")
+  field(FLNK, "circle:tick")
+  info(pdbGroup, "line|b=VAL")
+  info(pdbTrigger,"line|b>*")
 }
 
 record(calcout, "circle:tick") {
