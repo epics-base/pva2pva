@@ -128,6 +128,7 @@ struct pvaLinkChannel : public pva::ChannelRequester, pva::MonitorRequester,
     void doConnect() {
         Guard G(lock);
         chan = pvaGlobal->provider->createChannel(name, shared_from_this());
+        channelStateChange(chan, chan->getConnectionState());
     }
     void doClose() {
         Guard G(lock);
@@ -160,7 +161,6 @@ struct pvaLinkChannel : public pva::ChannelRequester, pva::MonitorRequester,
         Guard G(lock);
         //assert(chan==channel); // may be called before createChannel() returns
         chan = channel;
-        channelStateChange(channel, pva::Channel::CONNECTED);
     }
 
     virtual void channelStateChange(pva::Channel::shared_pointer const & channel, pva::Channel::ConnectionState connectionState);
