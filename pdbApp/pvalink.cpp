@@ -27,7 +27,7 @@ namespace pva = epics::pvAccess;
 
 extern "C" void (*dbAddLinkHook)(struct link *link, short dbfType);
 
-int pvaLinkDebug = 4;
+int pvaLinkDebug = 0;
 
 namespace {
 
