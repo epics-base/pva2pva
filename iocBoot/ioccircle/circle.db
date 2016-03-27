@@ -1,0 +1,53 @@
+record(ao, "circle:step") {
+  field(VAL , "1.0")
+  field(DRVL, "0.0")
+  field(DRVH, "359")
+  field(PINI, "YES")
+#  field(TPRO, "1")
+}
+
+record(ao, "circle:period") {
+  field(VAL , "1.0")
+  field(PINI, "YES")
+  field(OUT , "circle:y.ODLY NPP")
+#  field(TPRO, "1")
+}
+
+record(calc, "circle:angle") {
+  field(PINI, "RUNNING")
+#  field(SCAN, "2 second")
+  field(INPA, "circle:angle NPP")
+  field(INPB, "circle:step NPP")
+  field(INPD, "360")
+  field(CALC, "C:=A+B;(C>D)?C-D:C")
+  field(FLNK, "circle:x")
+  field(PREC, "3")
+#  field(TPRO, "1")
+  info(pdbGroup, "circle|angle=VAL")
+}
+
+record(calc, "circle:x") {
+  field(INPA, "circle:angle NPP")
+  field(CALC, "cos(A*PI/180)")
+  field(TSEL, "circle:angle.TIME")
+  field(FLNK, "circle:y")
+  field(PREC, "3")
+  info(pdbGroup, "circle|x=VAL")
+}
+
+record(calc, "circle:y") {
+  field(INPA, "circle:angle NPP")
+  field(CALC, "sin(A*PI/180)")
+  field(TSEL, "circle:angle.TIME")
+  field(PREC, "3")
+  field(FLNK, "circle:tick")
+  info(pdbGroup, "circle|y=VAL")
+  info(pdbTrigger,"circle|y>*")
+
+}
+
+record(calcout, "circle:tick") {
+  field(ODLY, "1.0")
+  field(OUT , "circle:angle.PROC CA") # loop
+#  field(TPRO, "1")
+}
