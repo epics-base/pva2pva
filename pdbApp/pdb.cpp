@@ -274,28 +274,34 @@ struct PDBProcessor
          */
         for(pdbRecordIterator rec; !rec.done(); rec.next())
         {
-            try {
-                const char *value;
-                recbase = rec.record()->name;
-                recbase += ".";
-                value = rec.info("pdbGroup");
-                if(value) {
-                    setupGroup(&value);
-                    addMappings(value);
+            bool firsttag = true;
+            for(pdbInfoIterator info(rec); !info.done(); info.next()) {
+                if(firsttag) {
+                    recbase = rec.record()->name;
+                    recbase += ".";
+                    firsttag = false;
                 }
-                value = rec.info("pdbTrigger");
-                if(value) {
-                    setupGroup(&value);
-                    addTriggers(value);
+
+                const char *value = info.value();
+                const char *tagname = info.name();
+
+                try {
+                    if(strncmp(tagname, "pdbGroup", 8)==0) {
+                        setupGroup(&value);
+                        addMappings(value);
+
+                    } else if(strncmp(tagname, "pdbTrigger", 10)==0) {
+                        setupGroup(&value);
+                        addTriggers(value);
+
+                    } else if(strncmp(tagname, "pdbAtomic", 9)==0) {
+                        setupGroup(&value);
+                        setAtomic(value);
+                    }
+                }catch(std::exception& e){
+                    fprintf(stderr, "Error processing PDB info(%s, \"%s\") for record \"%s\": %s\n",
+                            tagname, value, rec.record()->name, e.what());
                 }
-                value = rec.info("pdbAtomic");
-                if(value) {
-                    setupGroup(&value);
-                    setAtomic(value);
-                }
-            }catch(std::exception& e){
-                fprintf(stderr, "Error processing PDB info() for record \"%s\": %s\n",
-                        rec.record()->name, e.what());
             }
         }
         resolveTriggers();

@@ -119,6 +119,27 @@ struct pdbRecordIterator {
     }
 };
 
+struct pdbInfoIterator {
+    DBENTRY ent;
+    bool m_done;
+    pdbInfoIterator(const pdbRecordIterator& I)
+    {
+        dbCopyEntryContents(&const_cast<pdbRecordIterator&>(I).ent, &ent);
+        m_done = dbFirstInfo(&ent)!=0;
+    }
+    ~pdbInfoIterator()
+    {
+        dbFinishEntry(&ent);
+    }
+    bool done() const { return m_done; }
+    bool next() {
+        m_done = dbNextInfo(&ent)!=0;
+        return m_done;
+    }
+    const char *name() { return dbGetInfoName(&ent); }
+    const char *value() { return dbGetInfoString(&ent); }
+};
+
 struct DBEvent
 {
     dbEventSubscription subscript;
