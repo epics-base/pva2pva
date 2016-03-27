@@ -207,7 +207,7 @@ void putTime(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     }
     pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     if(dbe&DBE_ALARM) {
-        pv.status->put(meta.status);
+        //pv.status->put(meta.status);
         pv.severity->put(meta.severity);
     }
 }
@@ -326,7 +326,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
     FMAP(sec, time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     if(dbe&DBE_ALARM) {
-        FMAP(status, status);
+        //FMAP(status, status);
         FMAP(severity, severity);
     }
     if(dbe&DBE_PROPERTY) {
