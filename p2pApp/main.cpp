@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
     libComRegister(); // non-IOC related iocsh functions
     registerGWClientIocsh();
     registerGWServerIocsh();
+    registerReadOnly();
     if(argc>1)
         iocsh(argv[1]);
     int ret = iocsh(NULL);

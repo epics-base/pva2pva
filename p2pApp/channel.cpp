@@ -3,11 +3,14 @@
 
 #define epicsExportSharedSymbols
 #include "helper.h"
+#include "iocshelper.h"
 #include "pva2pva.h"
 #include "channel.h"
 
 namespace pva = epics::pvAccess;
 namespace pvd = epics::pvData;
+
+int p2pReadOnly = 0;
 
 size_t GWChannel::num_instances;
 
@@ -108,7 +111,10 @@ GWChannel::createChannelProcess(
         pva::ChannelProcessRequester::shared_pointer const & channelProcessRequester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    return entry->channel->createChannelProcess(channelProcessRequester, pvRequest);
+    if(!p2pReadOnly)
+        return entry->channel->createChannelProcess(channelProcessRequester, pvRequest);
+    else
+        return Channel::createChannelProcess(channelProcessRequester, pvRequest);
 }
 
 pva::ChannelGet::shared_pointer
@@ -124,7 +130,10 @@ GWChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & channelPutRequester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    return entry->channel->createChannelPut(channelPutRequester, pvRequest);
+    if(!p2pReadOnly)
+        return entry->channel->createChannelPut(channelPutRequester, pvRequest);
+    else
+        return Channel::createChannelPut(channelPutRequester, pvRequest);
 }
 
 pva::ChannelPutGet::shared_pointer
@@ -132,7 +141,10 @@ GWChannel::createChannelPutGet(
         pva::ChannelPutGetRequester::shared_pointer const & channelPutGetRequester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    return entry->channel->createChannelPutGet(channelPutGetRequester, pvRequest);
+    if(!p2pReadOnly)
+        return entry->channel->createChannelPutGet(channelPutGetRequester, pvRequest);
+    else
+        return Channel::createChannelPutGet(channelPutGetRequester, pvRequest);
 }
 
 pva::ChannelRPC::shared_pointer
@@ -140,7 +152,10 @@ GWChannel::createChannelRPC(
         pva::ChannelRPCRequester::shared_pointer const & channelRPCRequester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    return entry->channel->createChannelRPC(channelRPCRequester, pvRequest);
+    if(!p2pReadOnly)
+        return entry->channel->createChannelRPC(channelRPCRequester, pvRequest);
+    else
+        return Channel::createChannelRPC(channelRPCRequester, pvRequest);
 }
 
 namespace {
@@ -245,4 +260,10 @@ void
 GWChannel::printInfo(std::ostream& out)
 {
     out<<"GWChannel for "<<entry->channelName<<"\n";
+}
+
+
+void registerReadOnly()
+{
+    iocshVariable<int, &p2pReadOnly>("p2pReadOnly");
 }
