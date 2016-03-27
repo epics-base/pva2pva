@@ -452,6 +452,7 @@ void pvaLinkChannel::triggerProc(bool atomic)
         } else {
             scanself = shared_from_this();
             scanatomic = atomic;
+            if(pvaLinkDebug>1) std::cerr<<"pvaLink trigger proc"<< name<<"\n";
         }
     }
 }

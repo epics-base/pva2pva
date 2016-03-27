@@ -187,29 +187,45 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
 void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
                        pvd::BitSet::shared_pointer const & changed)
 {
-    // assume value may be a different struct each time
-    std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
-    {
-        dbChannel *chan = channel->pv->chan;
-        DBScanLocker L(chan);
-        putpvif->get(*changed);
-
-        dbCommon *precord = dbChannelRecord(chan);
-        if (dbChannelField(chan) == &precord->proc ||
-            (dbChannelFldDes(chan)->process_passive &&
-             precord->scan == 0)) {
-            if (precord->pact) {
-                if (precord->tpro)
-                    printf("%s: Active %s\n",
-                        epicsThreadGetNameSelf(), precord->name);
-                precord->rpro = TRUE;
-            } else {
-                /* indicate that dbPutField called dbProcess */
-                precord->putf = TRUE;
-                dbProcess(precord);
-            }
+    dbChannel *chan = channel->pv->chan;
+    dbFldDes *fld = dbChannelFldDes(chan);
+    pvd::Status ret;
+    if(fld->field_type>=DBF_INLINK && fld->field_type<=DBF_FWDLINK) {
+        try{
+            std::string lval(value->getSubFieldT<pvd::PVScalar>("value")->getAs<std::string>());
+            long status = dbChannelPutField(chan, DBF_STRING, lval.c_str(), 1);
+            if(status)
+                ret = pvd::Status(pvd::Status::error("dbPutField() error"));
+        }catch(std::exception& e) {
+            std::ostringstream strm;
+            strm<<"Failed to put link field "<<dbChannelName(chan)<<"."<<fld->name<<" : "<<e.what()<<"\n";
+            ret = pvd::Status(pvd::Status::error(strm.str()));
         }
 
+    } else {
+        // assume value may be a different struct each time
+        std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
+        {
+            DBScanLocker L(chan);
+            putpvif->get(*changed);
+
+            dbCommon *precord = dbChannelRecord(chan);
+            if (dbChannelField(chan) == &precord->proc ||
+                    (dbChannelFldDes(chan)->process_passive &&
+                     precord->scan == 0)) {
+                if (precord->pact) {
+                    if (precord->tpro)
+                        printf("%s: Active %s\n",
+                               epicsThreadGetNameSelf(), precord->name);
+                    precord->rpro = TRUE;
+                } else {
+                    /* indicate that dbPutField called dbProcess */
+                    precord->putf = TRUE;
+                    dbProcess(precord);
+                }
+            }
+
+        }
     }
     requester->putDone(pvd::Status(), shared_from_this());
 }
