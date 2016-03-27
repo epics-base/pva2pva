@@ -354,14 +354,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
     Guard G(lock);
     assert(chan==channel);
     if(pvaLinkDebug>3) std::cerr<<"pvaLink channelStateChange "<<name<<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
-    if(connectionState==pva::Channel::CONNECTED) {
-        pvd::PVStructurePtr pvreq(pvaGlobal->create->createPVStructure(pvaGlobal->reqtype));
-
-        Guard G(lock);
-        chanmon = channel->createMonitor(shared_from_this(), pvreq);
-        chan = channel;
-
-    } else {
+    if(connectionState!=pva::Channel::CONNECTED) {
         FOREACH(it, end, links) {
             pvaLink* L = *it;
             L->detach();
@@ -375,6 +368,13 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
             std::cerr<<"pvaLink: monitor destroy "<<name<<"\n";
         }
         triggerProc();
+    } else if(!chanmon) {
+        pvd::PVStructurePtr pvreq(pvaGlobal->create->createPVStructure(pvaGlobal->reqtype));
+
+        Guard G(lock);
+        chanmon = channel->createMonitor(shared_from_this(), pvreq);
+        chan = channel;
+        if(pvaLinkDebug>3) std::cerr<<"pvaLink channelStateChange start monitor\n";
     }
 }
 
@@ -382,7 +382,7 @@ void pvaLinkChannel::monitorConnect(pvd::Status const & status,
                                     pva::Monitor::shared_pointer const & monitor,
                                     pvd::StructureConstPtr const & structure)
 {
-    if(pvaLinkDebug>3) std::cerr<<"pvaLink monitorEvent "<<name<<"\n";
+    if(pvaLinkDebug>3) std::cerr<<"pvaLink monitorConnect "<<name<<"\n";
     if(!status.isSuccess()) {
         errlogPrintf("pvaLink connect monitor fails %s: %s\n", name.c_str(), status.getMessage().c_str());
         return;
@@ -584,7 +584,8 @@ int pvaIsConnected(const struct link *plink)
 int pvaGetDBFtype(const struct link *plink)
 {
     TRY {
-        if(pvaGlobal->scanmagic.get()) return PVD2DBR(self->atomcache.etype);
+        if(pvaGlobal->scanmagic.get() && self->atomcache.valid)
+            return PVD2DBR(self->atomcache.etype);
 
         Guard G(self->lchan->lock);
         pvd::ScalarType ftype;
@@ -610,7 +611,7 @@ int pvaGetDBFtype(const struct link *plink)
 long pvaGetElements(const struct link *plink, long *nelements)
 {
     TRY {
-        if(pvaGlobal->scanmagic.get()) {
+        if(pvaGlobal->scanmagic.get() && self->atomcache.valid) {
             if(self->atomcache.scalar) return 1;
             else return self->atomcache.valueA.size();
         }
@@ -628,7 +629,7 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
         epicsEnum16 *pstat, epicsEnum16 *psevr, long *pnRequest)
 {
     TRY {
-        if(pvaGlobal->scanmagic.get()) {
+        if(pvaGlobal->scanmagic.get() && self->atomcache.valid) {
             const void *buf;
             size_t count = pnRequest ? *pnRequest : 1;
             if(self->atomcache.scalar) {
@@ -679,6 +680,8 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
             if(pnRequest) *pnRequest = 1;
 
             *psevr = self->sevr->getAs<epicsUInt16>();
+            if(dbrType==DBF_DOUBLE)
+                std::cerr<<"get direct "<<*(double*)pbuffer<<"\n";
         } else {
             *psevr = INVALID_ALARM;
         }
@@ -739,7 +742,7 @@ long pvaGetAlarm(const struct link *plink, epicsEnum16 *status,
     TRY {
         Guard G(self->lchan->lock);
         unsigned sevr = INVALID_ALARM;
-        if(pvaGlobal->scanmagic.get()) {
+        if(pvaGlobal->scanmagic.get() && self->atomcache.valid) {
             sevr = self->atomcache.sevr;
         } else if(self->sevr) {
             sevr = self->sevr->getAs<epicsInt32>();
@@ -755,7 +758,7 @@ long pvaGetTimeStamp(const struct link *plink, epicsTimeStamp *pstamp)
 {
     TRY {
         Guard G(self->lchan->lock);
-        if(pvaGlobal->scanmagic.get()) {
+        if(pvaGlobal->scanmagic.get() && self->atomcache.valid) {
             *pstamp = self->atomcache.time;
         } else if(self->sec && self->nsec) {
             pstamp->secPastEpoch = self->sec->getAs<epicsUInt32>()-POSIX_TIME_AT_EPICS_EPOCH;
