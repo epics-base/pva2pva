@@ -447,7 +447,8 @@ void pvaLinkChannel::triggerProc(bool atomic)
         }
     }
     if(doscan && !scanself) { // need to scan, and not already queued, then queue
-        if(epicsJobQueue(scanjob)) {
+        int ret = epicsJobQueue(scanjob);
+        if(ret && ret!=S_pool_paused) {
             errlogPrintf("pvaLink: failed to queue scan from %s\n", name.c_str());
         } else {
             scanself = shared_from_this();
@@ -460,6 +461,7 @@ void pvaLinkChannel::triggerProc(bool atomic)
 void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
 {
     pvaLinkChannel *selfraw = (pvaLinkChannel*)arg;
+    if(mode!=epicsJobModeRun) return; // we will cleanup later
     pvaGlobal_t::Scan myscan;
     try {
         if(pvaLinkDebug>3) std::cerr<<"pvaLink scan "<<selfraw->name<<"\n";
@@ -469,6 +471,7 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
         Guard G(selfraw->lock);
 
         selfraw->scanself.swap(self); // we take over ref, to keep channel alive, and allow re-queue
+        assert(self.get()==selfraw); // if scanself wasn't set, then the channel may be free'd
 
         if(mode==epicsJobModeCleanup) return;
 
@@ -858,6 +861,12 @@ void initPVALink(initHookState state)
         }catch(std::exception& e){
             errlogPrintf("Error initializing pva link handling : %s\n", e.what());
         }
+
+    } else if(state==initHookAtIocShutdown) {
+
+        // stop CP scans before closing links
+        epicsThreadPoolDestroy(pvaGlobal->scanpool);
+        pvaGlobal->scanpool = NULL;
 
     } else if(state==initHookAfterCaLinkClose) {
         try {

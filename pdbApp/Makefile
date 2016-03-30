@@ -31,6 +31,7 @@ softIocPVA_LIBS += pdbcore pvAccess pvData $(MBLIB)
 softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 DBD += softIocPVA.dbd
+DBD += qsrv.dbd
 
 softIocPVA_DBD += softIoc.dbd
 softIocPVA_DBD += qsrv.dbd
