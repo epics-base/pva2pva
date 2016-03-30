@@ -139,7 +139,7 @@ struct pvaLinkChannel : public pva::ChannelRequester, pva::MonitorRequester,
         std::cerr<<"pvaLink: channel destroy "<<name<<"\n";
     }
 
-    void triggerProc(bool atomic=false);
+    void triggerProc(bool atomic=false, bool force=false);
 
     static void scan(void* arg, epicsJobMode mode);
 
@@ -367,7 +367,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
             chanmon.reset();
             std::cerr<<"pvaLink: monitor destroy "<<name<<"\n";
         }
-        triggerProc();
+        triggerProc(false, true); // force scan to get disconnect
     } else if(!chanmon) {
         pvd::PVStructurePtr pvreq(pvaGlobal->create->createPVStructure(pvaGlobal->reqtype));
 
@@ -432,7 +432,7 @@ void pvaLinkChannel::monitorEvent(pva::Monitor::shared_pointer const & monitor)
 }
 
 // caller must have channel's lock
-void pvaLinkChannel::triggerProc(bool atomic)
+void pvaLinkChannel::triggerProc(bool atomic, bool force)
 {
     bool doscan = false;
     // check if we actually need to scan anything
@@ -446,7 +446,7 @@ void pvaLinkChannel::triggerProc(bool atomic)
             doscan = true;
         }
     }
-    if(doscan && !scanself) { // need to scan, and not already queued, then queue
+    if(force || (doscan && !scanself)) { // need to scan, and not already queued, then queue
         int ret = epicsJobQueue(scanjob);
         if(ret && ret!=S_pool_paused) {
             errlogPrintf("pvaLink: failed to queue scan from %s\n", name.c_str());
@@ -473,13 +473,11 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
         selfraw->scanself.swap(self); // we take over ref, to keep channel alive, and allow re-queue
         assert(self.get()==selfraw); // if scanself wasn't set, then the channel may be free'd
 
-        if(mode==epicsJobModeCleanup) return;
-
         myscan.chan = self; // store a weak ref
 
         links_t links(self->links); // TODO: avoid copy if set not changing
 
-        bool usecached = self->scanatomic;
+        bool usecached = self->scanatomic && !!self->chanmon;
         myscan.usecached = usecached;
         if(usecached) {
             FOREACH(it, end, links) {
@@ -689,6 +687,7 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
         } else {
             *psevr = INVALID_ALARM;
         }
+        if(!self->lchan->chanmon) *psevr = INVALID_ALARM; // alarm when disconnected
         *pstat = *psevr ? LINK_ALARM : 0;
         return 0;
     }CATCH(pvaIsConnected)
