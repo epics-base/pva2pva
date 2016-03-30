@@ -80,7 +80,7 @@
 \begin_body
 
 \begin_layout Title
-PVAccess Gateway Design
+PVAccess Gateway Prototype (pva2pva)
 \end_layout
 
 \begin_layout Author
@@ -104,24 +104,29 @@ today
 \end_layout
 
 \begin_layout Section
-Scope
+Motivation
 \end_layout
 
 \begin_layout Standard
-A PVAccess gateway will act as a 
+In a distributed control system, there are hundreds of nodes that are part
+ of the plant.
+ These nodes make up the controllers and the operator consoles.
+ There are many clients that may want to view the state of equipment outside
+ of the control network.
+ A 
 \begin_inset Quotes eld
 \end_inset
 
-switch
+gateway
 \begin_inset Quotes erd
 \end_inset
 
- to route PVA traffic between IP subnets.
- The primary use cases for a gateway are: 1) de-duplicate data when many
- PVA clients make a similar request to limit the load on the PVA server
- handling this request.
- And 2) to provide the mechanisms to implement site specific access control
- policies specifying which requests are permitted.
+ allows clients outside of the control system to view the equipment while
+ limiting the additional traffic on the control network.
+ The gateway marshals all external requests and makes only one request into
+ the control system.
+ This limits the effect of external requests on the control system, thus
+ maintaining the determinism required for robust operation of a facility.
 \end_layout
 
 \begin_layout Standard
@@ -180,7 +185,15 @@ IP Internet Protocol (v4 and/or v6)
 \begin_layout Description
 PV Process Variable.
  Addressable unit in PVA.
- A character string.
+ A character string 
+\begin_inset Quotes eld
+\end_inset
+
+PV name
+\begin_inset Quotes erd
+\end_inset
+
+ is this address.
 \end_layout
 
 \begin_layout Description
@@ -229,6 +242,91 @@ Gateway
 \end_layout
 
 \begin_layout Section
+Prototype Status
+\end_layout
+
+\begin_layout Itemize
+De-duplication of Channel and Monitor is implemented as described in section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:ToO"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+The queuing algorithm in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:queue"
+
+\end_inset
+
+ is implemented and verified.
+ Verified using simulated camera image.
+\end_layout
+
+\begin_layout Itemize
+Access Control described in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:acl"
+
+\end_inset
+
+ is not implemented.
+ As a placeholder a global flag enables/disables write operations.
+\end_layout
+
+\begin_layout Section
+Test Results
+\end_layout
+
+\begin_layout Subsection
+High speed counter
+\end_layout
+
+\begin_layout Standard
+This test involves a scalar PV incrementing at a rate greater than 1 kHz.
+ The goal is to stress the gateway in an attempt to provoke incorrect actions.
+ Several mutex ordering bugs were discovered and corrected.
+\end_layout
+
+\begin_layout Subsection
+Disconnect/reconnect
+\end_layout
+
+\begin_layout Standard
+Restart various combinations of CLI, GW, and SRV to see that disconnection
+ notices are sent to CLI and that connections are restored properly when
+ all components resume running.
+\end_layout
+
+\begin_layout Subsection
+Image queuing contention
+\end_layout
+
+\begin_layout Standard
+An IOC is created with areaDetector and QSRV.
+ This IOC servers a simulated image and a 10 Hz scalar counter PV.
+ A comparison is made between viewing these two PVs through CA gateway and
+ through pva2pva gateway.
+ Through CA gateway the scalar PV is observed to 
+\begin_inset Quotes eld
+\end_inset
+
+stutter
+\begin_inset Quotes erd
+\end_inset
+
+ when the image update rate is as low as 1 Hz.
+ Through pva2pva this is not observed.
+\end_layout
+
+\begin_layout Section
 Goals/Features
 \end_layout
 
@@ -241,7 +339,7 @@ De-duplication
 \end_layout
 
 \begin_layout Standard
-of sockets and data to reduce overall resource use.
+of sockets and data to reduce SRV resource use.
 \end_layout
 
 \begin_layout Paragraph
@@ -281,6 +379,13 @@ gets
 
 \begin_layout Section
 Theory of Operation
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:ToO"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -455,10 +560,11 @@ is maintained by each ChannelCache entry for the GWS channels using the
 \begin_layout Standard
 Each ChannelCache entry will have a boolean flag which is set on creation,
  and re-set whenever it is found by a name lookup (Miss or Not Conn).
- A periodic cleanup task should run which removes all entries with this
- flag cleared and a zero ref.
+ A periodic cleanup task runs to remove all entries with this flag cleared
+ and a zero ref.
  count.
- Each time it run, the cleanup task clears the flag of any entry not removed.
+ Each time it run, the cleanup task also clears the flag of any entry not
+ removed.
 \end_layout
 
 \begin_layout Standard
@@ -491,10 +597,9 @@ status collapsed
 
 \begin_layout Plain Layout
 \align center
-in general 
 \begin_inset Graphics
 	filename structs.dot
-	width 4in
+	width 95col%
 	height 3in
 	keepAspectRatio
 
@@ -536,14 +641,14 @@ Notification of loss of a GWC Channel
 \end_layout
 
 \begin_layout Standard
-should result in the disconnection of any associated GWS Channels, and the
- immediate removal of the associated ChannelCache entry.
+results in the disconnection of any associated GWS Channels, and the immediate
+ removal of the associated ChannelCache entry.
  This allows the ref.
  count for an entry to fall to zero once all GWS Channels close.
 \end_layout
 
 \begin_layout Standard
-All pending operations associated with this channel will also be canceled.
+All pending operations associated with this channel are canceled.
 \end_layout
 
 \begin_layout Subsection
@@ -556,27 +661,38 @@ For operations other than Monitor, the timing of the client request can
  effect the results.
  No caching or de-duplication can be done without special knowledge about
  the intended behavior of CLI and SRV.
- Therefore, by default these operations pass through the GW without de-duplicati
-on.
+ Therefore, these operations pass through the GW without de-duplication.
 \end_layout
 
 \begin_layout Subsection
 Monitor operations
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:monitor"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
-Each ChannelCache entry will also include a MonitorCache.
+Each ChannelCache entry includes a MonitorCache.
  This cache is indexed by the pvrequest given with the corresponding monitorCrea
 te operation.
  As a pvrequest may contain arbitrary data, two pvrequests may not be compared
  for anything other than exact equality without special knowledge.
- Therefore, by default MonitorCache hits are only generated when the CLI
- provides a pvrequest which exactly matches the MonitorCache entry.
+ Therefore, MonitorCache hits are only generated when the CLI provides a
+ pvrequest which exactly matches a MonitorCache entry.
 \end_layout
 
 \begin_layout Standard
-Each MonitorCache entry should also keep the most recent value received
- by the GWC so that this may be returned immediately for new GWS subscriptions.
+For efficient lookup, the monitor cache is keyed using the serialized byte
+ string of a pvrequest.
+\end_layout
+
+\begin_layout Standard
+Each MonitorCache entry keeps the most recent value received by the GWC
+ which is returned immediately for new GWS subscriptions.
 \end_layout
 
 \begin_layout Standard
@@ -673,6 +789,13 @@ is maintained for each MonitorCacheEntry, which will be closed as soon as
 
 \begin_layout Section
 Channel Transmit Queuing
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:queue"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -694,10 +817,10 @@ fairness
 \end_layout
 
 \begin_layout Standard
-Instead of a simple FIFO fed by all Channels, each channel given a FIFO.
- The task which dequeues would do so by taking from each FIFO in turn in
- a round robin.
- This should prevent the overall latency through the queue from being dominated
+Instead of a simple FIFO fed by all Channels, each channel is give a FIFO.
+ The task which dequeues does so by taking from each FIFO in turn in a round
+ robin fashion.
+ This prevents the overall latency through the queue from being dominated
  by one fast PV.
 \end_layout
 
@@ -776,17 +899,6 @@ label{line:queue3}|
 \end_layout
 
 \begin_layout Section
-Loop avoidance
-\end_layout
-
-\begin_layout Standard
-Another potential pitfall inherent in using UDP broadcasts for name resolution
- is the possibility of loops should GWS receive search requests from GWC.
- This can be avoided provided that GWS is aware of the set of endpoints
- that GWC uses to send requests, and ignores an requests from them.
-\end_layout
-
-\begin_layout Section
 Policies
 \end_layout
 
@@ -798,6 +910,13 @@ Along with de-duplication, enforcement of administrative policies is a major
 
 \begin_layout Subsection
 Access Control
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:acl"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
