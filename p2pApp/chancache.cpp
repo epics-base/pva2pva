@@ -98,7 +98,14 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
 
     FOREACH(it, end, interested)
     {
-        (*it)->requester->channelStateChange(*it, connectionState);
+        GWChannel *chan = it->get();
+        pva::ChannelRequester::shared_pointer req;
+        {
+            Guard G(chan->entry->mutex());
+            req = chan->requester;
+        }
+        if(req)
+            req->channelStateChange(*it, connectionState);
     }
 }
 
