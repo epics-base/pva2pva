@@ -401,7 +401,7 @@ struct PVIFScalarNumeric : public PVIF
             try{
                 pvmeta.nsecMask = epics::pvData::castUnsafe<unsigned>(std::string(&UT[5]));
             }catch(std::exception& e){
-                std::cerr<<dbChannelRecord(ch)->name<<" : pdbUserTag nslsb requires a number not '"<<UT[5]<<"'\n";
+                std::cerr<<"Warning: "<<dbChannelRecord(ch)->name<<" : pdbUserTag nslsb requires a number not '"<<UT[5]<<"'\n";
             }
         }
         if(pvmeta.nsecMask>0 && pvmeta.nsecMask<=32) {

@@ -99,11 +99,9 @@ GWServerChannelProvider::createChannel(std::string const & channelName,
     }
 
     if(!ret) {
-        std::cerr<<"GWServer refusing channel "<<channelName<<"\n";
         pvd::Status S(pvd::Status::STATUSTYPE_ERROR, "Not found");
         channelRequester->channelCreated(S, ret);
     } else {
-        std::cerr<<"GWServer connecting channel "<<channelName<<" as "<<newName<<"\n";
         channelRequester->channelCreated(pvd::Status::Ok, ret);
         channelRequester->channelStateChange(ret, pva::Channel::CONNECTED);
     }
@@ -117,17 +115,14 @@ void GWServerChannelProvider::configure(epics::pvData::PVStructure::shared_point
 
 void GWServerChannelProvider::destroy()
 {
-    std::cout<<"GWServer destory request\n";
 }
 
 GWServerChannelProvider::GWServerChannelProvider(const pva::ChannelProvider::shared_pointer& prov)
     :cache(prov)
 {
-    std::cout<<"GW Server ctor\n";
 }
 GWServerChannelProvider::~GWServerChannelProvider()
 {
-    std::cout<<"GW Server dtor\n";
 }
 
 namespace {
