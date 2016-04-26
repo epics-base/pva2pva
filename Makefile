@@ -4,8 +4,12 @@ include $(TOP)/configure/CONFIG
 
 # Directories to build, any order
 DIRS += configure
-DIRS += $(wildcard *App)
-DIRS += $(wildcard iocBoot)
+DIRS += p2pApp
+ifeq ($(DEVEL),YES)
+DIRS += pdbApp
+endif
+DIRS += testApp
+#DIRS += $(wildcard iocBoot)
 
 # iocBoot depends on all *App dirs
 iocBoot_DEPEND_DIRS += $(filter %App,$(DIRS))

@@ -400,6 +400,7 @@ private:
             self->requestUpdate(); // may result in post()
     }
 public:
+#ifdef DEVEL
     virtual void getStats(Stats& s) const
     {
         guard_t G(lock);
@@ -407,6 +408,7 @@ public:
         s.nfilled = inuse.size();
         s.noutstanding = nbuffers - s.nempty - s.nfilled;
     }
+#endif
 };
 
 template<class CP>

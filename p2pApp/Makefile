@@ -5,6 +5,10 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
+ifeq ($(DEVEL),YES)
+USR_CPPFLAGS += -DDEVEL
+endif
+
 PROD_HOST = p2p
 
 p2p_SRCS += main.cpp

@@ -315,7 +315,9 @@ void statusServer(int lvl, const char *chanexpr)
 
                     MonitorCacheEntry::interested_t::vector_type usrs;
                     size_t nsrvmon;
+#ifdef DEVEL
                     pvd::Monitor::Stats mstats;
+#endif
                     bool hastype, hasdata, isdone;
                     {
                         Guard G(ME.mutex());
@@ -325,8 +327,10 @@ void statusServer(int lvl, const char *chanexpr)
                         hasdata = !!ME.lastelem;
                         isdone = ME.done;
 
+#ifdef DEVEL
                         if(ME.mon)
                             ME.mon->getStats(mstats);
+#endif
 
                         if(lvl>2)
                             usrs = ME.interested.lock_vector();
@@ -339,10 +343,12 @@ void statusServer(int lvl, const char *chanexpr)
                              <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n"
                                "    "<<      epicsAtomicGetSizeT(&ME.nwakeups)<<" wakeups "
                              <<epicsAtomicGetSizeT(&ME.nevents)<<" events\n";
+#ifdef DEVEL
                     if(mstats.nempty || mstats.nfilled || mstats.noutstanding)
                         std::cout<<"    US monitor queue "<<mstats.nfilled
                                  <<" filled, "<<mstats.noutstanding
                                  <<" outstanding, "<<mstats.nempty<<" empty\n";
+#endif
 
                     if(lvl<=2)
                         continue;

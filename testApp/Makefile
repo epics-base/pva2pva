@@ -37,6 +37,7 @@ testmon_SRCS = testmon.cpp
 testmon_LIBS = testutils p2pcore pvAccess pvData Com
 TESTS += testmon
 
+ifeq ($(DEVEL),YES)
 
 TESTPROD_HOST += testpvif
 testpvif_SRCS += testpvif.cpp
@@ -49,6 +50,8 @@ testpdb_SRCS += testpdb.cpp
 testpdb_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
 testpdb_LIBS += testutils pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 TESTS += testpdb
+
+endif # DEVEL
 
 PROD_HOST += check_consist
 check_consist_SRCS += check_consist.cpp

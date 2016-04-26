@@ -34,3 +34,7 @@ CHECK_RELEASE = YES
 #   or CROSS_OPT settings from base/configure/CONFIG_SITE
 #HOST_OPT = NO
 #CROSS_OPT = NO
+
+# enable features which depend on unmerged/unreleased
+# features of dependencies.
+DEVEL = NO
