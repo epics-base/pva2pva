@@ -14,6 +14,7 @@
 #include <alarm.h>
 #include <epicsAtomic.h>
 #include <epicsThreadPool.h>
+#include <link.h>
 
 #include <pv/pvAccess.h>
 #include <pv/clientFactory.h>

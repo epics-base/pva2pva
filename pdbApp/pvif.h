@@ -146,6 +146,7 @@ struct DBEvent
     unsigned dbe_mask;
     void *self;
     unsigned index;
+    dbChannel *chan;
     DBEvent() :subscript(NULL), self(NULL), index(0) {}
     DBEvent(void* s) :subscript(NULL), self(s), index(0) {}
     ~DBEvent() {destroy();}
@@ -154,6 +155,7 @@ struct DBEvent
         subscript = db_add_event(ctx, ch, fn, this, mask);
         if(!subscript)
             throw std::runtime_error("Failed to subscribe to dbEvent");
+        chan = ch;
         dbe_mask = mask;
     }
     void destroy() {
