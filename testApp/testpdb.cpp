@@ -363,7 +363,8 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
 
     e = mon.poll();
     testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5, 8, 9}");
+    testOk1(!!e && e.elem->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{6, 8, 9, 12, 13}");
     else testFail("oops");
 
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 32.0);
@@ -410,7 +411,9 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     e = mon.poll();
     testOk1(!!e);
 
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{2, 4, 5, 8, 9, 42, 44, 45, 48, 49}");
+    testOk1(!!e && e.elem->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
+    testOk1(!!e && e.elem->pvStructurePtr->getSubFieldT("fld2.value")->getFieldOffset()==46);
+    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{6, 8, 9, 12, 13, 46, 48, 49, 52, 53}");
     else testFail("oops");
 
     testFieldEqual<pvd::PVDouble>(e, "fld1.value", 15.0);
@@ -428,7 +431,7 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(0);
+    testPlan(137);
     try{
         TestIOC IOC;
 

@@ -343,7 +343,7 @@ struct TestMonitor {
 
 MAIN(testmon)
 {
-    testPlan(0);
+    testPlan(79);
     TEST_METHOD(TestMonitor, test_event);
     TEST_METHOD(TestMonitor, test_share);
     TEST_METHOD(TestMonitor, test_ds_no_start);

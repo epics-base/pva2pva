@@ -172,7 +172,7 @@ void testmonitor()
 
 MAIN(testtest)
 {
-    testPlan(0);
+    testPlan(46);
     testmonitor();
     TestProvider::testCounts();
     return testDone();

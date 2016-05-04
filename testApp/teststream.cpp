@@ -78,7 +78,7 @@ static const char longmsg[] = "This message should be longer than the mimimum bu
 
 MAIN(teststream)
 {
-    testPlan(0);
+    testPlan(10);
     eltc(0);
     testNoBlock("hello");
     testNoBlock(longmsg);
