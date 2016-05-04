@@ -26,7 +26,7 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
-extern "C" void (*dbAddLinkHook)(struct link *link, short dbfType);
+extern "C" void (*dbAddLinkHook)(DBLINK *link, short dbfType);
 
 int pvaLinkDebug = 0;
 
@@ -209,7 +209,7 @@ struct pvaLink
 {
     static size_t refs;
 
-    link * const plink;
+    DBLINK * const plink;
     const short dbf;
     std::string name, field;
     const pva::Channel::shared_pointer chan;
@@ -239,7 +239,7 @@ struct pvaLink
 
     Value atomcache;
 
-    pvaLink(link *L, const char *name, short f)
+    pvaLink(DBLINK *L, const char *name, short f)
         :plink(L)
         ,dbf(f)
         ,name(name)
@@ -528,7 +528,7 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
     errlogPrintf("pvaLink " #LOC " fails %s: %s\n", plink->precord->name, e.what()); \
 }
 
-void pvaReportLink(const struct link *plink, dbLinkReportInfo *pinfo)
+void pvaReportLink(const DBLINK *plink, dbLinkReportInfo *pinfo)
 {
     const char * fname = dbGetFieldName(pinfo->pentry),
                * rname = dbGetRecordName(pinfo->pentry);
@@ -554,7 +554,7 @@ void pvaReportLink(const struct link *plink, dbLinkReportInfo *pinfo)
     }CATCH(pvaReportLink)
 }
 
-void pvaRemoveLink(struct dbLocker *locker, struct link *plink)
+void pvaRemoveLink(struct dbLocker *locker, DBLINK *plink)
 {
     try {
         std::auto_ptr<pvaLink> self((pvaLink*)plink->value.pv_link.pvt);
@@ -571,7 +571,7 @@ void pvaRemoveLink(struct dbLocker *locker, struct link *plink)
     }CATCH(pvaRemoteLink)
 }
 
-int pvaIsConnected(const struct link *plink)
+int pvaIsConnected(const DBLINK *plink)
 {
     TRY {
         if(pvaGlobal->scanmagic.get()) return 1;
@@ -584,7 +584,7 @@ int pvaIsConnected(const struct link *plink)
     return 0;
 }
 
-int pvaGetDBFtype(const struct link *plink)
+int pvaGetDBFtype(const DBLINK *plink)
 {
     TRY {
         if(pvaGlobal->scanmagic.get() && self->atomcache.valid)
@@ -611,7 +611,7 @@ int pvaGetDBFtype(const struct link *plink)
     return DBF_LONG;
 }
 
-long pvaGetElements(const struct link *plink, long *nelements)
+long pvaGetElements(const DBLINK *plink, long *nelements)
 {
     TRY {
         if(pvaGlobal->scanmagic.get() && self->atomcache.valid) {
@@ -628,7 +628,7 @@ long pvaGetElements(const struct link *plink, long *nelements)
     return 1;
 }
 
-long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
+long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
         epicsEnum16 *pstat, epicsEnum16 *psevr, long *pnRequest)
 {
     TRY {
@@ -695,7 +695,7 @@ long pvaGetValue(struct link *plink, short dbrType, void *pbuffer,
     return S_dbLib_badLink;
 }
 
-long pvaGetControlLimits(const struct link *plink, double *lo, double *hi)
+long pvaGetControlLimits(const DBLINK *plink, double *lo, double *hi)
 {
     TRY {
         //Guard G(self->lchan->lock);
@@ -704,7 +704,7 @@ long pvaGetControlLimits(const struct link *plink, double *lo, double *hi)
     return 0;
 }
 
-long pvaGetGraphicLimits(const struct link *plink, double *lo, double *hi)
+long pvaGetGraphicLimits(const DBLINK *plink, double *lo, double *hi)
 {
     TRY {
         //Guard G(self->lchan->lock);
@@ -713,7 +713,7 @@ long pvaGetGraphicLimits(const struct link *plink, double *lo, double *hi)
     return 0;
 }
 
-long pvaGetAlarmLimits(const struct link *plink, double *lolo, double *lo,
+long pvaGetAlarmLimits(const DBLINK *plink, double *lolo, double *lo,
         double *hi, double *hihi)
 {
     TRY {
@@ -723,7 +723,7 @@ long pvaGetAlarmLimits(const struct link *plink, double *lolo, double *lo,
     return 0;
 }
 
-long pvaGetPrecision(const struct link *plink, short *precision)
+long pvaGetPrecision(const DBLINK *plink, short *precision)
 {
     TRY {
         //Guard G(self->lchan->lock);
@@ -732,7 +732,7 @@ long pvaGetPrecision(const struct link *plink, short *precision)
     return 0;
 }
 
-long pvaGetUnits(const struct link *plink, char *units, int unitsSize)
+long pvaGetUnits(const DBLINK *plink, char *units, int unitsSize)
 {
     TRY {
         //Guard G(self->lchan->lock);
@@ -740,7 +740,7 @@ long pvaGetUnits(const struct link *plink, char *units, int unitsSize)
     return 0;
 }
 
-long pvaGetAlarm(const struct link *plink, epicsEnum16 *status,
+long pvaGetAlarm(const DBLINK *plink, epicsEnum16 *status,
         epicsEnum16 *severity)
 {
     TRY {
@@ -758,7 +758,7 @@ long pvaGetAlarm(const struct link *plink, epicsEnum16 *status,
     return 0;
 }
 
-long pvaGetTimeStamp(const struct link *plink, epicsTimeStamp *pstamp)
+long pvaGetTimeStamp(const DBLINK *plink, epicsTimeStamp *pstamp)
 {
     TRY {
         Guard G(self->lchan->lock);
@@ -774,7 +774,7 @@ long pvaGetTimeStamp(const struct link *plink, epicsTimeStamp *pstamp)
     return 0;
 }
 
-long pvaPutValue(struct link *plink, short dbrType,
+long pvaPutValue(DBLINK *plink, short dbrType,
         const void *pbuffer, long nRequest)
 {
     TRY {
@@ -784,7 +784,7 @@ long pvaPutValue(struct link *plink, short dbrType,
     }CATCH(pvaIsConnected)
 }
 
-void pvaScanForward(struct link *plink)
+void pvaScanForward(DBLINK *plink)
 {
     TRY {
         (void)self;
@@ -812,20 +812,20 @@ lset pva_lset = {
 };
 
 static
-void (*nextAddLinkHook)(struct link *link, short dbfType);
+void (*nextAddLinkHook)(DBLINK *plink, short dbfType);
 
-void pvaAddLinkHook(struct link *link, short dbfType)
+void pvaAddLinkHook(DBLINK *plink, short dbfType)
 {
-    const char *target = link->value.pv_link.pvname;
+    const char *target = plink->value.pv_link.pvname;
 
     if(strncmp(target, "pva://", 6)!=0) {
         if(nextAddLinkHook)
-            (*nextAddLinkHook)(link, dbfType);
+            (*nextAddLinkHook)(plink, dbfType);
         return;
     }
 
-    assert(link->precord);
-    assert(link->type == PV_LINK);
+    assert(plink->precord);
+    assert(plink->type == PV_LINK);
 
     target += 6; // skip "pva://"
 
@@ -833,15 +833,15 @@ void pvaAddLinkHook(struct link *link, short dbfType)
 
         std::cerr<<"pvaLink '"<<target<<"'\n";
 
-        std::auto_ptr<pvaLink> pvt(new pvaLink(link, target, dbfType));
+        std::auto_ptr<pvaLink> pvt(new pvaLink(plink, target, dbfType));
 
-        link->value.pv_link.pvt = pvt.release();
-        link->value.pv_link.backend = "pva";
-        link->type = CA_LINK;
-        link->lset = &pva_lset;
+        plink->value.pv_link.pvt = pvt.release();
+        plink->value.pv_link.backend = "pva";
+        plink->type = CA_LINK;
+        plink->lset = &pva_lset;
 
     }catch(std::exception& e){
-        errlogPrintf("Error setting up pva link: %s : %s\n", link->value.pv_link.pvname, e.what());
+        errlogPrintf("Error setting up pva link: %s : %s\n", plink->value.pv_link.pvname, e.what());
         // return w/ lset==NULL results in an invalid link (all operations error)
     }
 }
