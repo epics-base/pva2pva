@@ -9,7 +9,7 @@ DIRS += $(wildcard iocBoot)
 
 # iocBoot depends on all *App dirs
 iocBoot_DEPEND_DIRS += $(filter %App,$(DIRS))
-testApp_DEPEND_DIRS += p2pApp
+testApp_DEPEND_DIRS += p2pApp pdbApp
 
 # Add any additional dependency rules here:
 
