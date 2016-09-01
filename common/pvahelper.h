@@ -7,6 +7,15 @@
 
 #include <pv/pvAccess.h>
 
+template<typename T>
+bool getS(const epics::pvData::PVStructurePtr& S, const char *name, T& val)
+{
+    epics::pvData::PVScalarPtr F(S->getSubField<epics::pvData::PVScalar>(name));
+    if(F)
+        val = F->getAs<T>();
+    return !!F;
+}
+
 struct BaseChannel : public epics::pvAccess::Channel
 {
     BaseChannel(const std::string& name,
