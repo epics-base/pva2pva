@@ -182,7 +182,35 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
     ,pvif(PVIF::attach(channel->pv->chan, pvf))
-{}
+    ,doProc(true)
+    ,doProcForce(false)
+    ,doWait(false)
+{
+    dbChannel *chan = channel->pv->chan;
+    dbCommon *precord = dbChannelRecord(chan);
+    doProc = dbChannelField(chan) == &precord->proc ||
+            (dbChannelFldDes(chan)->process_passive &&
+             precord->scan == 0);
+
+    pvd::boolean wait;
+    getS(pvReq, "_record.options.block", wait);
+    doWait = wait;
+    std::string proccmd;
+    if(getS(pvReq, "_record.options.process", proccmd)) {
+        if(proccmd=="yes" || proccmd=="1") {
+            doProc = true;
+            doProcForce = true;
+        } else if(proccmd=="no" || proccmd=="0") {
+            doProc = false;
+            doProcForce = true;
+        } else if(proccmd=="passive") {
+            doProcForce = false;
+        }
+    }
+
+    memset((void*)&notify, 0, sizeof(notify));
+    notify.usrPvt = (void*)this;
+}
 
 void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
                        pvd::BitSet::shared_pointer const & changed)
@@ -210,9 +238,11 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
             putpvif->get(*changed);
 
             dbCommon *precord = dbChannelRecord(chan);
-            if (dbChannelField(chan) == &precord->proc ||
-                    (dbChannelFldDes(chan)->process_passive &&
-                     precord->scan == 0)) {
+
+            bool tryproc = doProcForce ? doProc : dbChannelField(chan) == &precord->proc ||
+                                                 (dbChannelFldDes(chan)->process_passive &&
+                                                  precord->scan == 0);
+            if (tryproc) {
                 if (precord->pact) {
                     if (precord->tpro)
                         printf("%s: Active %s\n",

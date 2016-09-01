@@ -4,6 +4,7 @@
 #include <deque>
 
 #include <dbAccess.h>
+#include <dbNotify.h>
 
 #include <dbEvent.h>
 
@@ -114,6 +115,10 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;
     std::auto_ptr<PVIF> pvif;
+    processNotify notify;
+    bool doProc, doProcForce, doWait;
+
+    std::tr1::shared_ptr<PDBSinglePut> procself; // make ref. loop while notify is active
 
     PDBSinglePut(const PDBSingleChannel::shared_pointer& channel,
                  const epics::pvAccess::ChannelPutRequester::shared_pointer& requester,
