@@ -52,12 +52,4 @@ struct PDBProvider : public epics::pvAccess::ChannelProvider,
     dbEventCtx event_context;
 };
 
-struct PDBProviderFactory : public epics::pvAccess::ChannelProviderFactory
-{
-    virtual ~PDBProviderFactory(){}
-    virtual std::string getFactoryName();
-    virtual epics::pvAccess::ChannelProvider::shared_pointer sharedInstance();
-    virtual epics::pvAccess::ChannelProvider::shared_pointer newInstance(const std::tr1::shared_ptr<epics::pvAccess::Configuration>&);
-};
-
 #endif // PDB_H
