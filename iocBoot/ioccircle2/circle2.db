@@ -1,5 +1,5 @@
 record(calc, "circle2:x") {
-  field(INPA, "pva://circle.x CP MSI")
+  field(INPA, {pva:"circle.x CP MSI"})
   field(CALC, "2*A")
   field(FLNK, "circle2:y")
   info(pdbGroup, "circle2|x=VAL")
@@ -7,7 +7,7 @@ record(calc, "circle2:x") {
 }
 
 record(calc, "circle2:y") {
-  field(INPA, "pva://circle.y MSI")
+  field(INPA, {pva:"circle.y MSI"})
   field(CALC, "2*A")
   field(TSEL, "circle2:x.TIME")
   field(FLNK, "circle2:mag")

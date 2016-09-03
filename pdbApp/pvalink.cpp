@@ -12,9 +12,11 @@
 #include <errlog.h>
 #include <initHooks.h>
 #include <alarm.h>
+#include <epicsExit.h>
 #include <epicsAtomic.h>
 #include <epicsThreadPool.h>
 #include <link.h>
+#include <dbJLink.h>
 
 #include <pv/pvAccess.h>
 #include <pv/clientFactory.h>
@@ -127,6 +129,7 @@ struct pvaLinkChannel : public pva::ChannelRequester, pva::MonitorRequester,
     }
 
     void doConnect() {
+        // TODO: local PVA?
         Guard G(lock);
         chan = pvaGlobal->provider->createChannel(name, shared_from_this());
         channelStateChange(chan, chan->getConnectionState());
@@ -205,12 +208,14 @@ std::tr1::shared_ptr<pvaLinkChannel> pvaGlobal_t::connect(const char *name)
     return ret;
 }
 
-struct pvaLink
+struct pvaLink : public jlink
 {
     static size_t refs;
 
-    DBLINK * const plink;
-    const short dbf;
+    DBLINK * plink; // may be NULL
+    unsigned linkmods;
+    unsigned parse_level;
+
     std::string name, field;
     const pva::Channel::shared_pointer chan;
     bool alive; // attempt to catch some use after free
@@ -239,12 +244,18 @@ struct pvaLink
 
     Value atomcache;
 
-    pvaLink(DBLINK *L, const char *name, short f)
-        :plink(L)
-        ,dbf(f)
-        ,name(name)
+    pvaLink()
+        :plink(0)
+        ,linkmods(0)
+        ,parse_level(0)
         ,alive(true)
+    {}
+
+    void open()
     {
+        if(this->name.empty())
+            throw std::logic_error("open() w/o target PV name");
+        this->name = name;
         size_t dot = this->name.find_first_of('.');
         if(dot!=this->name.npos) {
             field = this->name.substr(dot+1);
@@ -354,7 +365,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
 {
     Guard G(lock);
     assert(chan==channel);
-    if(pvaLinkDebug>3) std::cerr<<"pvaLink channelStateChange "<<name<<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
+    if(pvaLinkDebug>2) std::cerr<<"pvaLink channelStateChange "<<name<<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
     if(connectionState!=pva::Channel::CONNECTED) {
         FOREACH(it, end, links) {
             pvaLink* L = *it;
@@ -375,7 +386,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
         Guard G(lock);
         chanmon = channel->createMonitor(shared_from_this(), pvreq);
         chan = channel;
-        if(pvaLinkDebug>3) std::cerr<<"pvaLink channelStateChange start monitor\n";
+        if(pvaLinkDebug>4) std::cerr<<"pvaLink channelStateChange start monitor\n";
     }
 }
 
@@ -383,7 +394,7 @@ void pvaLinkChannel::monitorConnect(pvd::Status const & status,
                                     pva::Monitor::shared_pointer const & monitor,
                                     pvd::StructureConstPtr const & structure)
 {
-    if(pvaLinkDebug>3) std::cerr<<"pvaLink monitorConnect "<<name<<"\n";
+    if(pvaLinkDebug>4) std::cerr<<"pvaLink monitorConnect "<<name<<"\n";
     if(!status.isSuccess()) {
         errlogPrintf("pvaLink connect monitor fails %s: %s\n", name.c_str(), status.getMessage().c_str());
         return;
@@ -392,6 +403,8 @@ void pvaLinkChannel::monitorConnect(pvd::Status const & status,
 
     lastval = pvaGlobal->create->createPVStructure(structure);
     isatomic = lastval->getSubField<pvd::PVScalar>("record._options.atomic");
+    if(!isatomic)
+        std::cerr<<"================ not atomic\n"<<lastval<<"\n";
     chanmon = monitor;
 
     pvd::Status sstatus = monitor->start();
@@ -439,10 +452,9 @@ void pvaLinkChannel::triggerProc(bool atomic, bool force)
     // check if we actually need to scan anything
     FOREACH(it, end, links) {
         pvaLink* L = *it;
-        struct pv_link *ppv_link = &L->plink->value.pv_link;
 
-        if ((ppv_link->pvlMask & pvlOptCP) ||
-                ((ppv_link->pvlMask & pvlOptCPP) && L->plink->precord->scan == 0))
+        if ((L->linkmods & pvlOptCP) ||
+                ((L->linkmods & pvlOptCPP) && L->plink->precord->scan == 0))
         {
             doscan = true;
         }
@@ -481,9 +493,12 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
         bool usecached = self->scanatomic && !!self->chanmon;
         myscan.usecached = usecached;
         if(usecached) {
+            if(pvaLinkDebug>4) std::cerr<<"populate cache\n";
             FOREACH(it, end, links) {
                 pvaLink *link = *it;
                 link->get(link->atomcache);
+                if(pvaLinkDebug>4)
+                    std::cerr<<"== "<<self->name<<"."<<link->field<<" "<<link->valueS<<"\n";
             }
         }
 
@@ -495,13 +510,13 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
 
             FOREACH(it, end, links) {
                 pvaLink *link = *it;
-                struct pv_link *ppv_link = &link->plink->value.pv_link;
                 dbCommon *prec=link->plink->precord;
 
-                if ((ppv_link->pvlMask & pvlOptCP) ||
-                        ((ppv_link->pvlMask & pvlOptCPP) && link->plink->precord->scan == 0))
+                if ((link->linkmods & pvlOptCP) ||
+                        ((link->linkmods & pvlOptCPP) && prec->scan == 0))
                 {
                     DBScanLocker L(prec);
+                    if(pvaLinkDebug>3) std::cerr<<prec->name<<" PVA link scan\n";
                     dbProcess(prec);
                 }
             }
@@ -523,11 +538,11 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
 }
 
 
-#define TRY pvaLink *self = (pvaLink*)plink->value.pv_link.pvt; assert(self->alive); try
+#define TRY pvaLink *self = static_cast<pvaLink*>(plink->value.json.jlink); assert(self->alive); try
 #define CATCH(LOC) catch(std::exception& e) { \
     errlogPrintf("pvaLink " #LOC " fails %s: %s\n", plink->precord->name, e.what()); \
 }
-
+/*
 void pvaReportLink(const DBLINK *plink, dbLinkReportInfo *pinfo)
 {
     const char * fname = dbGetFieldName(pinfo->pentry),
@@ -553,20 +568,30 @@ void pvaReportLink(const DBLINK *plink, dbLinkReportInfo *pinfo)
         }
     }CATCH(pvaReportLink)
 }
+*/
+
+void pvaOpenLink(DBLINK *plink)
+{
+    try {
+        pvaLink* self((pvaLink*)plink->value.json.jlink);
+
+        self->plink = plink;
+        std::cerr<<plink->precord->name<<" Open link to '"<<self->name<<"'\n";
+        if(!self->name.empty()) {
+            self->open();
+        }
+
+    }CATCH(pvaOpenLink)
+}
 
 void pvaRemoveLink(struct dbLocker *locker, DBLINK *plink)
 {
     try {
-        std::auto_ptr<pvaLink> self((pvaLink*)plink->value.pv_link.pvt);
+        std::auto_ptr<pvaLink> self((pvaLink*)plink->value.json.jlink);
         assert(self->alive);
         Guard G(self->lchan->lock);
 
-        plink->value.pv_link.backend = NULL;
-        plink->value.pv_link.pvt = NULL;
-        plink->value.pv_link.pvt = 0;
-        plink->value.pv_link.pvlMask = 0;
-        plink->type = PV_LINK;
-        plink->lset = NULL;
+        // TODO: ???
 
     }CATCH(pvaRemoteLink)
 }
@@ -646,6 +671,9 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             pvd::castUnsafeV(count, DBR2PVD(dbrType), pbuffer, self->atomcache.etype, buf);
             *psevr = self->atomcache.sevr;
             *pstat = *psevr ? LINK_ALARM : 0;
+//            if(dbrType==DBF_DOUBLE) {
+//                std::cerr<<"get from cache "<<*(double*)pbuffer<<"\n";
+//            }
             if(pnRequest) *pnRequest = count;
             return 0;
         }
@@ -689,6 +717,9 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             *psevr = INVALID_ALARM;
         }
         if(!self->lchan->chanmon) *psevr = INVALID_ALARM; // alarm when disconnected
+        if(dbrType==DBF_DOUBLE) {
+            std::cerr<<"get latest "<<*(double*)pbuffer<<" "<<*psevr<<"\n";
+        }
         *pstat = *psevr ? LINK_ALARM : 0;
         return 0;
     }CATCH(pvaIsConnected)
@@ -792,10 +823,14 @@ void pvaScanForward(DBLINK *plink)
     }CATCH(pvaIsConnected)
 }
 
+#undef TRY
+#undef CATCH
+
 lset pva_lset = {
-    LSET_API_VERSION,
-    &pvaReportLink,
+    0, 1, // non-const, volatile
+    &pvaOpenLink,
     &pvaRemoveLink,
+    NULL, NULL, NULL,
     &pvaIsConnected,
     &pvaGetDBFtype,
     &pvaGetElements,
@@ -808,9 +843,11 @@ lset pva_lset = {
     &pvaGetAlarm,
     &pvaGetTimeStamp,
     &pvaPutValue,
+    NULL,
     &pvaScanForward
+    //&pvaReportLink,
 };
-
+/*
 static
 void (*nextAddLinkHook)(DBLINK *plink, short dbfType);
 
@@ -845,10 +882,49 @@ void pvaAddLinkHook(DBLINK *plink, short dbfType)
         // return w/ lset==NULL results in an invalid link (all operations error)
     }
 }
+*/
+static void stopPVAPool(void*)
+{
+    // stop CP scans before closing links
+    epicsThreadPoolDestroy(pvaGlobal->scanpool);
+    pvaGlobal->scanpool = NULL; // TODO: locking?
+}
+
+static void finalizePVA(void*)
+{
+    try {
+        std::cout<<"cleanupPVALink\n";
+        //dbAddLinkHook = nextAddLinkHook;
+
+        {
+            Guard G(pvaGlobal->lock);
+            if(pvaGlobal->channels.size()) {
+                std::cerr<<"pvaLink still has "<<pvaGlobal->channels.size()
+                        <<"active channels after doCloseLinks()\n";
+            }
+        }
+
+        delete pvaGlobal;
+        pvaGlobal = NULL;
+
+        if(epics::atomic::get(pvaLink::refs)) {
+            std::cerr<<"pvaLink leaking "<<epics::atomic::get(pvaLink::refs)<<" links\n";
+        }
+        if(epics::atomic::get(pvaLinkChannel::refs)) {
+            std::cerr<<"pvaLink leaking "<<epics::atomic::get(pvaLinkChannel::refs)<<" channels\n";
+        }
+
+    }catch(std::exception& e){
+        errlogPrintf("Error initializing pva link handling : %s\n", e.what());
+    }
+}
 
 void initPVALink(initHookState state)
 {
     if(state==initHookAfterCaLinkInit) {
+        // before epicsExit(exitDatabase)
+        // so hook registered here will be run after iocShutdown()
+        // which closes links
         try {
             std::cout<<"initPVALink\n";
 
@@ -856,47 +932,219 @@ void initPVALink(initHookState state)
 
             pvaGlobal = new pvaGlobal_t;
 
-            nextAddLinkHook = dbAddLinkHook;
-            dbAddLinkHook = &pvaAddLinkHook;
+            epicsAtExit(finalizePVA, NULL);
+
+            //nextAddLinkHook = dbAddLinkHook;
+            //dbAddLinkHook = &pvaAddLinkHook;
         }catch(std::exception& e){
             errlogPrintf("Error initializing pva link handling : %s\n", e.what());
         }
 
-    } else if(state==initHookAtIocShutdown) {
-
-        // stop CP scans before closing links
-        epicsThreadPoolDestroy(pvaGlobal->scanpool);
-        pvaGlobal->scanpool = NULL;
-
-    } else if(state==initHookAfterCaLinkClose) {
-        try {
-            std::cout<<"cleanupPVALink\n";
-            dbAddLinkHook = nextAddLinkHook;
-
-            {
-                Guard G(pvaGlobal->lock);
-                if(pvaGlobal->channels.size()) {
-                    std::cerr<<"pvaLink still has "<<pvaGlobal->channels.size()
-                            <<"active channels after doCloseLinks()\n";
-                }
-            }
-
-            delete pvaGlobal;
-            pvaGlobal = NULL;
-
-            if(epics::atomic::get(pvaLink::refs)) {
-                std::cerr<<"pvaLink leaking "<<epics::atomic::get(pvaLink::refs)<<" links\n";
-            }
-            if(epics::atomic::get(pvaLinkChannel::refs)) {
-                std::cerr<<"pvaLink leaking "<<epics::atomic::get(pvaLinkChannel::refs)<<" channels\n";
-            }
-
-        }catch(std::exception& e){
-            errlogPrintf("Error initializing pva link handling : %s\n", e.what());
-        }
-
+    } else if(state==initHookAfterIocBuilt) {
+        // after epicsExit(exitDatabase)
+        // so hook registered here will be run before iocShutdown()
+        epicsAtExit(stopPVAPool, NULL);
     }
 }
+
+jlink* pva_alloc_jlink(short dbr)
+{
+    try {
+
+        std::cerr<<"alloc jlink\n";
+        return new pvaLink;
+
+    }catch(std::exception& e){
+        return NULL;
+    }
+}
+
+#define TRY  pvaLink *pvt = static_cast<pvaLink*>(pjlink); (void)pvt; try
+#define CATCH(RET) catch(std::exception& e){ \
+    errlogPrintf("Error in %s link: %s\n", __FUNCTION__, e.what()); \
+    return RET; }
+
+void pva_free_jlink(jlink *pjlink)
+{
+    //TODO: not called on parse error?
+    TRY {
+        std::cerr<<"free jlink\n";
+        delete pvt;
+    }catch(std::exception& e){
+        errlogPrintf("Error freeing pva link: %s\n", e.what());
+    }
+}
+
+void pva_end_child(jlink *pjparent, jlink *pjlink)
+{}
+
+jlif_result pva_parse_null(jlink *pjlink)
+{
+    TRY{
+        std::cerr<<"NULL parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_boolean(jlink *pjlink, int val)
+{
+    TRY{
+        std::cerr<<"bool parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_integer(jlink *pjlink, long num)
+{
+    TRY{
+        std::cerr<<"INT parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_double(jlink *pjlink, double num)
+{
+    TRY{
+        std::cerr<<"DOUBLE parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_string(jlink *pjlink, const char *val, size_t len)
+{
+    TRY{
+        if(pvt->parse_level==0) {
+            std::string lstr(val, len);
+
+            size_t A, B;
+            A = lstr.find_first_not_of(" \t");
+            B = lstr.find_first_of(" \t", A);
+
+            if(A==lstr.npos || B==lstr.npos || A==B) {
+                std::cerr<<"Empty PVA target?\n";
+                return jlif_stop;
+            }
+
+            pvt->name = lstr.substr(A, B==lstr.npos ? lstr.npos : B-A);
+
+            for(A = lstr.find_first_not_of(" \t", B),
+                B = lstr.find_first_of(" \t", A);
+                A!=lstr.npos;
+                A = lstr.find_first_not_of(" \t", B),
+                B = lstr.find_first_of(" \t", A)
+            ){
+                size_t C = B==lstr.npos ? lstr.npos : B-A;
+
+                if(lstr.compare(A, C, "CPP")==0)
+                    pvt->linkmods |= pvlOptCPP;
+                else if(lstr.compare(A, C, "CP")==0)
+                    pvt->linkmods |= pvlOptCP;
+                else if(lstr.compare(A, C, "MSI")==0)
+                    pvt->linkmods |= pvlOptMSI;
+                else if(lstr.compare(A, C, "MSS")==0)
+                    pvt->linkmods |= pvlOptMSS;
+                else if(lstr.compare(A, C, "MS")==0)
+                    pvt->linkmods |= pvlOptMS;
+                // else // unknown modifier?
+            }
+
+            std::cerr<<"Link set PVA name '"<<pvt->name<<"'\n";
+            return jlif_continue;
+        }
+        std::cerr<<"STRING parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_key_result pva_parse_start_map(jlink *pjlink)
+{
+    TRY{
+        std::cerr<<"{ parse\n";
+        return jlif_key_stop;
+    }CATCH(jlif_key_stop)
+}
+
+jlif_result pva_parse_map_key(jlink *pjlink, const char *key, size_t len)
+{
+    TRY{
+        std::cerr<<"KEY parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_end_map(jlink *pjlink)
+{
+    TRY{
+        std::cerr<<"} parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_start_array(jlink *pjlink)
+{
+    TRY{
+        std::cerr<<"[ parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+jlif_result pva_parse_end_array(jlink *pjlink)
+{
+    TRY{
+        std::cerr<<"] parse\n";
+        return jlif_stop;
+    }CATCH(jlif_stop)
+}
+
+struct lset* pva_get_lset(const jlink *pjlink)
+{
+    return &pva_lset;
+}
+
+void pva_report(const jlink *rpjlink)
+{
+    jlink *pjlink = const_cast<jlink*>(rpjlink);
+    TRY {
+        const char * fname = "???", //TODO: how to find out?
+                   * rname = pvt->plink->precord->name;
+        int connected = pvt->lchan->chan && pvt->lchan->chanmon;
+
+        if(connected) {
+
+            {
+                printf("  %28s.%-4s ==> pva://%s.%s\n",
+                       rname, fname,
+                       pvt->name.c_str(), pvt->field.c_str());
+            }
+        } else {
+            {
+                printf("  %28s.%-4s --> pva://%s.%s\n",
+                       rname, fname,
+                       pvt->name.c_str(), pvt->field.c_str());
+            }
+        }
+    }CATCH()
+}
+
+
+jlif lsetPVA = {
+    "pva",
+    &pva_alloc_jlink,
+    &pva_free_jlink,
+    &pva_parse_null,
+    &pva_parse_boolean,
+    &pva_parse_integer,
+    &pva_parse_double,
+    &pva_parse_string,
+    &pva_parse_start_map,
+    &pva_parse_map_key,
+    &pva_parse_end_map,
+    &pva_parse_start_array,
+    &pva_parse_end_array,
+    &pva_end_child,
+    &pva_get_lset,
+    &pva_report
+};
 
 } // namespace
 
@@ -919,3 +1167,4 @@ void installPVAAddLinkHook()
 }
 
 epicsExportRegistrar(installPVAAddLinkHook);
+epicsExportAddress(jlif, lsetPVA);
