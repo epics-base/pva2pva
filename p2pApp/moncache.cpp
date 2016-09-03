@@ -54,6 +54,14 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
     interested_t::vector_type tonotify;
     {
         Guard G(mutex());
+        if(typedesc) {
+            // we shouldn't have to deal with monitor type change since we
+            // destroy() Monitors on Channel disconnect.
+            std::cerr<<"monitorConnect() w/ new type.  Monitor has outlived it's connection.\n";
+            monitor->stop();
+            //TODO: unlisten()
+            return;
+        }
         typedesc = structure;
 
         if(status.isSuccess()) {
