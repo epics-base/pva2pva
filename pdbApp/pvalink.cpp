@@ -654,7 +654,7 @@ long pvaGetElements(const DBLINK *plink, long *nelements)
 }
 
 long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
-        epicsEnum16 *pstat, epicsEnum16 *psevr, long *pnRequest)
+        long *pnRequest)
 {
     TRY {
         if(pvaGlobal->scanmagic.get() && self->atomcache.valid) {
@@ -669,8 +669,6 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             }
 
             pvd::castUnsafeV(count, DBR2PVD(dbrType), pbuffer, self->atomcache.etype, buf);
-            *psevr = self->atomcache.sevr;
-            *pstat = *psevr ? LINK_ALARM : 0;
 //            if(dbrType==DBF_DOUBLE) {
 //                std::cerr<<"get from cache "<<*(double*)pbuffer<<"\n";
 //            }
@@ -688,7 +686,6 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             pvd::castUnsafeV(nelem, DBR2PVD(dbrType), pbuffer, arrval.original_type(), arrval.data());
             if(pnRequest) *pnRequest = nelem;
 
-            *psevr = self->sevr->getAs<epicsUInt16>();
         } else if(self->valueS) {
 
             switch(dbrType) {
@@ -710,17 +707,11 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             }
             if(pnRequest) *pnRequest = 1;
 
-            *psevr = self->sevr->getAs<epicsUInt16>();
             if(dbrType==DBF_DOUBLE)
                 std::cerr<<"get direct "<<*(double*)pbuffer<<"\n";
         } else {
-            *psevr = INVALID_ALARM;
+            return -1;
         }
-        if(!self->lchan->chanmon) *psevr = INVALID_ALARM; // alarm when disconnected
-        if(dbrType==DBF_DOUBLE) {
-            std::cerr<<"get latest "<<*(double*)pbuffer<<" "<<*psevr<<"\n";
-        }
-        *pstat = *psevr ? LINK_ALARM : 0;
         return 0;
     }CATCH(pvaIsConnected)
     return S_dbLib_badLink;
@@ -1101,7 +1092,7 @@ struct lset* pva_get_lset(const jlink *pjlink)
     return &pva_lset;
 }
 
-void pva_report(const jlink *rpjlink)
+void pva_report(const jlink *rpjlink, int lvl, int indent)
 {
     jlink *pjlink = const_cast<jlink*>(rpjlink);
     TRY {
@@ -1111,15 +1102,15 @@ void pva_report(const jlink *rpjlink)
 
         if(connected) {
 
-            {
-                printf("  %28s.%-4s ==> pva://%s.%s\n",
-                       rname, fname,
+            if(lvl>=1){
+                printf("%*s%28s.%-4s ==> pva://%s.%s\n",
+                       indent, "", rname, fname,
                        pvt->name.c_str(), pvt->field.c_str());
             }
         } else {
-            {
-                printf("  %28s.%-4s --> pva://%s.%s\n",
-                       rname, fname,
+            if(lvl>=0){
+                printf("%*s%28s.%-4s --> pva://%s.%s\n",
+                       indent, "", rname, fname,
                        pvt->name.c_str(), pvt->field.c_str());
             }
         }
@@ -1143,7 +1134,8 @@ jlif lsetPVA = {
     &pva_parse_end_array,
     &pva_end_child,
     &pva_get_lset,
-    &pva_report
+    &pva_report,
+    NULL
 };
 
 } // namespace
