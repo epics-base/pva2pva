@@ -26,7 +26,8 @@
 #include "pvif.h"
 #include "pvalink.h"
 
-int pvaLinkDebug = 0;
+int pvaLinkDebug;
+int pvaLinkIsolate;
 
 namespace pvalink {
 
@@ -42,13 +43,14 @@ std::tr1::shared_ptr<pvaLinkChannel> pvaGlobal_t::connect(const char *name)
         Guard G(lock);
         channels_t::iterator it = channels.find(name);
         if(it==channels.end()) {
-            errlogPrintf("pvaLink search for '%s'\n", name);
+            if(pvaLinkDebug>2) std::cerr<<"pvalink open channel for '"<<name<<"'\n";
 
             std::tr1::shared_ptr<pvaLinkChannel> C(new pvaLinkChannel(name));
             ret = channels[name] = C;
             doconn = true;
 
         } else {
+            if(pvaLinkDebug>2) std::cerr<<"pvalink reuse channel for '"<<name<<"'\n";
             ret = it->second;
         }
     }
@@ -56,6 +58,23 @@ std::tr1::shared_ptr<pvaLinkChannel> pvaGlobal_t::connect(const char *name)
         ret->doConnect();
     }
     return ret;
+}
+
+pvaGlobal_t::pvaGlobal_t()
+    :provider(pva::getChannelProviderRegistry()->getProvider(pvaLinkIsolate ? "QSRV" : "pva"))
+    ,reqtype(pvd::getFieldCreate()->createFieldBuilder()
+             ->createStructure())
+    ,create(pvd::getPVDataCreate())
+{
+    if(!provider)
+        throw std::runtime_error("No pva provider");
+    epicsThreadPoolConfig conf;
+    epicsThreadPoolConfigDefaults(&conf);
+    conf.workerPriority = epicsThreadPriorityLow+10; // similar to once thread
+    conf.initialThreads = 1;
+    scanpool = epicsThreadPoolCreate(&conf);
+    if(!scanpool)
+        throw std::runtime_error("Failed to create pvaLink scan pool");
 }
 
 size_t pvaLinkChannel::refs;
@@ -271,6 +290,7 @@ void pvaRemoveLink(struct dbLocker *locker, DBLINK *plink)
         Guard G(self->lchan->lock);
 
         // TODO: ???
+        std::cerr<<__FUNCTION__<<" "<<self->plink->precord->name<<" -> "<<self->name<<"\n";
 
     }CATCH(pvaRemoteLink)
 }
@@ -657,7 +677,7 @@ jlif_result pva_parse_string(jlink *pjlink, const char *val, size_t len)
             A = lstr.find_first_not_of(" \t");
             B = lstr.find_first_of(" \t", A);
 
-            if(A==lstr.npos || B==lstr.npos || A==B) {
+            if(A==lstr.npos || A==B) {
                 std::cerr<<"Empty PVA target?\n";
                 return jlif_stop;
             }

@@ -1,0 +1,15 @@
+
+record(longin, "target:li") {
+    field(VAL, "42")
+}
+record(ai, "target:ai") {
+    field(VAL, "4.0")
+}
+
+record(longin, "src:li1") {
+    field(INP, {pva:"target:li"})
+}
+
+record(longin, "src:li2") {
+    field(INP, {pva:"target:ai CP"})
+}

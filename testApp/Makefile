@@ -11,6 +11,7 @@ USR_CPPFLAGS += -I$(TOP)/common
 
 TARGETS += $(COMMON_DIR)/p2pTestIoc.dbd
 p2pTestIoc_DBD += base.dbd
+p2pTestIoc_DBD += qsrv.dbd
 
 LIBRARY += testutils
 
@@ -53,6 +54,12 @@ TESTS += testpdb
 PROD_HOST += check_consist
 check_consist_SRCS += check_consist.cpp
 check_consist_LIBS += testutils pvAccess pvData Com
+
+TESTPROD_HOST += testpvalink
+testpvalink_SRCS += testpvalink.cpp
+testpvalink_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
+testpvalink_LIBS += testutils pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+TESTS += testpvalink
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 

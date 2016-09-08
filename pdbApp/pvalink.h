@@ -28,6 +28,7 @@
 #include "pvif.h"
 
 extern int pvaLinkDebug;
+extern int pvaLinkIsolate;
 
 namespace pvalink {
 
@@ -63,22 +64,7 @@ struct pvaGlobal_t {
 
     std::tr1::shared_ptr<pvaLinkChannel> connect(const char *name);
 
-    pvaGlobal_t()
-        :provider(pva::getChannelProviderRegistry()->getProvider("pva"))
-        ,reqtype(pvd::getFieldCreate()->createFieldBuilder()
-                 ->createStructure())
-        ,create(pvd::getPVDataCreate())
-    {
-        if(!provider)
-            throw std::runtime_error("No pva provider");
-        epicsThreadPoolConfig conf;
-        epicsThreadPoolConfigDefaults(&conf);
-        conf.workerPriority = epicsThreadPriorityLow+10; // similar to once thread
-        conf.initialThreads = 1;
-        scanpool = epicsThreadPoolCreate(&conf);
-        if(!scanpool)
-            throw std::runtime_error("Failed to create pvaLink scan pool");
-    }
+    pvaGlobal_t();
     ~pvaGlobal_t()
     {
         provider->destroy();
@@ -226,6 +212,9 @@ struct pvaLink : public jlink
         ,alive(true)
     {
         epics::atomic::increment(refs);
+        //TODO: valgrind tells me these aren't initialized by Base, but probably should be.
+        parseDepth = 0;
+        parent = 0;
     }
 
     void open()
