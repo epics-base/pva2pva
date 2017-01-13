@@ -222,6 +222,7 @@ struct pvaLink : public jlink
         if(this->name.empty())
             throw std::logic_error("open() w/o target PV name");
         this->name = name;
+        //TODO: how to distinguish "record.FLD" from pva "channel.subfield"?
         size_t dot = this->name.find_first_of('.');
         if(dot!=this->name.npos) {
             field = this->name.substr(dot+1);

@@ -431,7 +431,7 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(137);
+    testPlan(138);
     try{
         TestIOC IOC;
 
@@ -457,6 +457,7 @@ MAIN(testpdb)
             throw;
         }
         prov->destroy();
+        testOk1(prov.unique());
         prov.reset();
 
         testDiag("check to see that all dbChannel are closed before IOC shuts down");

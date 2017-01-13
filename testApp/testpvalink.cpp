@@ -9,6 +9,8 @@ namespace {
 
 void testGet()
 {
+    testDiag("==== testGet ====");
+
     testdbGetFieldEqual("target:li.VAL", DBF_LONG, 42);
     testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 0);
     testdbGetFieldEqual("src:li1.INP", DBF_STRING, "{\"pva\":\"target:li\"}");
@@ -19,7 +21,6 @@ void testGet()
 
     testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 42);
 
-    //TODO: how to distinguish "record.FLD" from pva "channel.subfield"?
     testdbPutFieldOk("src:li1.INP", DBF_STRING, "{\"pva\":\"target:ai\"}");
 
     testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 42);
@@ -31,6 +32,19 @@ void testGet()
     epicsThreadSleep(0.1);
 
     testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 4);
+}
+
+void testPut()
+{
+    testDiag("==== testPut ====");
+    testdbGetFieldEqual("target:li2.VAL", DBF_LONG, 43);
+    testdbGetFieldEqual("src:li2.VAL", DBF_LONG, 0);
+    testdbGetFieldEqual("src:li2.INP", DBF_STRING, "{\"pva\":\"target:l2\"}");
+
+    testdbPutFieldOk("src:li2.VAL", DBF_LONG, 14);
+
+    testdbGetFieldEqual("target:li2.VAL", DBF_LONG, 14);
+    testdbGetFieldEqual("src:li2.VAL", DBF_LONG, 14);
 }
 
 } // namespace
@@ -55,6 +69,7 @@ MAIN(testpvalink)
 
         IOC.init();
         testGet();
+        testPut();
         IOC.shutdown();
 
     }catch(std::exception& e){
