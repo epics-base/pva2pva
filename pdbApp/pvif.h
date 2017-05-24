@@ -205,12 +205,12 @@ struct DBManyLock
     dbLocker *plock;
     DBManyLock() :plock(NULL) {}
     DBManyLock(const std::vector<dbCommon*>& recs, unsigned flags)
-        :plock(dbLockerAlloc(&recs[0], recs.size(), flags))
+        :plock(dbLockerAlloc((dbCommon**)&recs[0], recs.size(), flags))
     {
         if(!plock) throw std::invalid_argument("Failed to create locker");
     }
     DBManyLock(dbCommon * const *precs, size_t nrecs, unsigned flags=0)
-        :plock(dbLockerAlloc(precs, nrecs, flags))
+        :plock(dbLockerAlloc((dbCommon**)precs, nrecs, flags))
     {
         if(!plock) throw std::invalid_argument("Failed to create locker");
     }
