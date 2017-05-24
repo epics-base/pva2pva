@@ -3,6 +3,7 @@
 #include <epicsAtomic.h>
 #include <epicsString.h>
 
+#include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
 
@@ -11,6 +12,12 @@
 #include "iocshelper.h"
 #include "pva2pva.h"
 #include "server.h"
+
+#if defined(PVDATA_VERSION_INT)
+#if PVDATA_VERSION_INT > VERSION_INT(7,0,0,0)
+#  define USE_MSTATS
+#endif
+#endif
 
 namespace pva = epics::pvAccess;
 namespace pvd = epics::pvData;
@@ -315,7 +322,9 @@ void statusServer(int lvl, const char *chanexpr)
 
                     MonitorCacheEntry::interested_t::vector_type usrs;
                     size_t nsrvmon;
+#ifdef USE_MSTATS
                     pvd::Monitor::Stats mstats;
+#endif
                     bool hastype, hasdata, isdone;
                     {
                         Guard G(ME.mutex());
@@ -325,8 +334,10 @@ void statusServer(int lvl, const char *chanexpr)
                         hasdata = !!ME.lastelem;
                         isdone = ME.done;
 
+#ifdef USE_MSTATS
                         if(ME.mon)
                             ME.mon->getStats(mstats);
+#endif
 
                         if(lvl>2)
                             usrs = ME.interested.lock_vector();
@@ -339,11 +350,12 @@ void statusServer(int lvl, const char *chanexpr)
                              <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n"
                                "    "<<      epicsAtomicGetSizeT(&ME.nwakeups)<<" wakeups "
                              <<epicsAtomicGetSizeT(&ME.nevents)<<" events\n";
+#ifdef USE_MSTATS
                     if(mstats.nempty || mstats.nfilled || mstats.noutstanding)
                         std::cout<<"    US monitor queue "<<mstats.nfilled
                                  <<" filled, "<<mstats.noutstanding
                                  <<" outstanding, "<<mstats.nempty<<" empty\n";
-
+#endif
                     if(lvl<=2)
                         continue;
 
