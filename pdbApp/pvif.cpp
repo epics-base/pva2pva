@@ -1,9 +1,17 @@
 
 #include <dbAccess.h>
 
+#include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/standardField.h>
 
 #include "pvif.h"
+
+
+#if defined(PVDATA_VERSION_INT)
+#if PVDATA_VERSION_INT > VERSION_INT(7,0,0,0)
+#  define USE_LOGICAL_AND
+#endif
+#endif
 
 namespace pvd = epics::pvData;
 
@@ -425,8 +433,15 @@ struct PVIFScalarNumeric : public PVIF
 
     virtual void get(epics::pvData::BitSet& mask)
     {
-        if(mask.bitwise_and(pvmeta.maskVALUE))
+#ifdef USE_LOGICAL_AND
+        if(mask.logical_and(pvmeta.maskVALUE))
             getValue(pvmeta);
+#else
+        pvd::BitSet temp(mask);
+        mask &= pvmeta.maskVALUE;
+        if(!temp.isEmpty())
+            getValue(pvmeta);
+#endif
     }
 
 };
