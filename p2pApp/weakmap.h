@@ -185,6 +185,14 @@ public:
                 throw std::runtime_error("Bad key");
             return ret;
         }
+        bool operator==(const value_pointer& v) const
+        {
+            return M.find(k)==v;
+        }
+        bool operator!=(const value_pointer& v) const
+        {
+            return !(*this==v);
+        }
     };
 
     inline element_proxy operator[](const K& k)
