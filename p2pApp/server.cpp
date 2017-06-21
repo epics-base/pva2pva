@@ -6,6 +6,7 @@
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
+#include <pv/logger.h>
 
 #define epicsExportSharedSymbols
 #include "helper.h"
@@ -127,6 +128,13 @@ void GWServerChannelProvider::destroy()
     std::cout<<"GWServer destory request\n";
 }
 
+GWServerChannelProvider::GWServerChannelProvider(const std::tr1::shared_ptr<epics::pvAccess::Configuration> &conf)
+    :cache(pva::ChannelProviderRegistry::clients()->getProvider("pva"))
+{
+    //TODO: use Configuration to get "pva"
+    std::cout<<"GW Server ctor\n";
+}
+
 GWServerChannelProvider::GWServerChannelProvider(const pva::ChannelProvider::shared_pointer& prov)
     :cache(prov)
 {
@@ -139,107 +147,71 @@ GWServerChannelProvider::~GWServerChannelProvider()
 
 namespace {
 
-struct GWServerChannelProviderFactory : public pva::ChannelProviderFactory
-{
-    pva::ChannelProvider::weak_pointer last_provider;
-
-    virtual std::string getFactoryName()
-    {
-        return "GWServer";
-    }
-
-    virtual pva::ChannelProvider::shared_pointer sharedInstance()
-    {
-        pva::ChannelProvider::shared_pointer P(last_provider.lock());
-        if(!P) {
-            P.reset(new GWServerChannelProvider(pva::getChannelProviderRegistry()->getProvider("pva")));
-            last_provider = P;
-        }
-        return P;
-    }
-
-    virtual pva::ChannelProvider::shared_pointer newInstance()
-    {
-        pva::ChannelProvider::shared_pointer P(new GWServerChannelProvider(pva::getChannelProviderRegistry()->getProvider("pva")));
-        last_provider = P;
-        return P;
-    }
-};
-
-static
-bool p2pServerRunning;
-
-static
-std::tr1::weak_ptr<pva::ServerContextImpl> gblctx; //TODO mutex for this
-
-static
-void runGWServer(void *)
-{
-    printf("Gateway server starting\n");
-    try{
-        pva::ServerContextImpl::shared_pointer ctx(pva::ServerContextImpl::create());
-
-        ctx->setChannelProviderName("GWServer");
-
-        ctx->initialize(pva::getChannelProviderRegistry());
-
-        printf("Gateway running\n");
-        gblctx = ctx;
-        ctx->run(0); // zero means forever ?
-        gblctx.reset();
-        printf("Gateway stopping\n");
-
-        ctx->destroy();
-    }catch(std::exception& e){
-        printf("Gateway server error: %s\n", e.what());
-        gblctx.reset();
-    }
-    printf("Gateway stopped\n");
-    p2pServerRunning = false;
-}
+static epicsMutex gbllock;
+static std::tr1::shared_ptr<pva::ServerContext> gblctx;
 
 void startServer()
 {
-    if(p2pServerRunning) {
-        printf("Already started\n");
-        return;
+    try {
+        Guard G(gbllock);
+        if(gblctx) {
+            printf("Already started\n");
+            return;
+        }
+
+        pva::ChannelProvider::shared_pointer client(pva::ChannelProviderRegistry::clients()->getProvider("pva")),
+                                             server(new GWServerChannelProvider(client));
+
+        gblctx = pva::ServerContext::create(pva::ServerContext::Config()
+                                            .provider(server)
+                                            .config(pva::ConfigurationBuilder()
+                                                    .push_env()
+                                                    .build()));
+    }catch(std::exception& e){
+        printf("Error: %s\n", e.what());
     }
-
-    epicsThreadMustCreate("gwserv",
-                          epicsThreadPriorityCAServerLow-2,
-                          epicsThreadGetStackSize(epicsThreadStackSmall),
-                          &runGWServer, NULL);
-
-    p2pServerRunning = true;
 }
 
 void stopServer()
 {
-    pva::ServerContextImpl::shared_pointer ctx(gblctx.lock());
+    try {
+        Guard G(gbllock);
 
-    if(ctx.get()) {
-        printf("Reqesting stop\n");
-        ctx->shutdown();
-    } else
-        printf("Not running\n");
+        if(!gblctx) {
+            printf("Not started\n");
+            return;
+        } else {
+            gblctx->shutdown();
+            gblctx.reset();
+        }
+    }catch(std::exception& e){
+        printf("Error: %s\n", e.what());
+    }
 }
 
 void infoServer(int lvl)
 {
-    (void)lvl;
-    pva::ServerContextImpl::shared_pointer ctx(gblctx.lock());
+    try {
+        Guard G(gbllock);
 
-    if(ctx) {
-        ctx->printInfo();
-    } else {
-        printf("Not running");
+        if(gblctx) {
+            gblctx->printInfo();
+        } else {
+            printf("Not running");
+        }
+    }catch(std::exception& e){
+        printf("Error: %s\n", e.what());
     }
 }
 
 void statusServer(int lvl, const char *chanexpr)
 {
     try{
-        pva::ServerContextImpl::shared_pointer ctx(gblctx);
+        pva::ServerContext::shared_pointer ctx;
+        {
+            Guard G(gbllock);
+            ctx = gblctx;
+        }
         if(!ctx) {
             std::cout<<"Not running\n";
             return;
@@ -403,7 +375,7 @@ void dropChannel(const char *chan)
 {
     if(!chan) return;
     try {
-        pva::ServerContextImpl::shared_pointer ctx(gblctx);
+        pva::ServerContext::shared_pointer ctx(gblctx);
         if(!ctx) {
             std::cout<<"Not running\n";
             return;
@@ -460,7 +432,11 @@ void refCheck(int lvl)
                    "      Actual leaks will manifest as a sustained increases.\n";
 
         size_t chan_count = 0, mon_count = 0, mon_user_count = 0;
-        pva::ServerContextImpl::shared_pointer ctx(gblctx.lock());
+        pva::ServerContext::shared_pointer ctx(gblctx);
+        if(!ctx) {
+            std::cout<<"Not running\n";
+            return;
+        }
         if(ctx) {
             const AUTO_REF(prov, ctx->getChannelProviders());
 
@@ -549,13 +525,9 @@ void pvadebug(const char *lvl)
 
 } // namespace
 
-static
-pva::ChannelProviderFactory::shared_pointer GWServerFactory;
-
 void registerGWServerIocsh()
 {
-    GWServerFactory.reset(new GWServerChannelProviderFactory);
-    pva::registerChannelProviderFactory(GWServerFactory);
+    pva::ChannelProviderRegistry::servers()->add<GWServerChannelProvider>("GWServer", false);
 
     iocshRegister<&startServer>("gwstart");
     iocshRegister<&stopServer>("gwstop");
@@ -568,9 +540,6 @@ void registerGWServerIocsh()
 
 void gwServerShutdown()
 {
-    pva::ServerContextImpl::shared_pointer P(gblctx.lock());
-    if(P)
-        stopServer();
-    if(GWServerFactory)
-        unregisterChannelProviderFactory(GWServerFactory);
+    stopServer();
+    pva::ChannelProviderRegistry::servers()->remove("GWServer");
 }

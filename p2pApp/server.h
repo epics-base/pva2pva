@@ -33,6 +33,7 @@ struct GWServerChannelProvider : public
     virtual void configure(epics::pvData::PVStructure::shared_pointer /*configuration*/);
     virtual void destroy();
 
+    GWServerChannelProvider(const std::tr1::shared_ptr<epics::pvAccess::Configuration>& conf);
     GWServerChannelProvider(const epics::pvAccess::ChannelProvider::shared_pointer& prov);
     virtual ~GWServerChannelProvider();
 };
