@@ -413,7 +413,7 @@ struct PVIFScalarNumeric : public PVIF
     }
     virtual ~PVIFScalarNumeric() {}
 
-    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl)
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
     {
         try{
             putAll<PVM, META>(pvmeta, dbe, pfl);
@@ -431,7 +431,7 @@ struct PVIFScalarNumeric : public PVIF
         }
     }
 
-    virtual void get(epics::pvData::BitSet& mask)
+    virtual void get(epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
 #ifdef USE_LOGICAL_AND
         if(mask.logical_and(pvmeta.maskVALUE))

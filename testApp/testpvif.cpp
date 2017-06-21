@@ -161,32 +161,42 @@ void testScalar()
     root->getSubFieldT<pvd::PVInt>("li.value")->put(102043);
     root->getSubFieldT<pvd::PVString>("si.value")->put("world");
     root->getSubFieldT<pvd::PVDouble>("ai.value")->put(44.4);
+    root->getSubFieldT<pvd::PVInt>("ai_rval.value")->put(2143);
     root->getSubFieldT<pvd::PVInt>("mbbi.value.index")->put(2);
 
+    dbScanLock((dbCommon*)prec_li);
     mask.clear();
     mask.set(root->getSubFieldT("li.value")->getFieldOffset());
-    mask.set(root->getSubFieldT("si.value")->getFieldOffset());
-    mask.set(root->getSubFieldT("ai.value")->getFieldOffset());
-    mask.set(root->getSubFieldT("mbbi.value.index")->getFieldOffset());
-
-    dbScanLock((dbCommon*)prec_li);
     pvif_li->get(mask);
-    testOk1(prec_li->val==102043);
+    testEqual(prec_li->val, 102043);
     dbScanUnlock((dbCommon*)prec_li);
 
     dbScanLock((dbCommon*)prec_si);
+    mask.clear();
+    mask.set(root->getSubFieldT("si.value")->getFieldOffset());
     pvif_si->get(mask);
-    testOk1(strcmp(prec_si->val, "world")==0);
+    testOk(strcmp(prec_si->val, "world")==0, "\"%s\" == \"%s\"", prec_si->val, "world");
     dbScanUnlock((dbCommon*)prec_si);
 
     dbScanLock((dbCommon*)prec_ai);
+    mask.clear();
+    mask.set(root->getSubFieldT("ai.value")->getFieldOffset());
     pvif_ai->get(mask);
-    testOk1(prec_ai->val==44.4);
+    testEqual(prec_ai->val, 44.4);
+    dbScanUnlock((dbCommon*)prec_ai);
+
+    dbScanLock((dbCommon*)prec_ai);
+    mask.clear();
+    mask.set(root->getSubFieldT("ai_rval.value")->getFieldOffset());
+    pvif_ai_rval->get(mask);
+    testEqual(prec_ai->rval, 2143);
     dbScanUnlock((dbCommon*)prec_ai);
 
     dbScanLock((dbCommon*)prec_mbbi);
+    mask.clear();
+    mask.set(root->getSubFieldT("mbbi.value.index")->getFieldOffset());
     pvif_mbbi->get(mask);
-    testOk1(prec_mbbi->val==2);
+    testEqual(prec_mbbi->val, 2);
     dbScanUnlock((dbCommon*)prec_mbbi);
 }
 
@@ -194,7 +204,7 @@ void testScalar()
 
 MAIN(testpvif)
 {
-    testPlan(56);
+    testPlan(57);
     PVIF::Init();
     testScalar();
     return testDone();
