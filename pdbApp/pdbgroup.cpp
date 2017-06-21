@@ -98,12 +98,21 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
     return ret;
 }
 
+size_t PDBGroupChannel::ninstances;
+
 PDBGroupChannel::PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                                  const std::tr1::shared_ptr<pva::ChannelProvider>& prov,
                                  const pva::ChannelRequester::shared_pointer& req)
     :BaseChannel(pv->name, prov, req, pv->fielddesc)
     ,pv(pv)
-{}
+{
+    epics::atomic::increment(ninstances);
+}
+
+PDBGroupChannel::~PDBGroupChannel()
+{
+    epics::atomic::decrement(ninstances);
+}
 
 void PDBGroupChannel::printInfo(std::ostream& out)
 {

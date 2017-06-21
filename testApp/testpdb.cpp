@@ -431,7 +431,7 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(138);
+    testPlan(139);
     try{
         TestIOC IOC;
 
@@ -461,6 +461,7 @@ MAIN(testpdb)
         prov.reset();
 
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
+        testEqual(epics::atomic::get(PDBGroupChannel::ninstances), 0u);
         testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);
         testEqual(epics::atomic::get(PDBSinglePV::ninstances), 0u);
 

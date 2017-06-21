@@ -72,10 +72,12 @@ struct PDBGroupChannel : public BaseChannel,
 
     PDBGroupPV::shared_pointer pv;
 
+    static size_t ninstances;
+
     PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                 const std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
-    virtual ~PDBGroupChannel() {}
+    virtual ~PDBGroupChannel();
 
     virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
             epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
