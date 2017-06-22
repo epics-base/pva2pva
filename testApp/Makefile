@@ -11,7 +11,8 @@ USR_CPPFLAGS += -I$(TOP)/common
 
 TARGETS += $(COMMON_DIR)/p2pTestIoc.dbd
 p2pTestIoc_DBD += base.dbd
-p2pTestIoc_DBD += qsrv.dbd
+# Tests explicitly create/destory PDB provider
+#p2pTestIoc_DBD += qsrv.dbd
 
 LIBRARY += testutils
 

@@ -2,6 +2,7 @@
 #include <epicsExport.h>
 #include <initHooks.h>
 #include <epicsExit.h>
+#include <epicsThread.h>
 
 #include <pv/pvAccess.h>
 #include <pv/serverContext.h>
@@ -12,20 +13,33 @@
 
 namespace pva = epics::pvAccess;
 
-static
-epicsMutex qsrv_lock;
+namespace {
 
-static
-pva::ServerContext::shared_pointer qsrv;
+struct qsrv_t {
+    epicsMutex mutex;
+
+    pva::ServerContext::shared_pointer server;
+
+    pva::ChannelProviderFactory::shared_pointer provider;
+} *qsrv;
+
+} // namespace
 
 void qsrvStart()
 {
     try{
-        epicsGuard<epicsMutex> G(qsrv_lock);
-        if(qsrv) {
+        if(!qsrv) {
+            qsrv = new qsrv_t;
+        }
+        epicsGuard<epicsMutex> G(qsrv->mutex);
+        if(qsrv->server) {
             std::cout<<"QSRV already started\n";
         } else {
-            qsrv = pva::startPVAServer("QSRV", 0, true, false);
+            qsrv->provider.reset(new BaseChannelProviderFactory<PDBProvider>("QSRV"));
+            pva::registerChannelProviderFactory(qsrv->provider);
+            qsrv->server = pva::startPVAServer("QSRV", 0, true, false);
+            if(!qsrv->server.unique())
+                printf("Warning: new QSRV server instance includes reference loop\n");
         }
     }catch(std::exception& e){
         printf("Error: %s\n", e.what());
@@ -35,12 +49,20 @@ void qsrvStart()
 void qsrvStop()
 {
     try{
-        epicsGuard<epicsMutex> G(qsrv_lock);
-        if(!qsrv) {
+        epicsGuard<epicsMutex> G(qsrv->mutex);
+        if(!qsrv->server) {
             std::cout<<"QSRV not running\n";
         } else {
-            qsrv->destroy();
-            qsrv.reset();
+            if(!qsrv->server.unique())
+                printf("Warning: QSRV server leaks1\n");
+            qsrv->server->destroy();
+            if(!qsrv->server.unique())
+                printf("Warning: QSRV server leaks2\n");
+            qsrv->server.reset();
+            pva::unregisterChannelProviderFactory(qsrv->provider);
+            if(!qsrv->provider.unique())
+                printf("Warning: QSRV provider leaks\n");
+            qsrv->provider.reset();
         }
     }catch(std::exception& e){
         printf("Error: %s\n", e.what());
@@ -51,6 +73,8 @@ static
 void QSRVExit(void *)
 {
     qsrvStop();
+    delete qsrv;
+    qsrv = NULL;
 }
 
 static
@@ -65,9 +89,7 @@ void QSRVHooks(initHookState state)
 static
 void QSRVRegistrar()
 {
-    pva::ChannelProviderFactory::shared_pointer fact(new BaseChannelProviderFactory<PDBProvider>("QSRV"));
     initHookRegister(QSRVHooks);
-    pva::registerChannelProviderFactory(fact);
     iocshRegister<&qsrvStart>("qsrvStart");
     iocshRegister<&qsrvStop>("qsrvStop");
 }

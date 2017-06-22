@@ -15,6 +15,8 @@ namespace pvd = epics::pvData;
 extern "C"
 void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
+void qsrvStop();
+
 namespace {
 
 void testScalar()
@@ -198,6 +200,8 @@ void testScalar()
     pvif_mbbi->get(mask);
     testEqual(prec_mbbi->val, 2);
     dbScanUnlock((dbCommon*)prec_mbbi);
+
+    qsrvStop();
 }
 
 } // namespace
