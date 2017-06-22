@@ -247,7 +247,7 @@ struct PVIF {
     virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) =0;
     //! Copy from pvalue to PDB record (call dbChannelPut())
     //! caller must lock record
-    virtual void get(epics::pvData::BitSet& mask) =0;
+    virtual void get(const epics::pvData::BitSet& mask) =0;
 
     static void Init();
 

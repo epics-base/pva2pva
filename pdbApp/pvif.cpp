@@ -431,14 +431,14 @@ struct PVIFScalarNumeric : public PVIF
         }
     }
 
-    virtual void get(epics::pvData::BitSet& mask) OVERRIDE FINAL
+    virtual void get(const epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
 #ifdef USE_LOGICAL_AND
         if(mask.logical_and(pvmeta.maskVALUE))
             getValue(pvmeta);
 #else
         pvd::BitSet temp(mask);
-        mask &= pvmeta.maskVALUE;
+        temp &= pvmeta.maskVALUE;
         if(!temp.isEmpty())
             getValue(pvmeta);
 #endif

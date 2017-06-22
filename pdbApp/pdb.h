@@ -50,6 +50,8 @@ struct PDBProvider : public epics::pvAccess::ChannelProvider,
     transient_pv_map_t transient_pv_map;
 
     dbEventCtx event_context;
+
+    static size_t ninstances;
 };
 
 #endif // PDB_H

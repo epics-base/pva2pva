@@ -4,6 +4,7 @@
 
 #include <errlog.h>
 #include <epicsString.h>
+#include <epicsAtomic.h>
 
 #include "helper.h"
 #include "pdbsingle.h"
@@ -310,6 +311,8 @@ struct PDBProcessor
 };
 }
 
+size_t PDBProvider::ninstances;
+
 PDBProvider::PDBProvider()
 {
     PDBProcessor proc;
@@ -440,10 +443,12 @@ PDBProvider::PDBProvider()
         // TODO, remove PV and continue?
         throw;
     }
+    epics::atomic::increment(ninstances);
 }
 
 PDBProvider::~PDBProvider()
 {
+    epics::atomic::decrement(ninstances);
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
         if(event_context) {

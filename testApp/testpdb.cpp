@@ -244,6 +244,7 @@ void testGroupPut(const PDBProvider::shared_pointer& prov)
     pvd::PVDoublePtr val(put.putval->getSubFieldT<pvd::PVDouble>("fld1.value"));
     val->put(2.0);
     put.putchanged->clear();
+    // putchanged is clear, so no change
     put.put();
 
     testdbGetFieldEqual("rec3", DBR_DOUBLE, 3.0);
@@ -251,13 +252,14 @@ void testGroupPut(const PDBProvider::shared_pointer& prov)
     testdbGetFieldEqual("rec3.RVAL", DBR_LONG, 30);
     testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
 
-    put.putchanged->set(val->getFieldOffset());
     val = put.putval->getSubFieldT<pvd::PVDouble>("fld3.value");
     val->put(5.0);
+    put.putchanged->clear();
+    // mark fld3, but still not fld1
     put.putchanged->set(val->getFieldOffset());
     put.put();
 
-    testdbGetFieldEqual("rec3", DBR_DOUBLE, 2.0);
+    testdbGetFieldEqual("rec3", DBR_DOUBLE, 3.0);
     testdbGetFieldEqual("rec4", DBR_DOUBLE, 5.0);
     testdbGetFieldEqual("rec3.RVAL", DBR_LONG, 30);
     testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
@@ -429,9 +431,11 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
 extern "C"
 void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
+extern void qsrvStop();
+
 MAIN(testpdb)
 {
-    testPlan(139);
+    testPlan(140);
     try{
         TestIOC IOC;
 
@@ -460,7 +464,10 @@ MAIN(testpdb)
         testOk1(prov.unique());
         prov.reset();
 
+        qsrvStop();
+
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
+        testEqual(epics::atomic::get(PDBProvider::ninstances), 0u);
         testEqual(epics::atomic::get(PDBGroupChannel::ninstances), 0u);
         testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);
         testEqual(epics::atomic::get(PDBSinglePV::ninstances), 0u);
