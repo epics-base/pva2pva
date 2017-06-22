@@ -22,10 +22,7 @@ struct TestProvider;
 
 // minimally useful boilerplate which must appear *everywhere*
 #define DUMBREQUESTER(NAME) \
-    virtual std::string getRequesterName() { return #NAME; } \
-    virtual void message(std::string const & message,epics::pvData::MessageType messageType) { \
-        testDiag("%s : " #NAME "(%p) : %s", epics::pvData::getMessageTypeName(messageType).c_str(), this, message.c_str()); \
-    }
+    virtual std::string getRequesterName() { return #NAME; }
 
 template<typename T>
 inline std::string toString(const T& tbs)

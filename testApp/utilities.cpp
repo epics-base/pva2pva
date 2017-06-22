@@ -440,7 +440,7 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
 
             if(mon->free.empty()) {
                 mon->inoverflow = true;
-                mon->overflow->overrunBitSet->or_and(*mon->overflow->changedBitSet, changed); // oflow = prev_changed & new_changed
+                mon->overflow->overrunBitSet->or_and(*mon->overflow->changedBitSet, changed); // oflow |= prev_changed & new_changed
                 *mon->overflow->changedBitSet |= changed;
                 testDiag("overflow changed '%s' overrun '%s'",
                          toString(*mon->overflow->changedBitSet).c_str(),

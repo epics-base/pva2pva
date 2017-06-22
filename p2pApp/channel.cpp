@@ -84,12 +84,6 @@ GWChannel::getChannelRequester()
     return requester;
 }
 
-bool
-GWChannel::isConnected()
-{
-    return entry->channel->isConnected();
-}
-
 
 void
 GWChannel::getField(pva::GetFieldRequester::shared_pointer const & requester,
@@ -253,9 +247,6 @@ GWChannel::createChannelArray(
 }
 
 
-void
-GWChannel::printInfo()
-{ printInfo(std::cout); }
 void
 GWChannel::printInfo(std::ostream& out)
 {

@@ -37,7 +37,6 @@ struct GWChannel : public epics::pvAccess::Channel
     virtual ConnectionState getConnectionState();
     virtual std::string getChannelName();
     virtual std::tr1::shared_ptr<epics::pvAccess::ChannelRequester> getChannelRequester();
-    virtual bool isConnected();
 
     virtual void getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,
                           std::string const & subField);
@@ -64,7 +63,6 @@ struct GWChannel : public epics::pvAccess::Channel
             epics::pvAccess::ChannelArrayRequester::shared_pointer const & channelArrayRequester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
-    virtual void printInfo();
     virtual void printInfo(std::ostream& out);
 
 };

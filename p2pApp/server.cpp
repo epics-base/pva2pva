@@ -61,21 +61,6 @@ GWServerChannelProvider::channelFind(std::string const & channelName,
     return ret;
 }
 
-pva::ChannelFind::shared_pointer
-GWServerChannelProvider::channelList(pva::ChannelListRequester::shared_pointer const & channelListRequester)
-{
-    std::cerr<<"GWServer does not advertise a channel list\n";
-    return pva::ChannelFind::shared_pointer();
-}
-
-pva::Channel::shared_pointer
-GWServerChannelProvider::createChannel(std::string const & channelName,
-                                       pva::ChannelRequester::shared_pointer const & channelRequester,
-                                       short priority)
-{
-    return createChannel(channelName, channelRequester, priority, "foobar");
-}
-
 // The return value of this function is ignored
 // The newly created channel is given to the ChannelRequester
 pva::Channel::shared_pointer
@@ -117,10 +102,6 @@ GWServerChannelProvider::createChannel(std::string const & channelName,
     }
 
     return ret; // ignored by caller
-}
-
-void GWServerChannelProvider::configure(epics::pvData::PVStructure::shared_pointer /*configuration*/) {
-    std::cout<<"GWServer being configured\n";
 }
 
 void GWServerChannelProvider::destroy()

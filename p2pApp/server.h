@@ -22,15 +22,11 @@ struct GWServerChannelProvider : public
 
     virtual epics::pvAccess::ChannelFind::shared_pointer channelFind(std::string const & channelName,
                                              epics::pvAccess::ChannelFindRequester::shared_pointer const & channelFindRequester);
-    virtual epics::pvAccess::ChannelFind::shared_pointer channelList(epics::pvAccess::ChannelListRequester::shared_pointer const & channelListRequester);
 
-    virtual epics::pvAccess::Channel::shared_pointer createChannel(std::string const & channelName,
-                                                       epics::pvAccess::ChannelRequester::shared_pointer const & channelRequester,
-                                                       short priority = PRIORITY_DEFAULT);
+    using epics::pvAccess::ChannelProvider::createChannel;
     virtual epics::pvAccess::Channel::shared_pointer createChannel(std::string const & channelName,
                                                        epics::pvAccess::ChannelRequester::shared_pointer const & channelRequester,
                                                        short priority, std::string const & addressx);
-    virtual void configure(epics::pvData::PVStructure::shared_pointer /*configuration*/);
     virtual void destroy();
 
     GWServerChannelProvider(const std::tr1::shared_ptr<epics::pvAccess::Configuration>& conf);
