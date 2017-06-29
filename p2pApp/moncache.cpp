@@ -117,7 +117,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
     shared_pointer self(weakref); // keeps us alive in case all MonitorUsers are destroy()ed
 
-    pvd::MonitorElementPtr update;
+    pva::MonitorElementPtr update;
 
     typedef std::vector<MonitorUser::shared_pointer> dsnotify_t;
     dsnotify_t dsnotify;
@@ -306,8 +306,8 @@ MonitorUser::start()
         if(lval && !empty.empty()) {
             //already running, notify of initial element
 
-            pvd::MonitorElementPtr elem(empty.front());
-            elem->pvStructurePtr = lval;
+            const pva::MonitorElementPtr& elem(empty.front());
+            elem->pvStructurePtr->copy(*lval);
             elem->changedBitSet->set(0); // indicate all changed
             elem->overrunBitSet->clear();
             filled.push_back(elem);
@@ -330,11 +330,11 @@ MonitorUser::stop()
     return pvd::Status::Ok;
 }
 
-pvd::MonitorElementPtr
+pva::MonitorElementPtr
 MonitorUser::poll()
 {
     Guard G(mutex());
-    pvd::MonitorElementPtr ret;
+    pva::MonitorElementPtr ret;
     if(!filled.empty()) {
         ret = filled.front();
         inuse.insert(ret); // track which ones are out for client use
@@ -345,7 +345,7 @@ MonitorUser::poll()
 }
 
 void
-MonitorUser::release(pvd::MonitorElementPtr const & monitorElement)
+MonitorUser::release(pva::MonitorElementPtr const & monitorElement)
 {
     Guard G(mutex());
     //TODO: ifdef DEBUG? (only track inuse when debugging?)

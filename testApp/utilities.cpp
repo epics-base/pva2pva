@@ -271,7 +271,7 @@ TestPVMonitor::TestPVMonitor(const TestPVChannel::shared_pointer& ch,
 {
     pvd::PVDataCreatePtr fact(pvd::PVDataCreate::getPVDataCreate());
     for(size_t i=0; i<bsize; i++) {
-        pvd::MonitorElementPtr elem(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
+        pva::MonitorElementPtr elem(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
         free.push_back(elem);
     }
     overflow.reset(new pvd::MonitorElement(fact->createPVStructure(channel->pv->dtype)));
@@ -317,7 +317,7 @@ pvd::Status TestPVMonitor::start()
     }
 
     if(!this->free.empty()) {
-        pvd::MonitorElementPtr monitorElement(this->free.front());
+        pva::MonitorElementPtr monitorElement(this->free.front());
 
         if(overflow->changedBitSet->isEmpty()) {
             overflow->changedBitSet->set(0); // initial update has all changed
@@ -352,9 +352,9 @@ pvd::Status TestPVMonitor::stop()
     return pvd::Status();
 }
 
-pvd::MonitorElementPtr TestPVMonitor::poll()
+pva::MonitorElementPtr TestPVMonitor::poll()
 {
-    pvd::MonitorElementPtr ret;
+    pva::MonitorElementPtr ret;
     Guard G(channel->pv->provider->lock);
     if(!buffer.empty()) {
         ret = buffer.front();
@@ -367,7 +367,7 @@ pvd::MonitorElementPtr TestPVMonitor::poll()
     return ret;
 }
 
-void TestPVMonitor::release(pvd::MonitorElementPtr const & monitorElement)
+void TestPVMonitor::release(pva::MonitorElementPtr const & monitorElement)
 {
     Guard G(channel->pv->provider->lock);
     testDiag("TestPVMonitor::release %p %p", this, monitorElement.get());

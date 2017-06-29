@@ -449,6 +449,7 @@ PDBProvider::PDBProvider()
 PDBProvider::~PDBProvider()
 {
     epics::atomic::decrement(ninstances);
+    std::cerr<<"########## "<<__PRETTY_FUNCTION__<<"\n";
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
         if(event_context) {
@@ -464,6 +465,7 @@ PDBProvider::~PDBProvider()
 void PDBProvider::destroy()
 {
     dbEventCtx ctxt = NULL;
+    std::cerr<<"########## "<<__PRETTY_FUNCTION__<<"\n";
     persist_pv_map_t ppv;
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
@@ -530,6 +532,7 @@ PDBProvider::createChannel(std::string const & channelName,
     pva::Channel::shared_pointer ret;
     PDBPV::shared_pointer pv;
     pvd::Status status;
+    std::cerr<<"######## "<<__PRETTY_FUNCTION__<<" name"<<channelName<<"\n";
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
 

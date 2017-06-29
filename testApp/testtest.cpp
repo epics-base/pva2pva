@@ -72,7 +72,7 @@ void testmonitor()
     testDiag("Start monitor and check initial update");
     testOk1(mon->start().isSuccess());
 
-    pvd::MonitorElementPtr elem(mon->poll());
+    pva::MonitorElementPtr elem(mon->poll());
     testOk1(!!elem.get());
 
     if(elem) testDiag("elem changed '%s' overflow '%s'", toString(*elem->changedBitSet).c_str(), toString(*elem->overrunBitSet).c_str());

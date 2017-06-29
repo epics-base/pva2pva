@@ -108,30 +108,6 @@ struct PVMonitor : public PVConnect
         mon->destroy();
     }
 
-    struct Element {
-        pva::MonitorElementPtr elem;
-        pva::Monitor::shared_pointer mon;
-
-        Element(const PVMonitor& m) : mon(m.mon) {}
-        ~Element() {
-            if(elem) mon->release(elem);
-        }
-        Element& operator=(const pva::MonitorElementPtr& e) {
-            if(elem) mon->release(elem);
-            elem = e;
-            return *this;
-        }
-
-        pvd::BitSet& changed() { return *elem->changedBitSet; }
-        pvd::BitSet& overflow() { return *elem->overrunBitSet; }
-        pvd::PVStructure* operator->() { return elem->pvStructurePtr.get(); }
-        operator pvd::PVStructurePtr&() { return elem->pvStructurePtr; }
-        bool operator!() const { return !elem; }
-    private:
-        Element(const Element& e);
-        Element& operator=(const Element& e);
-    };
-
     pva::MonitorElementPtr poll() { return mon->poll(); }
 };
 
@@ -278,18 +254,15 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     testOk1(mon.monreq->waitForEvent());
     testDiag("Initial event");
 
-    PVMonitor::Element e(mon);
-
-    e = mon.poll();
+    pva::MonitorElement::Ref e(mon.mon);
 
     testOk1(!!e);
-    testOk1(!!e && e.elem->changedBitSet->get(0));
-    testFieldEqual<pvd::PVDouble>(e, "value", 1.0);
-    testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 100.0);
-    testFieldEqual<pvd::PVDouble>(e, "display.limitLow", -100.0);
+    testOk1(!!e && e->changedBitSet->get(0));
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "value", 1.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "display.limitHigh", 100.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "display.limitLow", -100.0);
 
-    e = mon.poll();
-    testOk1(!e);
+    testOk1(!e.next());
 
     testDiag("trigger new VALUE event");
     testdbPutFieldOk("rec1", DBR_DOUBLE, 11.0);
@@ -297,14 +270,12 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     testDiag("Wait for event");
     mon.monreq->waitForEvent();
 
-    e = mon.poll();
-    testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{1, 3, 4, 7, 8}");
+    testOk1(!!e.next());
+    if(!!e) testEqual(toString(*e->changedBitSet), "{1, 3, 4, 7, 8}");
     else testFail("oops");
-    testFieldEqual<pvd::PVDouble>(e, "value", 11.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "value", 11.0);
 
-    e = mon.poll();
-    testOk1(!e);
+    testOk1(!e.next());
 
     testDiag("trigger new PROPERTY event");
     testdbPutFieldOk("rec1.HOPR", DBR_DOUBLE, 50.0);
@@ -312,14 +283,12 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
     testDiag("Wait for event");
     mon.monreq->waitForEvent();
 
-    e = mon.poll();
-    testOk1(!!e);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{7, 8, 11, 12, 15, 17, 18}");
+    testOk1(!!e.next());
+    if(!!e) testEqual(toString(*e->changedBitSet), "{7, 8, 11, 12, 15, 17, 18}");
     else testFail("oops");
-    testFieldEqual<pvd::PVDouble>(e, "display.limitHigh", 50.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "display.limitHigh", 50.0);
 
-    e = mon.poll();
-    testOk1(!e);
+    testOk1(!e.next());
 }
 
 void testGroupMonitor(const PDBProvider::shared_pointer& prov)
@@ -333,7 +302,7 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
 
     testDiag("subscribe to grp1");
     PVMonitor mon(prov, "grp1");
-    PVMonitor::Element e(mon);
+    pva::MonitorElement::Ref e(mon.mon);
 
     testOk1(mon.mon->start().isOK());
 
@@ -341,21 +310,19 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     testOk1(mon.monreq->waitForEvent());
     testDiag("Initial event");
 
-    e = mon.poll();
-    testOk1(!!e);
+    testOk1(!!e.next());
 
-    testOk1(!!e && e.elem->changedBitSet->get(0));
-    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 3.0);
-    testFieldEqual<pvd::PVInt>(e,    "fld2.value", 30);
-    testFieldEqual<pvd::PVDouble>(e, "fld3.value", 4.0);
-    testFieldEqual<pvd::PVInt>(e,    "fld4.value", 40);
-    testFieldEqual<pvd::PVDouble>(e, "fld1.display.limitHigh", 200.0);
-    testFieldEqual<pvd::PVDouble>(e, "fld1.display.limitLow", -200.0);
-    testFieldEqual<pvd::PVDouble>(e, "fld2.display.limitHigh", 2147483647.0);
-    testFieldEqual<pvd::PVDouble>(e, "fld2.display.limitLow", -2147483648.0);
+    testOk1(!!e && e->changedBitSet->get(0));
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 3.0);
+    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld2.value", 30);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld3.value", 4.0);
+    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld4.value", 40);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.display.limitHigh", 200.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.display.limitLow", -200.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.display.limitHigh", 2147483647.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.display.limitLow", -2147483648.0);
 
-    e = mon.poll();
-    testOk1(!e);
+    testOk1(!e.next());
 
     testdbPutFieldOk("rec3", DBR_DOUBLE, 32.0);
 
@@ -363,13 +330,12 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     testOk1(mon.monreq->waitForEvent());
     testDiag("event");
 
-    e = mon.poll();
-    testOk1(!!e);
-    testOk1(!!e && e.elem->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{6, 8, 9, 12, 13}");
+    testOk1(!!e.next());
+    testOk1(!!e && e->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
+    if(!!e) testEqual(toString(*e->changedBitSet), "{6, 8, 9, 12, 13}");
     else testFail("oops");
 
-    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 32.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 32.0);
 }
 
 void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
@@ -382,7 +348,7 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
 
     testDiag("subscribe to grp2");
     PVMonitor mon(prov, "grp2");
-    PVMonitor::Element e(mon);
+    pva::MonitorElement::Ref e(mon.mon);
 
     testOk1(mon.mon->start().isOK());
 
@@ -390,17 +356,15 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     testOk1(mon.monreq->waitForEvent());
     testDiag("Initial event");
 
-    e = mon.poll();
-    testOk1(!!e);
+    testOk1(!!e.next());
 
-    testOk1(!!e && e.elem->changedBitSet->get(0));
+    testOk1(!!e && e->changedBitSet->get(0));
 
-    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 5.0);
-    testFieldEqual<pvd::PVDouble>(e, "fld2.value", 6.0);
-    testFieldEqual<pvd::PVInt>(e,    "fld3.value", 0); // not triggered -> no update.  only get/set
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 5.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.value", 6.0);
+    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld3.value", 0); // not triggered -> no update.  only get/set
 
-    e = mon.poll();
-    testOk1(!e);
+    testOk1(!e.next());
 
     testdbPutFieldOk("rec5.RVAL", DBR_LONG, 60); // no trigger -> no event
     testdbPutFieldOk("rec5", DBR_DOUBLE, 15.0); // no trigger -> no event
@@ -410,20 +374,18 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     testOk1(mon.monreq->waitForEvent());
     testDiag("event");
 
-    e = mon.poll();
-    testOk1(!!e);
+    testOk1(!!e.next());
 
-    testOk1(!!e && e.elem->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
-    testOk1(!!e && e.elem->pvStructurePtr->getSubFieldT("fld2.value")->getFieldOffset()==46);
-    if(!!e) testEqual(toString(*e.elem->changedBitSet), "{6, 8, 9, 12, 13, 46, 48, 49, 52, 53}");
+    testOk1(!!e && e->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
+    testOk1(!!e && e->pvStructurePtr->getSubFieldT("fld2.value")->getFieldOffset()==46);
+    if(!!e) testEqual(toString(*e->changedBitSet), "{6, 8, 9, 12, 13, 46, 48, 49, 52, 53}");
     else testFail("oops");
 
-    testFieldEqual<pvd::PVDouble>(e, "fld1.value", 15.0);
-    testFieldEqual<pvd::PVDouble>(e, "fld2.value", 16.0);
-    testFieldEqual<pvd::PVInt>(e,    "fld3.value", 0); // not triggered -> no update.  only get/set
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 15.0);
+    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.value", 16.0);
+    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld3.value", 0); // not triggered -> no update.  only get/set
 
-    e = mon.poll();
-    testOk1(!e);
+    testOk1(!e.next());
 }
 
 } // namespace

@@ -84,7 +84,7 @@ struct TestMonitor {
         upstream->dispatch(); // trigger monitorEvent() from upstream to gateway
 
         testOk1(mreq->eventCnt==1);
-        pvd::MonitorElementPtr elem(mon->poll());
+        pva::MonitorElementPtr elem(mon->poll());
         testOk1(!!elem.get());
         if(!!elem.get()) testEqual(toString(*elem->changedBitSet), "{0}");
         else testFail("oops");
@@ -122,8 +122,8 @@ struct TestMonitor {
         testOk1(mreq->eventCnt==1);
         testOk1(mreq2->eventCnt==1);
 
-        pvd::MonitorElementPtr elem(mon->poll());
-        pvd::MonitorElementPtr elem2(mon2->poll());
+        pva::MonitorElementPtr elem(mon->poll());
+        pva::MonitorElementPtr elem2(mon2->poll());
         testOk1(!!elem.get());
         testOk1(!!elem2.get());
         testOk1(elem!=elem2);
@@ -210,7 +210,7 @@ struct TestMonitor {
         testOk1(mreq->eventCnt==1);
 
         testDiag("poll initial update");
-        pvd::MonitorElementPtr elem(mon->poll());
+        pva::MonitorElementPtr elem(mon->poll());
         testOk1(!!elem.get());
         if(elem) mon->release(elem);
 
@@ -284,7 +284,7 @@ struct TestMonitor {
         testOk1(mreq->eventCnt==1);
 
         testDiag("poll initial update");
-        pvd::MonitorElementPtr elem(mon->poll());
+        pva::MonitorElementPtr elem(mon->poll());
         testOk1(!!elem.get());
         if(elem) mon->release(elem);
 
