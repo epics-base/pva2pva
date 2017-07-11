@@ -34,3 +34,6 @@ CHECK_RELEASE = YES
 #   or CROSS_OPT settings from base/configure/CONFIG_SITE
 #HOST_OPT = NO
 #CROSS_OPT = NO
+
+# we don't actually use 'rset' explicitly, but quiet some warnings
+USR_CPPFLAGS += -DUSE_TYPED_RSET
