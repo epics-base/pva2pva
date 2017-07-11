@@ -1,6 +1,7 @@
 
 #include <testMain.h>
 
+#include <iocsh.h>
 #include <dbAccess.h>
 #include <longinRecord.h>
 #include <aiRecord.h>
@@ -14,8 +15,6 @@ namespace pvd = epics::pvData;
 
 extern "C"
 void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
-
-void qsrvStop();
 
 namespace {
 
@@ -201,7 +200,7 @@ void testScalar()
     testEqual(prec_mbbi->val, 2);
     dbScanUnlock((dbCommon*)prec_mbbi);
 
-    qsrvStop();
+    iocshCmd("stopPVAServer");
 }
 
 } // namespace

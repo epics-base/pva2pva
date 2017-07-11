@@ -1,6 +1,7 @@
 
 #include <testMain.h>
 
+#include <iocsh.h>
 #include <epicsAtomic.h>
 #include <dbAccess.h>
 
@@ -393,8 +394,6 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
 extern "C"
 void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
-extern void qsrvStop();
-
 MAIN(testpdb)
 {
     testPlan(140);
@@ -426,7 +425,7 @@ MAIN(testpdb)
         testOk1(prov.unique());
         prov.reset();
 
-        qsrvStop();
+        iocshCmd("stopPVAServer");
 
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
         testEqual(epics::atomic::get(PDBProvider::ninstances), 0u);
