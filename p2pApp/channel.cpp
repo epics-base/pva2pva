@@ -16,7 +16,7 @@ size_t GWChannel::num_instances;
 
 GWChannel::GWChannel(const ChannelCacheEntry::shared_pointer& e,
                      const epics::pvAccess::ChannelProvider::weak_pointer& srvprov,
-                     const pva::ChannelRequester::shared_pointer& r,
+                     const epics::pvAccess::ChannelRequester::weak_pointer &r,
                      const std::string& addr)
     :entry(e)
     ,requester(r)
@@ -45,18 +45,12 @@ GWChannel::message(std::string const & message, pvd::MessageType messageType)
 
 void
 GWChannel::destroy()
-{
-    epics::pvAccess::ChannelRequester::shared_pointer req;
-    {
-        Guard G(entry->mutex());
-        req.swap(requester);
-    }
-}
+{}
 
 std::tr1::shared_ptr<pva::ChannelProvider>
 GWChannel::getProvider()
 {
-    return server_provder.lock();
+    return pva::ChannelProvider::shared_pointer(server_provder);
 }
 
 std::string
@@ -81,7 +75,7 @@ GWChannel::getChannelName()
 std::tr1::shared_ptr<pva::ChannelRequester>
 GWChannel::getChannelRequester()
 {
-    return requester;
+    return pva::ChannelRequester::shared_pointer(requester);
 }
 
 
@@ -124,6 +118,7 @@ GWChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & channelPutRequester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
+    //TODO: allow ChannelPut::get()
     if(!p2pReadOnly)
         return entry->channel->createChannelPut(channelPutRequester, pvRequest);
     else
@@ -194,13 +189,7 @@ GWChannel::createMonitor(
                 {
                     UnGuard U(G);
 
-                    // Create upstream monitor
-                    // This would create a strong ref. loop between ent and ent->mon.
-                    // Instead we get clever and pass a "fake" strong ref.
-                    // and ensure that ~MonitorCacheEntry destroy()s the client Monitor
-                    MonitorCacheEntry::shared_pointer fakereal(ment.get(), noclean());
-
-                    M = entry->channel->createMonitor(fakereal, pvRequest);
+                    M = entry->channel->createMonitor(ment, pvRequest);
                 }
                 ment->mon = M;
 

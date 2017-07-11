@@ -153,7 +153,7 @@ PDBGroupChannel::createMonitor(
 
 
 PDBGroupGet::PDBGroupGet(const PDBGroupChannel::shared_pointer &channel,
-                         const pva::ChannelGetRequester::shared_pointer &requester,
+                         const requester_type::weak_pointer &requester,
                          const pvd::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
@@ -166,7 +166,9 @@ PDBGroupGet::PDBGroupGet(const PDBGroupChannel::shared_pointer &channel,
         try {
             atomic = atomicopt->getAs<pvd::boolean>();
         }catch(std::exception& e){
-            requester->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
+            requester_type::shared_pointer req(requester.lock());
+            if(req)
+                req->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
         }
     }
     pvf->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
@@ -205,12 +207,14 @@ void PDBGroupGet::get()
     //TODO: report unused fields as changed?
     changed->clear();
     changed->set(0);
-    requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
+    requester_type::shared_pointer req(requester.lock());
+    if(req)
+        req->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 
 
 PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
-                         const pva::ChannelPutRequester::shared_pointer& requester,
+                         const requester_type::weak_pointer& requester,
                          const epics::pvData::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
@@ -223,7 +227,9 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
         try {
             atomic = atomicopt->getAs<pvd::boolean>();
         }catch(std::exception& e){
-            requester->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
+            requester_type::shared_pointer req(requester.lock());
+            if(req)
+                req->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
         }
     }
     pvf->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
@@ -270,7 +276,9 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
         }
     }
 
-    requester->putDone(pvd::Status(), shared_from_this());
+    requester_type::shared_pointer req(requester.lock());
+    if(req)
+        req->putDone(pvd::Status(), shared_from_this());
 }
 
 void PDBGroupPut::get()
@@ -295,11 +303,14 @@ void PDBGroupPut::get()
     //TODO: report unused fields as changed?
     changed->clear();
     changed->set(0);
-    requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
+
+    requester_type::shared_pointer req(requester.lock());
+    if(req)
+        req->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 
 PDBGroupMonitor::PDBGroupMonitor(const PDBGroupPV::shared_pointer& pv,
-                 const requester_t::shared_pointer& requester,
+                 const epics::pvAccess::MonitorRequester::weak_pointer &requester,
                  const pvd::PVStructure::shared_pointer& pvReq)
     :BaseMonitor(requester, pvReq)
     ,pv(pv)

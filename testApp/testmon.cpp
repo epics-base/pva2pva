@@ -79,11 +79,11 @@ struct TestMonitor {
         pvd::Monitor::shared_pointer mon(client->createMonitor(mreq, makeRequest(2)));
         if(!mon) testAbort("Failed to create monitor");
 
-        testOk1(mreq->eventCnt==0);
+        testEqual(mreq->eventCnt, 0u);
         testOk1(mon->start().isSuccess());
         upstream->dispatch(); // trigger monitorEvent() from upstream to gateway
 
-        testOk1(mreq->eventCnt==1);
+        testEqual(mreq->eventCnt, 1u);
         pva::MonitorElementPtr elem(mon->poll());
         testOk1(!!elem.get());
         if(!!elem.get()) testEqual(toString(*elem->changedBitSet), "{0}");

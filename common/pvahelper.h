@@ -90,7 +90,7 @@ private:
     buffer_t inuse, empty;
 
 public:
-    BaseMonitor(const requester_t::shared_pointer& requester,
+    BaseMonitor(const requester_t::weak_pointer& requester,
                 const epics::pvData::PVStructure::shared_pointer& pvReq)
         :requester(requester)
         ,inoverflow(false)
