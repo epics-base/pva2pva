@@ -220,21 +220,18 @@ TestPVChannel::TestPVChannel(const std::tr1::shared_ptr<TestPV> &pv,
 
 TestPVChannel::~TestPVChannel()
 {
-    Guard G(pv->provider->lock);
-    if(requester)
-        testDiag("Warning: TestPVChannel dropped w/o destroy()");
     epicsAtomicDecrSizeT(&countTestPVChannel);
 }
 
 TestPVChannel::ConnectionState TestPVChannel::getConnectionState()
 {
-    Guard G(pv->provider->lock);
+    Guard G(pv->lock);
     return state;
 }
 
 void TestPVChannel::getField(pva::GetFieldRequester::shared_pointer const & requester,std::string const & subField)
 {
-    Guard G(pv->provider->lock);
+    Guard G(pv->lock);
 
     //TODO subField?
     requester->getDone(pvd::Status(), pv->dtype);
@@ -248,7 +245,7 @@ TestPVChannel::createMonitor(
     shared_pointer self(weakself);
     TestPVMonitor::shared_pointer ret(new TestPVMonitor(self, requester, 2));
     {
-        Guard G(pv->provider->lock);
+        Guard G(pv->lock);
         monitors.insert(ret);
         static_cast<TestPVMonitor*>(ret.get())->weakself = ret; // save wrapped weak ref
     }
@@ -281,16 +278,12 @@ TestPVMonitor::TestPVMonitor(const TestPVChannel::shared_pointer& ch,
 
 TestPVMonitor::~TestPVMonitor()
 {
-    Guard G(channel->pv->provider->lock);
-    if(requester)
-        testDiag("Warning: TestPVMonitor dropped w/o destroy()");
     epicsAtomicDecrSizeT(&countTestPVMonitor);
 }
 
 void TestPVMonitor::destroy()
 {
-    Guard G(channel->pv->provider->lock);
-    requester.reset();
+    Guard G(channel->pv->lock);
 
     shared_pointer self(weakself);
     channel->monitors.erase(self); // ensure we don't get more notifications
@@ -300,7 +293,7 @@ pvd::Status TestPVMonitor::start()
 {
     testDiag("TestPVMonitor::start %p", this);
 
-    Guard G(channel->pv->provider->lock);
+    Guard G(channel->pv->lock);
     if(finalize && buffer.empty())
         return pvd::Status();
 
@@ -347,7 +340,7 @@ pvd::Status TestPVMonitor::start()
 pvd::Status TestPVMonitor::stop()
 {
     testDiag("TestPVMonitor::stop %p", this);
-    Guard G(channel->pv->provider->lock);
+    Guard G(channel->pv->lock);
     running = false;
     return pvd::Status();
 }
@@ -355,7 +348,7 @@ pvd::Status TestPVMonitor::stop()
 pva::MonitorElementPtr TestPVMonitor::poll()
 {
     pva::MonitorElementPtr ret;
-    Guard G(channel->pv->provider->lock);
+    Guard G(channel->pv->lock);
     if(!buffer.empty()) {
         ret = buffer.front();
         buffer.pop_front();
@@ -369,7 +362,7 @@ pva::MonitorElementPtr TestPVMonitor::poll()
 
 void TestPVMonitor::release(pva::MonitorElementPtr const & monitorElement)
 {
-    Guard G(channel->pv->provider->lock);
+    Guard G(channel->pv->lock);
     testDiag("TestPVMonitor::release %p %p", this, monitorElement.get());
 
     if(inoverflow) {
@@ -420,7 +413,7 @@ void TestPV::post(bool notify)
 void TestPV::post(const pvd::BitSet& changed, bool notify)
 {
     testDiag("post %s %d changed '%s'", name.c_str(), (int)notify, toString(changed).c_str());
-    Guard G(provider->lock);
+    Guard G(lock);
 
     channels_t::vector_type toupdate(channels.lock_vector());
 
@@ -469,8 +462,10 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
             if(mon->needWakeup && notify) {
                 testDiag(" wakeup");
                 mon->needWakeup = false;
+                pva::MonitorRequester::shared_pointer req(mon->requester.lock());
                 UnGuard U(G);
-                mon->requester->monitorEvent(*it2);
+                if(req)
+                    req->monitorEvent(*it2);
             }
         }
     }
@@ -478,7 +473,7 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
 
 void TestPV::disconnect()
 {
-    Guard G(provider->lock);
+    Guard G(lock);
     channels_t::vector_type toupdate(channels.lock_vector());
 
     FOREACH(it, end, toupdate) // channel
@@ -487,8 +482,10 @@ void TestPV::disconnect()
 
         chan->state = TestPVChannel::DISCONNECTED;
         {
+            pva::ChannelRequester::shared_pointer req(chan->requester.lock());
             UnGuard U(G);
-            chan->requester->channelStateChange(*it, TestPVChannel::DISCONNECTED);
+            if(req)
+                req->channelStateChange(*it, TestPVChannel::DISCONNECTED);
         }
     }
 }
@@ -605,8 +602,10 @@ void TestProvider::dispatch()
                 if(mon->needWakeup) {
                     testDiag("  wakeup monitor %p", mon);
                     mon->needWakeup = false;
+                    pva::MonitorRequester::shared_pointer req(mon->requester.lock());
                     UnGuard U(G);
-                    mon->requester->monitorEvent(*monit);
+                    if(req)
+                        req->monitorEvent(*monit);
                 }
             }
         }

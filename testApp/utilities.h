@@ -22,7 +22,7 @@ struct TestProvider;
 
 // minimally useful boilerplate which must appear *everywhere*
 #define DUMBREQUESTER(NAME) \
-    virtual std::string getRequesterName() { return #NAME; }
+    virtual std::string getRequesterName() OVERRIDE { return #NAME; }
 
 template<typename T>
 inline std::string toString(const T& tbs)
@@ -252,8 +252,8 @@ struct TestPVMonitor : public epics::pvData::Monitor
     POINTER_DEFINITIONS(TestPVMonitor);
     std::tr1::weak_ptr<TestPVMonitor> weakself;
 
-    TestPVChannel::shared_pointer channel;
-    epics::pvData::MonitorRequester::shared_pointer requester;
+    const TestPVChannel::shared_pointer channel;
+    const epics::pvData::MonitorRequester::weak_pointer requester;
 
     bool running;
     bool finalize;
@@ -282,8 +282,10 @@ struct TestPV
     std::tr1::weak_ptr<TestPV> weakself;
 
     const std::string name;
-    std::tr1::shared_ptr<TestProvider> const provider;
+    std::tr1::weak_ptr<TestProvider> const provider;
+
     epics::pvData::PVDataCreatePtr factory;
+
     const epics::pvData::StructureConstPtr dtype;
     epics::pvData::PVStructurePtr value;
 
@@ -296,6 +298,8 @@ struct TestPV
     void post(const epics::pvData::BitSet& changed, bool notify = true);
 
     void disconnect();
+
+    mutable epicsMutex lock;
 
     typedef weak_set<TestPVChannel> channels_t;
     channels_t channels;
@@ -325,7 +329,7 @@ struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_
 
     void dispatch();
 
-    epicsMutex lock;
+    mutable epicsMutex lock;
     typedef weak_value_map<std::string, TestPV> pvs_t;
     pvs_t pvs;
 
