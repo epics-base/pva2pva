@@ -3,6 +3,7 @@
 
 #include <dbEvent.h>
 
+#include <pv/configuration.h>
 #include <pv/pvAccess.h>
 
 #include "weakmap.h"
@@ -29,7 +30,7 @@ struct PDBProvider : public epics::pvAccess::ChannelProvider,
 {
     POINTER_DEFINITIONS(PDBProvider);
 
-    PDBProvider();
+    explicit PDBProvider(const epics::pvAccess::Configuration::shared_pointer& =epics::pvAccess::Configuration::shared_pointer());
     virtual ~PDBProvider();
     virtual void destroy();
     virtual std::string getProviderName();

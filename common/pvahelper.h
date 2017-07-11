@@ -19,7 +19,7 @@ bool getS(const epics::pvData::PVStructurePtr& S, const char *name, T& val)
 struct BaseChannel : public epics::pvAccess::Channel
 {
     BaseChannel(const std::string& name,
-                const std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>& prov,
+                const std::tr1::weak_ptr<epics::pvAccess::ChannelProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req,
                 const epics::pvData::StructureConstPtr& dtype
                 )
@@ -27,110 +27,33 @@ struct BaseChannel : public epics::pvAccess::Channel
     {}
     virtual ~BaseChannel() {}
 
-    epicsMutex lock;
+    mutable epicsMutex lock;
     typedef epicsGuard<epicsMutex> guard_t;
+
     const std::string pvname;
-    std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> provider;
-    typedef epics::pvAccess::ChannelRequester::shared_pointer requester_t;
-    requester_t requester;
+    const epics::pvAccess::ChannelProvider::weak_pointer provider;
+    const requester_type::weak_pointer requester;
     const epics::pvData::StructureConstPtr fielddesc;
 
     // assume Requester methods not called after destory()
-    virtual std::string getRequesterName() { guard_t G(lock); return requester->getRequesterName(); }
+    virtual std::string getRequesterName() OVERRIDE
+    { return getChannelRequester()->getRequesterName(); }
 
-    virtual void destroy() {
-        std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> prov;
-        requester_t req;
-        {
-            guard_t G(lock);
-            provider.swap(prov);
-            requester.swap(req);
-        }
-    }
+    virtual void destroy() OVERRIDE FINAL {}
 
-    virtual std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> getProvider() { guard_t G(lock); return provider; }
-    virtual std::string getRemoteAddress() { guard_t G(lock); return requester->getRequesterName(); }
-    virtual ConnectionState getConnectionState() { return epics::pvAccess::Channel::CONNECTED; }
-    virtual std::string getChannelName() { return pvname; }
-    virtual std::tr1::shared_ptr<epics::pvAccess::ChannelRequester> getChannelRequester() { guard_t G(lock); return requester; }
-    virtual bool isConnected() { return getConnectionState()==epics::pvAccess::Channel::CONNECTED; }
+    virtual std::tr1::shared_ptr<epics::pvAccess::ChannelProvider> getProvider() OVERRIDE FINAL
+    { return epics::pvAccess::ChannelProvider::shared_pointer(provider); }
+    virtual std::string getRemoteAddress() OVERRIDE
+    { return getRequesterName(); }
 
-    virtual void getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,std::string const & subField)
+    virtual std::string getChannelName() OVERRIDE FINAL { return pvname; }
+    virtual std::tr1::shared_ptr<epics::pvAccess::ChannelRequester> getChannelRequester() OVERRIDE FINAL
+    { return requester_type::shared_pointer(requester); }
+
+    virtual void getField(epics::pvAccess::GetFieldRequester::shared_pointer const & requester,std::string const & subField) OVERRIDE
     { requester->getDone(epics::pvData::Status(), fielddesc); }
 
-    virtual epics::pvAccess::AccessRights getAccessRights(const epics::pvData::PVField::shared_pointer &pvField)
-    { return epics::pvAccess::readWrite; }
-
-    virtual epics::pvAccess::ChannelProcess::shared_pointer createChannelProcess(
-            epics::pvAccess::ChannelProcessRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvAccess::ChannelProcess::shared_pointer ret;
-        requester->channelProcessConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"), ret);
-        return ret;
-    }
-
-    virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
-            epics::pvAccess::ChannelGetRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvAccess::ChannelGet::shared_pointer ret;
-        requester->channelGetConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                     ret, epics::pvData::StructureConstPtr());
-        return ret;
-    }
-
-    virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
-            epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvAccess::ChannelPut::shared_pointer ret;
-        requester->channelPutConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                     ret, epics::pvData::StructureConstPtr());
-        return ret;
-    }
-
-    virtual epics::pvAccess::ChannelPutGet::shared_pointer createChannelPutGet(
-            epics::pvAccess::ChannelPutGetRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvAccess::ChannelPutGet::shared_pointer ret;
-        requester->channelPutGetConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                        ret, epics::pvData::StructureConstPtr(), epics::pvData::StructureConstPtr());
-        return ret;
-    }
-
-    virtual epics::pvAccess::ChannelRPC::shared_pointer createChannelRPC(
-            epics::pvAccess::ChannelRPCRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvAccess::ChannelRPC::shared_pointer ret;
-        requester->channelRPCConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"), ret);
-        return ret;
-    }
-
-    virtual epics::pvData::Monitor::shared_pointer createMonitor(
-            epics::pvData::MonitorRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvData::Monitor::shared_pointer ret;
-        requester->monitorConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                  ret, epics::pvData::StructureConstPtr());
-        return ret;
-    }
-
-    virtual epics::pvAccess::ChannelArray::shared_pointer createChannelArray(
-            epics::pvAccess::ChannelArrayRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest)
-    {
-        epics::pvAccess::ChannelArray::shared_pointer ret;
-        requester->channelArrayConnect(epics::pvData::Status(epics::pvData::Status::STATUSTYPE_FATAL, "Not implemented"),
-                                       ret, epics::pvData::Array::const_shared_pointer());
-        return ret;
-    }
-
-    virtual void printInfo() { printInfo(std::cout); }
-    virtual void printInfo(std::ostream& out) {
+    virtual void printInfo(std::ostream& out) OVERRIDE {
         out<<"Channel '"<<pvname<<"' "<<getRemoteAddress()<<"\n";
     }
 };
@@ -155,7 +78,7 @@ struct BaseMonitor : public epics::pvAccess::Monitor
     typedef epicsGuard<epicsMutex> guard_t;
 
 private:
-    requester_t::shared_pointer requester;
+    const requester_t::weak_pointer requester;
 
     epics::pvData::PVStructurePtr complete;
     epics::pvData::BitSet changed, overflow;
@@ -186,12 +109,10 @@ public:
         epics::pvData::StructureConstPtr dtype(value->getStructure());
         epics::pvData::PVDataCreatePtr create(epics::pvData::getPVDataCreate());
         BaseMonitor::shared_pointer self(shared_from_this());
-        requester_t::shared_pointer req;
+        requester_t::shared_pointer req(requester.lock());
         {
             guard_t G(lock);
             assert(!complete); // can't call twice
-
-            req = requester;
 
             complete = value;
             empty.resize(nbuffers);
@@ -200,7 +121,8 @@ public:
             }
         }
         epics::pvData::Status sts;
-        req->monitorConnect(sts, self, dtype);
+        if(req)
+            req->monitorConnect(sts, self, dtype);
     }
 
     struct no_overflow {};
@@ -218,7 +140,7 @@ public:
             if(empty.empty()) return false;
 
             if(p_postone())
-                req = requester;
+                req = requester.lock();
             inoverflow = false;
         }
         if(req) req->monitorEvent(shared_from_this());
@@ -240,7 +162,7 @@ public:
             } else {
 
                 if(p_postone())
-                    req = requester;
+                    req = requester.lock();
                 oflow = inoverflow = false;
             }
         }
@@ -267,7 +189,7 @@ public:
 
                 changed |= updated;
                 if(p_postone())
-                    req = requester;
+                    req = requester.lock();
                 oflow = inoverflow = false;
             }
         }
@@ -292,7 +214,7 @@ public:
 
                 changed |= updated;
                 if(p_postone())
-                    req = requester;
+                    req = requester.lock();
                 oflow = inoverflow = false;
             }
         }
@@ -332,7 +254,6 @@ public:
 
     virtual void destroy()
     {
-        requester_t::shared_pointer req;
         bool run;
         {
             guard_t G(lock);
@@ -340,7 +261,6 @@ public:
             if(run) {
                 running = false;
             }
-            requester.swap(req);
         }
         if(run)
             this->onStop();

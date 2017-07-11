@@ -168,7 +168,9 @@ void commonGet(PVIF *pvif, pvd::BitSet* changed)
 void PDBSingleGet::get()
 {
     commonGet(pvif.get(), changed.get());
-    requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
+    requester_type::shared_pointer req(requester.lock());
+    if(req)
+        req->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 
 
@@ -257,13 +259,17 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 
         }
     }
-    requester->putDone(pvd::Status(), shared_from_this());
+    requester_type::shared_pointer req(requester.lock());
+    if(req)
+        req->putDone(pvd::Status(), shared_from_this());
 }
 
 void PDBSinglePut::get()
 {
     commonGet(pvif.get(), changed.get());
-    requester->getDone(pvd::Status(), shared_from_this(), pvf, changed);
+    requester_type::shared_pointer req(requester.lock());
+    if(req)
+        req->getDone(pvd::Status(), shared_from_this(), pvf, changed);
 }
 
 PDBSingleMonitor::PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
@@ -276,54 +282,55 @@ PDBSingleMonitor::PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
 void PDBSingleMonitor::destroy()
 {
     BaseMonitor::destroy();
-    PDBSinglePV::shared_pointer pv;
-    {
-        Guard G(lock);
-        this->pv.swap(pv);
-    }
 }
 
 void PDBSingleMonitor::onStart()
 {
-    guard_t G(pv->lock);
+    PDBSinglePV::shared_pointer PV(pv.lock());
+    if(!PV) return;
+    guard_t G(PV->lock);
 
-    pv->scratch.clear();
-    pv->scratch.set(0);
-    if(pv->interested.empty()) {
+    PV->scratch.clear();
+    PV->scratch.set(0);
+    if(PV->interested.empty()) {
         // first subscriber
-        pv->hadevent_VALUE = false;
-        pv->hadevent_PROPERTY = false;
-        db_event_enable(pv->evt_VALUE.subscript);
-        db_event_enable(pv->evt_PROPERTY.subscript);
-        db_post_single_event(pv->evt_VALUE.subscript);
-        db_post_single_event(pv->evt_PROPERTY.subscript);
-    } else if(pv->hadevent_VALUE && pv->hadevent_PROPERTY) {
+        PV->hadevent_VALUE = false;
+        PV->hadevent_PROPERTY = false;
+        db_event_enable(PV->evt_VALUE.subscript);
+        db_event_enable(PV->evt_PROPERTY.subscript);
+        db_post_single_event(PV->evt_VALUE.subscript);
+        db_post_single_event(PV->evt_PROPERTY.subscript);
+    } else if(PV->hadevent_VALUE && PV->hadevent_PROPERTY) {
         // new subscriber and already had initial update
         post();
     } // else new subscriber, but no initial update.  so just wait
 
     shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(shared_from_this()));
-    pv->interested.insert(self);
+    PV->interested.insert(self);
 }
 
 void PDBSingleMonitor::onStop()
 {
-    guard_t G(pv->lock);
+    PDBSinglePV::shared_pointer PV(pv.lock());
+    if(PV) return;
+    guard_t G(PV->lock);
     shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(shared_from_this()));
 
-    if(pv->interested.erase(self)==0) {
+    if(PV->interested.erase(self)==0) {
         fprintf(stderr, "%s: oops\n", __FUNCTION__);
     }
 
-    if(pv->interested.empty()) {
+    if(PV->interested.empty()) {
         // last subscriber
-        db_event_disable(pv->evt_VALUE.subscript);
-        db_event_disable(pv->evt_PROPERTY.subscript);
+        db_event_disable(PV->evt_VALUE.subscript);
+        db_event_disable(PV->evt_PROPERTY.subscript);
     }
 }
 
 void PDBSingleMonitor::requestUpdate()
 {
-    Guard G(pv->lock);
+    PDBSinglePV::shared_pointer PV(pv.lock());
+    if(PV) return;
+    guard_t G(PV->lock);
     post();
 }

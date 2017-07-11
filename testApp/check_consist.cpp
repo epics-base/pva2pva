@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
         pva::ClientFactory::start();
 
-        pva::ChannelProvider::shared_pointer prov(pva::getChannelProviderRegistry()->getProvider("pva"));
+        pva::ChannelProvider::shared_pointer prov(pva::ChannelProviderRegistry::clients()->getProvider("pva"));
         if(!prov) throw std::runtime_error("No pva provider?!?");
         Destroyer prov_d(prov);
 

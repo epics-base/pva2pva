@@ -69,15 +69,15 @@ struct PDBSingleChannel : public BaseChannel,
 
     virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
             epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+            epics::pvData::PVStructure::shared_pointer const & pvRequest) OVERRIDE FINAL;
     virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
             epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+            epics::pvData::PVStructure::shared_pointer const & pvRequest) OVERRIDE FINAL;
     virtual epics::pvData::Monitor::shared_pointer createMonitor(
             epics::pvData::MonitorRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+            epics::pvData::PVStructure::shared_pointer const & pvRequest) OVERRIDE FINAL;
 
-    virtual void printInfo(std::ostream& out);
+    virtual void printInfo(std::ostream& out) OVERRIDE FINAL;
 };
 
 struct PDBSingleGet : public epics::pvAccess::ChannelGet,
@@ -85,7 +85,7 @@ struct PDBSingleGet : public epics::pvAccess::ChannelGet,
 {
     typedef epics::pvAccess::ChannelGetRequester requester_t;
     PDBSingleChannel::shared_pointer channel;
-    requester_t::shared_pointer requester;
+    requester_t::weak_pointer requester;
 
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;
@@ -110,7 +110,7 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
 {
     typedef epics::pvAccess::ChannelPutRequester requester_t;
     PDBSingleChannel::shared_pointer channel;
-    requester_t::shared_pointer requester;
+    requester_t::weak_pointer requester;
 
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;
@@ -141,7 +141,7 @@ struct PDBSingleMonitor : public BaseMonitor
 {
     POINTER_DEFINITIONS(PDBSingleMonitor);
 
-    PDBSinglePV::shared_pointer pv;
+    PDBSinglePV::weak_pointer pv;
 
     PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
                      const requester_t::shared_pointer& requester,

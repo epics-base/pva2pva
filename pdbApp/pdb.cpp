@@ -313,7 +313,7 @@ struct PDBProcessor
 
 size_t PDBProvider::ninstances;
 
-PDBProvider::PDBProvider()
+PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 {
     PDBProcessor proc;
     pvd::FieldCreatePtr fcreate(pvd::getFieldCreate());
