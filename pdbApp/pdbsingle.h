@@ -14,9 +14,11 @@
 #include "pvif.h"
 #include "pdb.h"
 
+#include <shareLib.h>
+
 struct PDBSingleMonitor;
 
-struct PDBSinglePV : public PDBPV
+struct epicsShareClass PDBSinglePV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBSinglePV);
     weak_pointer weakself;

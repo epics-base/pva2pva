@@ -2,6 +2,7 @@
 #include <epicsAtomic.h>
 #include <dbAccess.h>
 
+#define epicsExportSharedSymbols
 #include "errlogstream.h"
 #include "helper.h"
 #include "pdbgroup.h"

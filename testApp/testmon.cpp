@@ -40,7 +40,7 @@ struct TestMonitor {
     TestPV::shared_pointer test1;
     ScalarAccessor<pvd::int32> test1_x, test1_y;
 
-    GWServerChannelProvider::shared_pointer gateway;
+    pva::ChannelProvider::shared_pointer gateway;
 
     TestChannelRequester::shared_pointer client_req;
     pva::Channel::shared_pointer client;

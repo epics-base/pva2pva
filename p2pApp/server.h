@@ -4,7 +4,9 @@
 #include "chancache.h"
 #include "channel.h"
 
-struct GWServerChannelProvider : public
+#include <shareLib.h>
+
+struct epicsShareClass GWServerChannelProvider : public
         epics::pvAccess::ChannelProvider,
         epics::pvAccess::ChannelFind,
         std::tr1::enable_shared_from_this<GWServerChannelProvider>

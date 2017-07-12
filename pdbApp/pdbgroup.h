@@ -12,12 +12,14 @@
 #include "pvif.h"
 #include "pdb.h"
 
+#include <shareLib.h>
+
 struct PDBGroupMonitor;
 
 void pdb_group_event(void *user_arg, struct dbChannel *chan,
                      int eventsRemaining, struct db_field_log *pfl);
 
-struct PDBGroupPV : public PDBPV
+struct epicsShareClass PDBGroupPV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBGroupPV);
     weak_pointer weakself;
@@ -65,7 +67,7 @@ struct PDBGroupPV : public PDBPV
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
 };
 
-struct PDBGroupChannel : public BaseChannel,
+struct epicsShareClass PDBGroupChannel : public BaseChannel,
         public std::tr1::enable_shared_from_this<PDBGroupChannel>
 {
     POINTER_DEFINITIONS(PDBGroupChannel);

@@ -15,6 +15,8 @@
 #include "weakmap.h"
 #include "weakset.h"
 
+#include <shareLib.h>
+
 struct TestPV;
 struct TestPVChannel;
 struct TestPVMonitor;
@@ -94,7 +96,7 @@ struct ScalarAccessor {
     }
 };
 
-struct TestChannelRequester : public epics::pvAccess::ChannelRequester
+struct epicsShareClass TestChannelRequester : public epics::pvAccess::ChannelRequester
 {
     POINTER_DEFINITIONS(TestChannelRequester);
     DUMBREQUESTER(TestChannelRequester)
@@ -112,7 +114,7 @@ struct TestChannelRequester : public epics::pvAccess::ChannelRequester
     bool waitForConnect();
 };
 
-struct TestChannelFieldRequester : public epics::pvAccess::GetFieldRequester
+struct epicsShareClass TestChannelFieldRequester : public epics::pvAccess::GetFieldRequester
 {
     POINTER_DEFINITIONS(TestChannelFieldRequester);
     DUMBREQUESTER(TestChannelFieldRequester)
@@ -134,7 +136,7 @@ struct TestChannelFieldRequester : public epics::pvAccess::GetFieldRequester
     }
 };
 
-struct TestChannelGetRequester : public epics::pvAccess::ChannelGetRequester
+struct epicsShareClass TestChannelGetRequester : public epics::pvAccess::ChannelGetRequester
 {
     POINTER_DEFINITIONS(TestChannelGetRequester);
     DUMBREQUESTER(TestChannelGetRequester)
@@ -161,7 +163,7 @@ struct TestChannelGetRequester : public epics::pvAccess::ChannelGetRequester
             epics::pvData::BitSet::shared_pointer const & bitSet);
 };
 
-struct TestChannelPutRequester : public epics::pvAccess::ChannelPutRequester
+struct epicsShareClass TestChannelPutRequester : public epics::pvAccess::ChannelPutRequester
 {
     POINTER_DEFINITIONS(TestChannelPutRequester);
     DUMBREQUESTER(TestChannelPutRequester)
@@ -192,7 +194,7 @@ struct TestChannelPutRequester : public epics::pvAccess::ChannelPutRequester
             epics::pvData::BitSet::shared_pointer const & bitSet);
 };
 
-struct TestChannelMonitorRequester : public epics::pvData::MonitorRequester
+struct epicsShareClass TestChannelMonitorRequester : public epics::pvData::MonitorRequester
 {
     POINTER_DEFINITIONS(TestChannelMonitorRequester);
     DUMBREQUESTER(TestChannelMonitorRequester)
@@ -219,7 +221,7 @@ struct TestChannelMonitorRequester : public epics::pvData::MonitorRequester
     bool waitForEvent();
 };
 
-struct TestPVChannel : public BaseChannel
+struct epicsShareClass TestPVChannel : public BaseChannel
 {
     POINTER_DEFINITIONS(TestPVChannel);
     DUMBREQUESTER(TestPVChannel)
@@ -247,7 +249,7 @@ struct TestPVChannel : public BaseChannel
     virtual void printInfo(std::ostream& out) {}
 };
 
-struct TestPVMonitor : public epics::pvData::Monitor
+struct epicsShareClass TestPVMonitor : public epics::pvData::Monitor
 {
     POINTER_DEFINITIONS(TestPVMonitor);
     std::tr1::weak_ptr<TestPVMonitor> weakself;
@@ -276,7 +278,7 @@ struct TestPVMonitor : public epics::pvData::Monitor
     epics::pvData::MonitorElementPtr overflow;
 };
 
-struct TestPV
+struct epicsShareClass TestPV
 {
     POINTER_DEFINITIONS(TestPV);
     std::tr1::weak_ptr<TestPV> weakself;
@@ -306,7 +308,7 @@ struct TestPV
     friend struct TestProvider;
 };
 
-struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_shared_from_this<TestProvider>
+struct epicsShareClass TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_shared_from_this<TestProvider>
 {
     POINTER_DEFINITIONS(TestProvider);
 
@@ -336,7 +338,7 @@ struct TestProvider : public epics::pvAccess::ChannelProvider, std::tr1::enable_
     static void testCounts();
 };
 
-struct TestIOC {
+struct epicsShareClass TestIOC {
     bool hasInit;
     TestIOC() : hasInit(false) {
         testdbPrepare();

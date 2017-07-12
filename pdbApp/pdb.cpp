@@ -6,6 +6,7 @@
 #include <epicsString.h>
 #include <epicsAtomic.h>
 
+#define epicsExportSharedSymbols
 #include "helper.h"
 #include "pdbsingle.h"
 #include "pdbgroup.h"

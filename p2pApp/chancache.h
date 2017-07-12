@@ -14,12 +14,14 @@
 #include "weakmap.h"
 #include "weakset.h"
 
+#include <shareLib.h>
+
 struct ChannelCache;
 struct ChannelCacheEntry;
 struct MonitorUser;
 struct GWChannel;
 
-struct MonitorCacheEntry : public epics::pvData::MonitorRequester
+struct epicsShareClass MonitorCacheEntry : public epics::pvData::MonitorRequester
 {
     POINTER_DEFINITIONS(MonitorCacheEntry);
     static size_t num_instances;
@@ -63,7 +65,7 @@ struct MonitorCacheEntry : public epics::pvData::MonitorRequester
     virtual void message(std::string const & message, epics::pvData::MessageType messageType);
 };
 
-struct MonitorUser : public epics::pvData::Monitor
+struct epicsShareClass MonitorUser : public epics::pvData::Monitor
 {
     POINTER_DEFINITIONS(MonitorUser);
     static size_t num_instances;
@@ -102,7 +104,7 @@ struct MonitorUser : public epics::pvData::Monitor
     virtual void message(std::string const & message, epics::pvData::MessageType messageType);
 };
 
-struct ChannelCacheEntry
+struct epicsShareClass ChannelCacheEntry
 {
     POINTER_DEFINITIONS(ChannelCacheEntry);
     static size_t num_instances;

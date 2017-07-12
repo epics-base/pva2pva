@@ -12,6 +12,8 @@
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
 
+#include <shareLib.h>
+
 epics::pvData::ScalarType DBR2PVD(short dbr);
 short PVD2DBR(epics::pvData::ScalarType pvt);
 
@@ -28,7 +30,7 @@ union dbrbuf {
         char		dbf_STRING[MAX_STRING_SIZE];
 };
 
-struct DBCH {
+struct epicsShareClass DBCH {
     dbChannel *chan;
     DBCH() :chan(0) {}
     explicit DBCH(dbChannel *ch); // calls dbChannelOpen()
@@ -235,7 +237,7 @@ struct DBManyLocker
     }
 };
 
-struct PVIF {
+struct epicsShareClass PVIF {
     PVIF(dbChannel *ch, const epics::pvData::PVStructurePtr& p);
     virtual ~PVIF() {}
 

@@ -4,6 +4,16 @@
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/standardField.h>
 
+#include <dbAccess.h>
+#include <dbChannel.h>
+#include <dbStaticLib.h>
+#include <dbLock.h>
+#include <dbEvent.h>
+
+#include <pv/bitSet.h>
+#include <pv/pvData.h>
+
+#define epicsExportSharedSymbols
 #include "pvif.h"
 
 

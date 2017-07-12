@@ -1,6 +1,7 @@
 
 #include <epicsAtomic.h>
 
+#define epicsExportSharedSymbols
 #include <utilities.h>
 #include <helper.h>
 

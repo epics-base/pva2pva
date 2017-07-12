@@ -8,6 +8,8 @@
 
 #include "weakmap.h"
 
+#include <shareLib.h>
+
 struct PDBProvider;
 
 struct PDBPV
@@ -25,7 +27,7 @@ struct PDBPV
                 const epics::pvAccess::ChannelRequester::shared_pointer& req) =0;
 };
 
-struct PDBProvider : public epics::pvAccess::ChannelProvider,
+struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
                      public std::tr1::enable_shared_from_this<PDBProvider>
 {
     POINTER_DEFINITIONS(PDBProvider);
