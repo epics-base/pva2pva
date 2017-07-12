@@ -10,11 +10,11 @@ addons:
     - libncurses5-dev
     - perl
 env:
- - BRBASE=3.16 BRPVD=master BRPVA=devel
- - BRBASE=3.16 BRPVD=master BRPVA=devel CMPLR=clang
- - BRBASE=3.16 BRPVD=master BRPVA=devel USR_CXXFLAGS=-std=c++11
- - BRBASE=3.16 BRPVD=master BRPVA=devel USR_CXXFLAGS=-std=c++11 CMPLR=clang
- - BRBASE=3.15 BRPVD=master BRPVA=devel
+ - BRBASE=3.16 BRPVD=master BRPVA=master
+ - BRBASE=3.16 BRPVD=master BRPVA=master CMPLR=clang
+ - BRBASE=3.16 BRPVD=master BRPVA=master USR_CXXFLAGS=-std=c++11
+ - BRBASE=3.16 BRPVD=master BRPVA=master USR_CXXFLAGS=-std=c++11 CMPLR=clang
+ - BRBASE=3.15 BRPVD=master BRPVA=master
 install:
  - ./build-deps.sh
 script:
