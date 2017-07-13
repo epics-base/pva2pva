@@ -109,13 +109,6 @@ void GWServerChannelProvider::destroy()
     std::cout<<"GWServer destory request\n";
 }
 
-GWServerChannelProvider::GWServerChannelProvider(const std::tr1::shared_ptr<epics::pvAccess::Configuration> &conf)
-    :cache(pva::ChannelProviderRegistry::clients()->getProvider("pva"))
-{
-    //TODO: use Configuration to get "pva"
-    std::cout<<"GW Server ctor\n";
-}
-
 GWServerChannelProvider::GWServerChannelProvider(const pva::ChannelProvider::shared_pointer& prov)
     :cache(prov)
 {
@@ -508,8 +501,6 @@ void pvadebug(const char *lvl)
 
 void registerGWServerIocsh()
 {
-    pva::ChannelProviderRegistry::servers()->add<GWServerChannelProvider>("GWServer", false);
-
     iocshRegister<&startServer>("gwstart");
     iocshRegister<&stopServer>("gwstop");
     iocshRegister<int, &infoServer>("pvasr", "level");
@@ -522,5 +513,4 @@ void registerGWServerIocsh()
 void gwServerShutdown()
 {
     stopServer();
-    pva::ChannelProviderRegistry::servers()->remove("GWServer");
 }
