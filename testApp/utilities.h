@@ -9,6 +9,7 @@
 #include <epicsUnitTest.h>
 #include <dbUnitTest.h>
 
+#include <pv/pvUnitTest.h>
 #include <pv/pvAccess.h>
 
 #include "pvahelper.h"
@@ -32,47 +33,6 @@ inline std::string toString(const T& tbs)
     std::ostringstream oss;
     oss << tbs;
     return oss.str();
-}
-
-template<class C, void (C::*M)()>
-void test_method(const char *kname, const char *mname)
-{
-    try {
-        testDiag("------- %s::%s --------", kname, mname);
-        C inst;
-        (inst.*M)();
-    } catch(std::exception& e) {
-        PRINT_EXCEPTION(e);
-        testAbort("unexpected exception: %s", e.what());
-    }
-}
-
-// Construct an instance and run one method
-#define TEST_METHOD(klass, method) test_method<klass, &klass::method>(#klass, #method)
-
-template<typename LHS, typename RHS>
-void testEqualx(const char *nLHS, const char *nRHS, LHS l, RHS r)
-{
-    std::ostringstream msg;
-    msg<<nLHS<<" ("<<l<<") == "<<nRHS<<" ("<<r<<")";
-    testOk(l==r, "%s", msg.str().c_str());
-}
-#define testEqual(LHS, RHS) testEqualx(#LHS, #RHS, LHS, RHS)
-
-template<typename PVD>
-void testFieldEqual(const epics::pvData::PVStructurePtr& val, const char *name, typename PVD::value_type expect)
-{
-    if(!val) {
-        testFail("empty structure");
-        return;
-    }
-    typename PVD::shared_pointer fval(val->getSubField<PVD>(name));
-    if(!fval) {
-        testFail("field '%s' with type %s does not exist", name, typeid(PVD).name());
-    } else {
-        typename PVD::value_type actual(fval->get());
-        testEqualx(name, "expect", actual, expect);
-    }
 }
 
 // Boilerplate reduction for accessing a scalar field
