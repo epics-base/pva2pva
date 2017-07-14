@@ -192,6 +192,7 @@ ChannelCache::lookup(const std::string& newName)
         //TODO: async lookup
 
         ChannelCacheEntry::shared_pointer ent(new ChannelCacheEntry(this, newName));
+        ent->requester.reset(new ChannelCacheEntry::CRequester(ent));
 
         entries[newName] = ent;
 
@@ -200,8 +201,7 @@ ChannelCache::lookup(const std::string& newName)
             // unlock to call createChannel()
             epicsGuardRelease<epicsMutex> U(G);
 
-            pva::ChannelRequester::shared_pointer req(new ChannelCacheEntry::CRequester(ent));
-            M = provider->createChannel(newName, req);
+            M = provider->createChannel(newName, ent->requester);
             if(!M)
                 THROW_EXCEPTION2(std::runtime_error, "Failed to createChannel");
         }

@@ -117,6 +117,7 @@ struct epicsShareClass ChannelCacheEntry
 
     // clientChannel
     epics::pvAccess::Channel::shared_pointer channel;
+    epics::pvAccess::ChannelRequester::shared_pointer requester;
 
     bool dropPoke;
 
