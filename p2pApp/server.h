@@ -1,6 +1,8 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <pv/serverContext.h>
+
 #include "chancache.h"
 #include "channel.h"
 
@@ -33,6 +35,22 @@ struct epicsShareClass GWServerChannelProvider : public
 
     explicit GWServerChannelProvider(const epics::pvAccess::ChannelProvider::shared_pointer& prov);
     virtual ~GWServerChannelProvider();
+};
+
+struct epicsShareClass ServerConfig {
+    int debug;
+    bool interactive;
+    epics::pvData::PVStructure::shared_pointer conf;
+
+    typedef std::map<std::string, GWServerChannelProvider::shared_pointer> clients_t;
+    clients_t clients;
+
+    typedef std::map<std::string, epics::pvAccess::ServerContext::shared_pointer> servers_t;
+    servers_t servers;
+
+    ServerConfig() :debug(0), interactive(true) {}
+
+    static std::tr1::shared_ptr<ServerConfig> instance;
 };
 
 #endif // SERVER_H

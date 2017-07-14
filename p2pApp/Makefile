@@ -7,7 +7,7 @@ include $(TOP)/configure/CONFIG
 
 PROD_HOST = p2p
 
-p2p_SRCS += main.cpp
+p2p_SRCS += gwmain.cpp
 p2p_LIBS += p2pcore pvAccess pvData Com
 
 LIBRARY_HOST += p2pcore
