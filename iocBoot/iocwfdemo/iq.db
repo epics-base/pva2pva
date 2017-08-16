@@ -1,0 +1,56 @@
+record(ao, "$(N)Rate") {
+    field(VAL, "1.0")
+    field(PINI, "YES")
+    field(PREC, "3")
+    field( OUT, "$(N)dly_.ODLY NPP")
+}
+
+record(ao, "$(N)Delta") {
+    field(VAL, "0.0")
+    field(PINI, "YES")
+}
+
+record(calc, "$(N)Phase:I") {
+    field(PINI, "RUNNING")
+    field(INPA, "$(N)Phase:I")
+    field(CALC, "A+1")
+    field( EGU, "rad")
+    field(PREC, "3")
+    field(FLNK, "$(N)Phase:Q")
+    info(pdbGroup0, "$(N)iq|phas_i=VAL")
+    #field(TPRO, "1")
+}
+
+record(calc, "$(N)Phase:Q") {
+    field(INPA, "$(N)Phase:I")
+    field(INPB, "$(N)Delta NPP")
+    field(CALC, "A+B")
+    field( EGU, "rad")
+    field(PREC, "3")
+    field(FLNK, "$(N)I")
+    info(pdbGroup0, "$(N)iq|phas_q=VAL")
+}
+
+record(waveform, "$(N)I") {
+    field(DTYP, "PDB Demo")
+    field( INP, "$(N)Phase:I")
+    field(FTVL, "DOUBLE")
+    field(NELM, "500")
+    field(FLNK, "$(N)Q")
+    info(pdbGroup0, "$(N)iq|I=VAL")
+}
+
+record(waveform, "$(N)Q") {
+    field(DTYP, "PDB Demo")
+    field( INP, "$(N)Phase:Q")
+    field(FTVL, "DOUBLE")
+    field(NELM, "500")
+    field(FLNK, "$(N)dly_")
+    info(pdbGroup0, "$(N)iq|Q=VAL")
+    info(pdbTrigger,"$(N)iq|Q>*")
+}
+
+record(calcout, "$(N)dly_") {
+    field(ODLY, "1.0")
+    field(OUT , "$(N)Phase:I.PROC CA")
+}

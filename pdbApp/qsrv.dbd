@@ -1,3 +1,6 @@
 registrar(QSRVRegistrar)
 #registrar(installPVAAddLinkHook)
 #link("pva", "lsetPVA")
+
+# from demo.cpp
+device(waveform, CONSTANT, devWfPDBDemo, "PDB Demo")
