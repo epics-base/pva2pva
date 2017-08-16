@@ -311,16 +311,17 @@ void putValue(const pvArray& pv, unsigned dbe, db_field_log *pfl)
 {
     short dbr = pv.dbr;
     long nReq = dbChannelFinalElements(pv.chan);
+    const pvd::ScalarType etype = pv.value->getScalarArray()->getElementType();
 
     assert(dbr!=DBR_STRING);
 
-    pvd::shared_vector<void> buf(pvd::ScalarTypeFunc::allocArray(pv.value->getScalarArray()->getElementType(), nReq)); // TODO: pool?
+    pvd::shared_vector<void> buf(pvd::ScalarTypeFunc::allocArray(etype, nReq)); // TODO: pool?
 
     long status = dbChannelGet(pv.chan, dbr, buf.data(), NULL, &nReq, pfl);
     if(status)
         throw std::runtime_error("dbChannelGet for meta fails");
 
-    buf.slice(0, nReq);
+    buf.slice(0, nReq*pvd::ScalarTypeFunc::elementSize(etype));
 
     pv.value->putFrom(pvd::freeze(buf));
 }
