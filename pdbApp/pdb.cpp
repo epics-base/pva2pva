@@ -269,7 +269,7 @@ struct PDBProcessor
          *     post() a PVA monitor with ".FLD"  and ".FLD2" (aka ".other").
          *     If no triggers specified, then every field subscribed to trigger itself
          *   info(pdbAtomic, "<groupname>|...")
-         *     Allowed values are "YES" or "NO".  Defaults to "NO"
+         *     Allowed values are "YES" or "NO".  Defaults to "YES"
          *     Whether triggers use multi or single record locking.
          *     Defines default to get/put operations, but individual
          *     requests may override.
@@ -433,10 +433,8 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);
 
                 if(!info.triggers.empty()) {
-                    printf("##### setup VALUE %s\n", dbChannelName(info.chan));
                     info.evt_VALUE.create(event_context, info.chan, &pdb_group_event, DBE_VALUE|DBE_ALARM);
-                } else
-                    printf("##### skip  VALUE %s\n", dbChannelName(info.chan));
+                }
             }
         }
     }catch(...){
@@ -450,7 +448,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 PDBProvider::~PDBProvider()
 {
     epics::atomic::decrement(ninstances);
-    std::cerr<<"########## "<<__PRETTY_FUNCTION__<<"\n";
+
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
         if(event_context) {
@@ -466,7 +464,7 @@ PDBProvider::~PDBProvider()
 void PDBProvider::destroy()
 {
     dbEventCtx ctxt = NULL;
-    std::cerr<<"########## "<<__PRETTY_FUNCTION__<<"\n";
+
     persist_pv_map_t ppv;
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
@@ -533,7 +531,7 @@ PDBProvider::createChannel(std::string const & channelName,
     pva::Channel::shared_pointer ret;
     PDBPV::shared_pointer pv;
     pvd::Status status;
-    std::cerr<<"######## "<<__PRETTY_FUNCTION__<<" name"<<channelName<<"\n";
+
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
 

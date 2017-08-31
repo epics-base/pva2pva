@@ -86,7 +86,7 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
         case pva::Channel::DESTROYED:
             // Drop from cache
             chan->cache->entries.erase(chan->channelName);
-            // keep 'chan' as a reference is that actual destruction doesn't happen which cacheLock is held
+            // keep 'chan' as a reference so that actual destruction doesn't happen which cacheLock is held
             break;
         default:
             break;
@@ -102,6 +102,8 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
         pva::ChannelRequester::shared_pointer req(chan->requester.lock());
         if(req)
             req->channelStateChange(*it, connectionState);
+        else
+            std::cout<<"GWChannel w/ dead requester\n";
     }
 }
 
