@@ -9,8 +9,10 @@
 #define epicsExportSharedSymbols
 #include "helper.h"
 #include "pdbsingle.h"
-#include "pdbgroup.h"
 #include "pvif.h"
+#ifdef USE_MULTILOCK
+#  include "pdbgroup.h"
+#endif
 
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
@@ -41,6 +43,7 @@ struct Splitter {
         return true;
     }
 };
+
 
 struct GroupMemberInfo {
     GroupMemberInfo(const std::string& a, const std::string& b) :pvname(a), pvfldname(b) {}
@@ -327,6 +330,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                                     ->endNested()
                                     ->createStructure());
 
+#ifdef USE_MULTILOCK
     // assemble group PVD structure definitions and build dbLockers
     FOREACH(it, end, proc.groups)
     {
@@ -401,6 +405,11 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             fprintf(stderr, "%s: pdbGroup not created: %s\n", info.name.c_str(), e.what());
         }
     }
+#else
+    if(!proc.groups.empty()) {
+        fprintf(stderr, "pdbGroup(s) were defined, but need Base >=3.16.0.2 to function.  Ignoring.\n");
+    }
+#endif USE_MULTILOCK
 
     event_context = db_init_events();
     if(!event_context)
@@ -411,6 +420,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
     // setup group monitors
     try {
+#ifdef USE_MULTILOCK
         FOREACH(it, end, persist_pv_map)
         {
             const PDBPV::shared_pointer& ppv = it->second;
@@ -437,6 +447,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 }
             }
         }
+#endif // USE_MULTILOCK
     }catch(...){
         db_close_events(event_context);
         // TODO, remove PV and continue?

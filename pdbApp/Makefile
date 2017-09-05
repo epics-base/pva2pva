@@ -13,9 +13,12 @@ pdbcore_SRCS += pvif.cpp
 pdbcore_SRCS += qsrv.cpp
 pdbcore_SRCS += pdb.cpp
 pdbcore_SRCS += pdbsingle.cpp
-pdbcore_SRCS += pdbgroup.cpp
 #pdbcore_SRCS += pvalink.cpp
 pdbcore_SRCS += demo.cpp
+
+ifdef BASE_3_16
+pdbcore_SRCS += pdbgroup.cpp
+endif
 
 pdbcore_LIBS += pvAccess pvData Com
 

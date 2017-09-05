@@ -8,9 +8,12 @@
 #include <pv/epicsException.h>
 
 #include "utilities.h"
+#include "pvif.h"
 #include "pdb.h"
-#include "pdbgroup.h"
 #include "pdbsingle.h"
+#ifdef USE_MULTILOCK
+#  include "pdbgroup.h"
+#endif
 
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
@@ -169,6 +172,7 @@ void testSingleGet(const PDBProvider::shared_pointer& prov)
 void testGroupGet(const PDBProvider::shared_pointer& prov)
 {
     testDiag("test group get");
+#ifdef USE_MULTILOCK
     pvd::PVStructurePtr value;
 
     testDiag("get non-atomic");
@@ -184,6 +188,9 @@ void testGroupGet(const PDBProvider::shared_pointer& prov)
     testFieldEqual<pvd::PVInt>(value,    "fld2.value", 30);
     testFieldEqual<pvd::PVDouble>(value, "fld3.value", 4.0);
     testFieldEqual<pvd::PVInt>(value,    "fld4.value", 40);
+#else
+    testSkip(30, "No multilock");
+#endif
 }
 
 void testSinglePut(const PDBProvider::shared_pointer& prov)
@@ -210,6 +217,7 @@ void testSinglePut(const PDBProvider::shared_pointer& prov)
 void testGroupPut(const PDBProvider::shared_pointer& prov)
 {
     testDiag("test group put");
+#ifdef USE_MULTILOCK
 
     testdbPutFieldOk("rec3", DBR_DOUBLE, 3.0);
     testdbPutFieldOk("rec4", DBR_DOUBLE, 4.0);
@@ -240,6 +248,9 @@ void testGroupPut(const PDBProvider::shared_pointer& prov)
     testdbGetFieldEqual("rec4", DBR_DOUBLE, 5.0);
     testdbGetFieldEqual("rec3.RVAL", DBR_LONG, 30);
     testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
+#else
+    testSkip(12, "No multilock");
+#endif
 }
 
 void testSingleMonitor(const PDBProvider::shared_pointer& prov)
@@ -295,6 +306,7 @@ void testSingleMonitor(const PDBProvider::shared_pointer& prov)
 void testGroupMonitor(const PDBProvider::shared_pointer& prov)
 {
     testDiag("test group monitor");
+#ifdef USE_MULTILOCK
 
     testdbPutFieldOk("rec3", DBR_DOUBLE, 3.0);
     testdbPutFieldOk("rec4", DBR_DOUBLE, 4.0);
@@ -337,11 +349,15 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     else testFail("oops");
 
     testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 32.0);
+#else
+    testSkip(23, "No multilock");
+#endif
 }
 
 void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
 {
     testDiag("test group monitor w/ triggers");
+#ifdef USE_MULTILOCK
 
     testdbPutFieldOk("rec5", DBR_DOUBLE, 5.0);
     testdbPutFieldOk("rec6", DBR_DOUBLE, 6.0);
@@ -387,6 +403,9 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld3.value", 0); // not triggered -> no update.  only get/set
 
     testOk1(!e.next());
+#else
+    testSkip(23, "No multilock");
+#endif
 }
 
 } // namespace
@@ -429,8 +448,12 @@ MAIN(testpdb)
 
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
         testEqual(epics::atomic::get(PDBProvider::num_instances), 0u);
+#ifdef USE_MULTILOCK
         testEqual(epics::atomic::get(PDBGroupChannel::num_instances), 0u);
         testEqual(epics::atomic::get(PDBGroupPV::num_instances), 0u);
+#else
+        testSkip(2, "No multilock");
+#endif // USE_MULTILOCK
         testEqual(epics::atomic::get(PDBSinglePV::num_instances), 0u);
 
     }catch(std::exception& e){

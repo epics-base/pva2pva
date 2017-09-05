@@ -8,11 +8,24 @@
 #include <dbStaticLib.h>
 #include <dbLock.h>
 #include <dbEvent.h>
+#include <epicsVersion.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
 
 #include <shareLib.h>
+
+#ifndef VERSION_INT
+#  define VERSION_INT(V,R,M,P) ( ((V)<<24) | ((R)<<16) | ((M)<<8) | (P))
+#endif
+
+#ifndef EPICS_VERSION_INT
+#  define EPICS_VERSION_INT VERSION_INT(EPICS_VERSION, EPICS_REVISION, EPICS_MODIFICATION, EPICS_PATCH_LEVEL)
+#endif
+
+#if EPICS_VERSION_INT>=VERSION_INT(3,16,0,2)
+#  define USE_MULTILOCK
+#endif
 
 epics::pvData::ScalarType DBR2PVD(short dbr);
 short PVD2DBR(epics::pvData::ScalarType pvt);
@@ -202,6 +215,8 @@ struct DBScanLocker
     { dbScanUnlock(prec); }
 };
 
+#ifdef USE_MULTILOCK
+
 struct DBManyLock
 {
     dbLocker *plock;
@@ -236,6 +251,7 @@ struct DBManyLocker
         dbScanUnlockMany(plock);
     }
 };
+#endif
 
 struct epicsShareClass PVIF {
     PVIF(dbChannel *ch, const epics::pvData::PVStructurePtr& p);
