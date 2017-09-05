@@ -10,8 +10,10 @@
 
 #include "pvahelper.h"
 #include "iocshelper.h"
+#include "pvif.h"
 #include "pdb.h"
 #include "pdbsingle.h"
+#include "pdbgroup.h"
 
 namespace pva = epics::pvAccess;
 
@@ -22,6 +24,12 @@ void QSRVRegistrar()
     epics::registerRefCounter("PDBSingleChannel", &PDBSingleChannel::num_instances);
     epics::registerRefCounter("PDBSinglePut", &PDBSinglePut::num_instances);
     epics::registerRefCounter("PDBSingleMonitor", &PDBSingleMonitor::num_instances);
+#ifdef USE_MULTILOCK
+    epics::registerRefCounter("PDBGroupPV", &PDBGroupPV::num_instances);
+    epics::registerRefCounter("PDBGroupChannel", &PDBGroupChannel::num_instances);
+    epics::registerRefCounter("PDBGroupPut", &PDBGroupPut::num_instances);
+    epics::registerRefCounter("PDBGroupMonitor", &PDBGroupMonitor::num_instances);
+#endif // USE_MULTILOCK
     epics::registerRefCounter("PDBProvider", &PDBProvider::num_instances);
     pva::ChannelProviderRegistry::servers()->add<PDBProvider>("QSRV");
 }

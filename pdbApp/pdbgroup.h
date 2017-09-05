@@ -103,10 +103,12 @@ struct PDBGroupPut : public epics::pvAccess::ChannelPut,
     epics::pvData::PVStructurePtr pvf;
     std::vector<std::tr1::shared_ptr<PVIF> > pvif;
 
+    static size_t num_instances;
+
     PDBGroupPut(const PDBGroupChannel::shared_pointer &channel,
                 const requester_type::weak_pointer &requester,
                 const epics::pvData::PVStructure::shared_pointer& pvReq);
-    virtual ~PDBGroupPut() {}
+    virtual ~PDBGroupPut();
 
     virtual void destroy() { pvif.clear(); channel.reset(); requester.reset(); }
     virtual void lock() {}
@@ -128,10 +130,12 @@ struct PDBGroupMonitor : public BaseMonitor
 
     bool atomic;
 
+    static size_t num_instances;
+
     PDBGroupMonitor(const PDBGroupPV::shared_pointer& pv,
                      const requester_type::weak_pointer& requester,
                      const epics::pvData::PVStructure::shared_pointer& pvReq);
-    virtual ~PDBGroupMonitor() {destroy();}
+    virtual ~PDBGroupMonitor();
 
     virtual void onStart();
     virtual void onStop();

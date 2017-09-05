@@ -12,6 +12,9 @@ namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
 size_t PDBGroupPV::num_instances;
+size_t PDBGroupChannel::num_instances;
+size_t PDBGroupPut::num_instances;
+size_t PDBGroupMonitor::num_instances;
 
 typedef epicsGuard<epicsMutex> Guard;
 
@@ -99,8 +102,6 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
     return ret;
 }
 
-size_t PDBGroupChannel::num_instances;
-
 PDBGroupChannel::PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                                  const std::tr1::shared_ptr<pva::ChannelProvider>& prov,
                                  const pva::ChannelRequester::shared_pointer& req)
@@ -153,6 +154,7 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
 {
+    epics::atomic::increment(num_instances);
     pvd::PVScalarPtr atomicopt(pvReq->getSubField<pvd::PVScalar>("record._options.atomic"));
     if(atomicopt) {
         try {
@@ -175,6 +177,11 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
                                pvf->getSubFieldT<pvd::PVStructure>(info.attachment)
                                ));
     }
+}
+
+PDBGroupPut::~PDBGroupPut()
+{
+    epics::atomic::decrement(num_instances);
 }
 
 void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
@@ -245,7 +252,15 @@ PDBGroupMonitor::PDBGroupMonitor(const PDBGroupPV::shared_pointer& pv,
                  const pvd::PVStructure::shared_pointer& pvReq)
     :BaseMonitor(requester, pvReq)
     ,pv(pv)
-{}
+{
+    epics::atomic::increment(num_instances);
+}
+
+PDBGroupMonitor::~PDBGroupMonitor()
+{
+    destroy();
+    epics::atomic::decrement(num_instances);
+}
 
 void PDBGroupMonitor::destroy()
 {
