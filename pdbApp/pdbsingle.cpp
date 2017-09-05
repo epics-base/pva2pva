@@ -12,7 +12,11 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
-size_t PDBSinglePV::ninstances;
+size_t PDBSinglePV::num_instances;
+size_t PDBSingleChannel::num_instances;
+size_t PDBSingleGet::num_instances;
+size_t PDBSinglePut::num_instances;
+size_t PDBSingleMonitor::num_instances;
 
 typedef epicsGuard<epicsMutex> Guard;
 
@@ -73,12 +77,12 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
     complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
     pvif.reset(PVIF::attach(this->chan, complete));
 
-    epics::atomic::increment(ninstances);
+    epics::atomic::increment(num_instances);
 }
 
 PDBSinglePV::~PDBSinglePV()
 {
-    epics::atomic::decrement(ninstances);
+    epics::atomic::decrement(num_instances);
 }
 
 void PDBSinglePV::activate()
@@ -101,6 +105,12 @@ PDBSingleChannel::PDBSingleChannel(const PDBSinglePV::shared_pointer& pv,
     ,pv(pv)
 {
     assert(!!this->pv);
+    epics::atomic::increment(num_instances);
+}
+
+PDBSingleChannel::~PDBSingleChannel()
+{
+    epics::atomic::decrement(num_instances);
 }
 
 void PDBSingleChannel::printInfo(std::ostream& out)
@@ -149,7 +159,14 @@ PDBSingleGet::PDBSingleGet(const PDBSingleChannel::shared_pointer &channel,
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
     ,pvif(PVIF::attach(channel->pv->chan, pvf))
-{}
+{
+    epics::atomic::increment(num_instances);
+}
+
+PDBSingleGet::~PDBSingleGet()
+{
+    epics::atomic::decrement(num_instances);
+}
 
 namespace {
 void commonGet(PVIF *pvif, pvd::BitSet* changed)
@@ -188,6 +205,7 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     ,doProcForce(false)
     ,doWait(false)
 {
+    epics::atomic::increment(num_instances);
     dbChannel *chan = channel->pv->chan;
     dbCommon *precord = dbChannelRecord(chan);
     doProc = dbChannelField(chan) == &precord->proc ||
@@ -212,6 +230,11 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
 
     memset((void*)&notify, 0, sizeof(notify));
     notify.usrPvt = (void*)this;
+}
+
+PDBSinglePut::~PDBSinglePut()
+{
+    epics::atomic::decrement(num_instances);
 }
 
 void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
@@ -277,7 +300,15 @@ PDBSingleMonitor::PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
                  const pvd::PVStructure::shared_pointer& pvReq)
     :BaseMonitor(requester, pvReq)
     ,pv(pv)
-{}
+{
+    epics::atomic::increment(num_instances);
+}
+
+PDBSingleMonitor::~PDBSingleMonitor()
+{
+    destroy();
+    epics::atomic::decrement(num_instances);
+}
 
 void PDBSingleMonitor::destroy()
 {

@@ -56,7 +56,7 @@ struct epicsShareClass PDBGroupPV : public PDBPV
     interested_t interested;
     size_t initial_waits;
 
-    static size_t ninstances;
+    static size_t num_instances;
 
     PDBGroupPV();
     virtual ~PDBGroupPV();
@@ -74,7 +74,7 @@ struct epicsShareClass PDBGroupChannel : public BaseChannel,
 
     PDBGroupPV::shared_pointer pv;
 
-    static size_t ninstances;
+    static size_t num_instances;
 
     PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                 const std::tr1::shared_ptr<epics::pvAccess::ChannelProvider>& prov,

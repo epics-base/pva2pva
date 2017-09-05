@@ -11,7 +11,7 @@
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
-size_t PDBGroupPV::ninstances;
+size_t PDBGroupPV::num_instances;
 
 typedef epicsGuard<epicsMutex> Guard;
 
@@ -83,12 +83,12 @@ PDBGroupPV::PDBGroupPV()
     ,monatomic(false)
     ,initial_waits(0)
 {
-    epics::atomic::increment(ninstances);
+    epics::atomic::increment(num_instances);
 }
 
 PDBGroupPV::~PDBGroupPV()
 {
-    epics::atomic::decrement(ninstances);
+    epics::atomic::decrement(num_instances);
 }
 
 pva::Channel::shared_pointer
@@ -99,7 +99,7 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
     return ret;
 }
 
-size_t PDBGroupChannel::ninstances;
+size_t PDBGroupChannel::num_instances;
 
 PDBGroupChannel::PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                                  const std::tr1::shared_ptr<pva::ChannelProvider>& prov,
@@ -107,12 +107,12 @@ PDBGroupChannel::PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
     :BaseChannel(pv->name, prov, req, pv->fielddesc)
     ,pv(pv)
 {
-    epics::atomic::increment(ninstances);
+    epics::atomic::increment(num_instances);
 }
 
 PDBGroupChannel::~PDBGroupChannel()
 {
-    epics::atomic::decrement(ninstances);
+    epics::atomic::decrement(num_instances);
 }
 
 void PDBGroupChannel::printInfo(std::ostream& out)

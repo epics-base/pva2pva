@@ -428,10 +428,10 @@ MAIN(testpdb)
         iocshCmd("stopPVAServer");
 
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
-        testEqual(epics::atomic::get(PDBProvider::ninstances), 0u);
-        testEqual(epics::atomic::get(PDBGroupChannel::ninstances), 0u);
-        testEqual(epics::atomic::get(PDBGroupPV::ninstances), 0u);
-        testEqual(epics::atomic::get(PDBSinglePV::ninstances), 0u);
+        testEqual(epics::atomic::get(PDBProvider::num_instances), 0u);
+        testEqual(epics::atomic::get(PDBGroupChannel::num_instances), 0u);
+        testEqual(epics::atomic::get(PDBGroupPV::num_instances), 0u);
+        testEqual(epics::atomic::get(PDBSinglePV::num_instances), 0u);
 
     }catch(std::exception& e){
         PRINT_EXCEPTION(e);

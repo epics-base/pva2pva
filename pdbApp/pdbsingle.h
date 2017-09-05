@@ -45,7 +45,7 @@ struct epicsShareClass PDBSinglePV : public PDBPV
     DBEvent evt_VALUE, evt_PROPERTY;
     bool hadevent_VALUE, hadevent_PROPERTY;
 
-    static size_t ninstances;
+    static size_t num_instances;
 
     PDBSinglePV(DBCH& chan,
                 const PDBProvider::shared_pointer& prov);
@@ -65,9 +65,11 @@ struct PDBSingleChannel : public BaseChannel,
 
     PDBSinglePV::shared_pointer pv;
 
+    static size_t num_instances;
+
     PDBSingleChannel(const PDBSinglePV::shared_pointer& pv,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
-    virtual ~PDBSingleChannel() {}
+    virtual ~PDBSingleChannel();
 
     virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
             epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
@@ -93,10 +95,12 @@ struct PDBSingleGet : public epics::pvAccess::ChannelGet,
     epics::pvData::PVStructurePtr pvf;
     std::auto_ptr<PVIF> pvif;
 
+    static size_t num_instances;
+
     PDBSingleGet(const PDBSingleChannel::shared_pointer& channel,
                  const epics::pvAccess::ChannelGetRequester::shared_pointer& requester,
                  const epics::pvData::PVStructure::shared_pointer& pvReq);
-    virtual ~PDBSingleGet() {}
+    virtual ~PDBSingleGet();
 
     virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }
     virtual void lock() {}
@@ -122,10 +126,12 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
 
     std::tr1::shared_ptr<PDBSinglePut> procself; // make ref. loop while notify is active
 
+    static size_t num_instances;
+
     PDBSinglePut(const PDBSingleChannel::shared_pointer& channel,
                  const epics::pvAccess::ChannelPutRequester::shared_pointer& requester,
                  const epics::pvData::PVStructure::shared_pointer& pvReq);
-    virtual ~PDBSinglePut() {}
+    virtual ~PDBSinglePut();
 
     virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }
     virtual void lock() {}
@@ -145,10 +151,12 @@ struct PDBSingleMonitor : public BaseMonitor
 
     PDBSinglePV::weak_pointer pv;
 
+    static size_t num_instances;
+
     PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
                      const requester_t::shared_pointer& requester,
                      const epics::pvData::PVStructure::shared_pointer& pvReq);
-    virtual ~PDBSingleMonitor() {destroy();}
+    virtual ~PDBSingleMonitor();
 
     virtual void onStart();
     virtual void onStop();

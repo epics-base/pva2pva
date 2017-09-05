@@ -54,7 +54,7 @@ struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
 
     dbEventCtx event_context;
 
-    static size_t ninstances;
+    static size_t num_instances;
 };
 
 #endif // PDB_H

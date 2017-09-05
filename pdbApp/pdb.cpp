@@ -312,7 +312,7 @@ struct PDBProcessor
 };
 }
 
-size_t PDBProvider::ninstances;
+size_t PDBProvider::num_instances;
 
 PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 {
@@ -442,12 +442,12 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
         // TODO, remove PV and continue?
         throw;
     }
-    epics::atomic::increment(ninstances);
+    epics::atomic::increment(num_instances);
 }
 
 PDBProvider::~PDBProvider()
 {
-    epics::atomic::decrement(ninstances);
+    epics::atomic::decrement(num_instances);
 
     {
         epicsGuard<epicsMutex> G(transient_pv_map.mutex());
