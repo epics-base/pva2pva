@@ -14,7 +14,6 @@ namespace pva = epics::pvAccess;
 
 size_t PDBSinglePV::num_instances;
 size_t PDBSingleChannel::num_instances;
-size_t PDBSingleGet::num_instances;
 size_t PDBSinglePut::num_instances;
 size_t PDBSingleMonitor::num_instances;
 
@@ -118,16 +117,6 @@ void PDBSingleChannel::printInfo(std::ostream& out)
     out<<"PDB single : "<<pvname<<"\n";
 }
 
-pva::ChannelGet::shared_pointer
-PDBSingleChannel::createChannelGet(
-        pva::ChannelGetRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelGet::shared_pointer ret(new PDBSingleGet(shared_from_this(), requester, pvRequest));
-    requester->channelGetConnect(pvd::Status(), ret, fielddesc);
-    return ret;
-}
-
 pva::ChannelPut::shared_pointer
 PDBSingleChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & requester,
@@ -150,47 +139,6 @@ PDBSingleChannel::createMonitor(
     ret->connect(pv->complete);
     return ret;
 }
-
-PDBSingleGet::PDBSingleGet(const PDBSingleChannel::shared_pointer &channel,
-                           const pva::ChannelGetRequester::shared_pointer& requester,
-                           const pvd::PVStructure::shared_pointer &pvReq)
-    :channel(channel)
-    ,requester(requester)
-    ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
-    ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
-    ,pvif(PVIF::attach(channel->pv->chan, pvf))
-{
-    epics::atomic::increment(num_instances);
-}
-
-PDBSingleGet::~PDBSingleGet()
-{
-    epics::atomic::decrement(num_instances);
-}
-
-namespace {
-void commonGet(PVIF *pvif, pvd::BitSet* changed)
-{
-    changed->clear();
-    {
-        DBScanLocker L(pvif->chan);
-        pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
-    }
-    //TODO: report unused fields as changed?
-    changed->clear();
-    changed->set(0);
-}
-}
-
-void PDBSingleGet::get()
-{
-    commonGet(pvif.get(), changed.get());
-    requester_type::shared_pointer req(requester.lock());
-    if(req)
-        req->getDone(pvd::Status(), shared_from_this(), pvf, changed);
-}
-
-
 
 
 PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
@@ -289,7 +237,15 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 
 void PDBSinglePut::get()
 {
-    commonGet(pvif.get(), changed.get());
+    changed->clear();
+    {
+        DBScanLocker L(pvif->chan);
+        pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+    }
+    //TODO: report unused fields as changed?
+    changed->clear();
+    changed->set(0);
+
     requester_type::shared_pointer req(requester.lock());
     if(req)
         req->getDone(pvd::Status(), shared_from_this(), pvf, changed);

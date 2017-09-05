@@ -81,9 +81,6 @@ struct epicsShareClass PDBGroupChannel : public BaseChannel,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
     virtual ~PDBGroupChannel();
 
-    virtual epics::pvAccess::ChannelGet::shared_pointer createChannelGet(
-            epics::pvAccess::ChannelGetRequester::shared_pointer const & channelGetRequester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
     virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
             epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
@@ -92,31 +89,6 @@ struct epicsShareClass PDBGroupChannel : public BaseChannel,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
 
     virtual void printInfo(std::ostream& out);
-};
-
-struct PDBGroupGet : public epics::pvAccess::ChannelGet,
-        public std::tr1::enable_shared_from_this<PDBGroupGet>
-{
-    PDBGroupChannel::shared_pointer channel;
-    requester_type::weak_pointer requester;
-
-    bool atomic;
-    epics::pvData::BitSetPtr changed;
-    epics::pvData::PVStructurePtr pvf;
-    std::vector<std::tr1::shared_ptr<PVIF> > pvif;
-
-    PDBGroupGet(const PDBGroupChannel::shared_pointer& channel,
-                const requester_type::weak_pointer &requester,
-                const epics::pvData::PVStructure::shared_pointer& pvReq);
-    virtual ~PDBGroupGet() {}
-
-    virtual void destroy() { pvif.clear(); channel.reset(); requester.reset(); }
-    virtual void lock() {}
-    virtual void unlock() {}
-    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
-    virtual void cancel() {}
-    virtual void lastRequest() {}
-    virtual void get();
 };
 
 struct PDBGroupPut : public epics::pvAccess::ChannelPut,

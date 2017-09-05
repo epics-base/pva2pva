@@ -20,7 +20,6 @@ void QSRVRegistrar()
 {
     epics::registerRefCounter("PDBSinglePV", &PDBSinglePV::num_instances);
     epics::registerRefCounter("PDBSingleChannel", &PDBSingleChannel::num_instances);
-    epics::registerRefCounter("PDBSingleGet", &PDBSingleGet::num_instances);
     epics::registerRefCounter("PDBSinglePut", &PDBSinglePut::num_instances);
     epics::registerRefCounter("PDBSingleMonitor", &PDBSingleMonitor::num_instances);
     epics::registerRefCounter("PDBProvider", &PDBProvider::num_instances);

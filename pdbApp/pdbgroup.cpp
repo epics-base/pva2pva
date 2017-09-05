@@ -120,16 +120,6 @@ void PDBGroupChannel::printInfo(std::ostream& out)
     out<<"PDB group : "<<pvname<<"\n";
 }
 
-pva::ChannelGet::shared_pointer
-PDBGroupChannel::createChannelGet(
-        pva::ChannelGetRequester::shared_pointer const & requester,
-        pvd::PVStructure::shared_pointer const & pvRequest)
-{
-    pva::ChannelGet::shared_pointer ret(new PDBGroupGet(shared_from_this(), requester, pvRequest));
-    requester->channelGetConnect(pvd::Status(), ret, fielddesc);
-    return ret;
-}
-
 pva::ChannelPut::shared_pointer
 PDBGroupChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & requester,
@@ -152,66 +142,6 @@ PDBGroupChannel::createMonitor(
     return ret;
 }
 
-
-PDBGroupGet::PDBGroupGet(const PDBGroupChannel::shared_pointer &channel,
-                         const requester_type::weak_pointer &requester,
-                         const pvd::PVStructure::shared_pointer &pvReq)
-    :channel(channel)
-    ,requester(requester)
-    ,atomic(channel->pv->pgatomic)
-    ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
-    ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
-{
-    pvd::PVScalarPtr atomicopt(pvReq->getSubField<pvd::PVScalar>("record._options.atomic"));
-    if(atomicopt) {
-        try {
-            atomic = atomicopt->getAs<pvd::boolean>();
-        }catch(std::exception& e){
-            requester_type::shared_pointer req(requester.lock());
-            if(req)
-                req->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
-        }
-    }
-    pvf->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
-
-    const size_t npvs = channel->pv->members.size();
-    pvif.resize(npvs);
-    for(size_t i=0; i<npvs; i++)
-    {
-        PDBGroupPV::Info& info = channel->pv->members[i];
-
-        pvif[i].reset(PVIF::attach(info.chan,
-                               pvf->getSubFieldT<pvd::PVStructure>(info.attachment)
-                               ));
-    }
-}
-
-void PDBGroupGet::get()
-{
-    const size_t npvs = pvif.size();
-
-    changed->clear();
-    if(atomic) {
-        DBManyLocker L(channel->pv->locker);
-        for(size_t i=0; i<npvs; i++)
-            pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
-    } else {
-
-        for(size_t i=0; i<npvs; i++)
-        {
-            PDBGroupPV::Info& info = channel->pv->members[i];
-
-            DBScanLocker L(dbChannelRecord(info.chan));
-            pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
-        }
-    }
-    //TODO: report unused fields as changed?
-    changed->clear();
-    changed->set(0);
-    requester_type::shared_pointer req(requester.lock());
-    if(req)
-        req->getDone(pvd::Status(), shared_from_this(), pvf, changed);
-}
 
 
 PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
