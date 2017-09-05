@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include <dbAccess.h>
 #include <epicsAtomic.h>
 #include <errlog.h>
@@ -141,6 +143,58 @@ PDBSingleChannel::createMonitor(
 }
 
 
+static
+int single_put_callback(struct processNotify *notify,notifyPutType type)
+{
+    PDBSinglePut *self = (PDBSinglePut*)notify->usrPvt;
+
+    if(notify->status!=notifyOK || type==putDisabledType) return 0;
+
+    // we've previously ensured that wait_changed&DBE_VALUE is true
+
+    switch(type) {
+    case putFieldType:
+    {
+        DBScanLocker L(notify->chan);
+        self->wait_pvif->get(*self->wait_changed);
+    }
+        break;
+    case putType:
+        self->wait_pvif->get(*self->wait_changed);
+        break;
+    }
+    return 1;
+}
+
+static
+void single_done_callback(struct processNotify *notify)
+{
+    PDBSinglePut *self = (PDBSinglePut*)notify->usrPvt;
+    pvd::Status sts;
+
+    // busy state should be 1 (normal completion) or 2 (if cancel in progress)
+    if(epics::atomic::compareAndSwap(self->notifyBusy, 1, 0)==0) {
+        std::cerr<<"PDBSinglePut dbNotify state error?\n";
+    }
+
+    switch(notify->status) {
+    case notifyOK:
+        break;
+    case notifyCanceled:
+        return; // skip notification
+    case notifyError:
+        sts = pvd::Status::error("Error in dbNotify");
+        break;
+    case notifyPutDisabled:
+        sts = pvd::Status::error("Put disabled");
+        break;
+    }
+
+    PDBSinglePut::requester_type::shared_pointer req(self->requester.lock());
+    if(req)
+        req->putDone(sts, self->shared_from_this());
+}
+
 PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
                            const pva::ChannelPutRequester::shared_pointer &requester,
                            const pvd::PVStructure::shared_pointer &pvReq)
@@ -149,6 +203,7 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
     ,pvif(PVIF::attach(channel->pv->chan, pvf))
+    ,notifyBusy(0)
     ,doProc(true)
     ,doProcForce(false)
     ,doWait(false)
@@ -161,27 +216,39 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
              precord->scan == 0);
 
     pvd::boolean wait;
-    getS(pvReq, "_record.options.block", wait);
+    try {
+        getS(pvReq, "record._options.block", wait);
+    } catch(std::runtime_error& e) {
+        requester->message(std::string("block= not understood : ")+e.what(), pva::warningMessage);
+    }
+
     doWait = wait;
     std::string proccmd;
-    if(getS(pvReq, "_record.options.process", proccmd)) {
-        if(proccmd=="yes" || proccmd=="1") {
+    if(getS(pvReq, "record._options.process", proccmd)) {
+        if(proccmd=="true") {
             doProc = true;
             doProcForce = true;
-        } else if(proccmd=="no" || proccmd=="0") {
+        } else if(proccmd=="false") {
             doProc = false;
             doProcForce = true;
+            doWait = false; // no point in waiting
         } else if(proccmd=="passive") {
             doProcForce = false;
+        } else {
+            requester->message("process= expects: true|false|passive", pva::warningMessage);
         }
     }
 
     memset((void*)&notify, 0, sizeof(notify));
     notify.usrPvt = (void*)this;
+    notify.chan = chan;
+    notify.putCallback = &single_put_callback;
+    notify.doneCallback = &single_done_callback;
 }
 
 PDBSinglePut::~PDBSinglePut()
 {
+    cancel();
     epics::atomic::decrement(num_instances);
 }
 
@@ -190,6 +257,8 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 {
     dbChannel *chan = channel->pv->chan;
     dbFldDes *fld = dbChannelFldDes(chan);
+    dbCommon *precord = dbChannelRecord(chan);
+
     pvd::Status ret;
     if(fld->field_type>=DBF_INLINK && fld->field_type<=DBF_FWDLINK) {
         try{
@@ -203,14 +272,36 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
             ret = pvd::Status(pvd::Status::error(strm.str()));
         }
 
+    } else if(doWait) {
+        // TODO: dbNotify doesn't allow us for force processing
+
+        // assume value may be a different struct each time
+        std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
+        unsigned mask = putpvif->dbe(*changed);
+
+        if(mask&~DBE_VALUE) {
+            requester_type::shared_pointer req(requester.lock());
+            if(req)
+                req->message("wait=true only supports .value", pva::warningMessage);
+        }
+
+        if(epics::atomic::compareAndSwap(notifyBusy, 0, 1)!=0)
+            throw std::logic_error("Previous put() not complete");
+
+        notify.requestType = (mask&DBE_VALUE) ? putProcessRequest : processRequest;
+
+        wait_pvif = putpvif;
+        wait_changed = changed;
+
+        dbProcessNotify(&notify);
+
+        return; // skip notification
     } else {
         // assume value may be a different struct each time
         std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
         {
             DBScanLocker L(chan);
             putpvif->get(*changed);
-
-            dbCommon *precord = dbChannelRecord(chan);
 
             bool tryproc = doProcForce ? doProc : dbChannelField(chan) == &precord->proc ||
                                                  (dbChannelFldDes(chan)->process_passive &&
@@ -233,6 +324,16 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
     requester_type::shared_pointer req(requester.lock());
     if(req)
         req->putDone(pvd::Status(), shared_from_this());
+}
+
+void PDBSinglePut::cancel()
+{
+    if(epics::atomic::compareAndSwap(notifyBusy, 1, 2)==1) {
+        dbNotifyCancel(&notify);
+        wait_changed.reset();
+        wait_pvif.reset();
+        epics::atomic::set(notifyBusy, 0);
+    }
 }
 
 void PDBSinglePut::get()

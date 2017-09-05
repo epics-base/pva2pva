@@ -16,13 +16,6 @@
 #define epicsExportSharedSymbols
 #include "pvif.h"
 
-
-#if defined(PVDATA_VERSION_INT)
-#if PVDATA_VERSION_INT > VERSION_INT(7,0,0,0)
-#  define USE_LOGICAL_AND
-#endif
-#endif
-
 namespace pvd = epics::pvData;
 
 DBCH::DBCH(dbChannel *ch) :chan(ch)
@@ -444,17 +437,21 @@ struct PVIFScalarNumeric : public PVIF
 
     virtual void get(const epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
-#ifdef USE_LOGICAL_AND
         if(mask.logical_and(pvmeta.maskVALUE))
             getValue(pvmeta);
-#else
-        pvd::BitSet temp(mask);
-        temp &= pvmeta.maskVALUE;
-        if(!temp.isEmpty())
-            getValue(pvmeta);
-#endif
     }
 
+    virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
+    {
+        unsigned ret = 0;
+        if(mask.logical_and(pvmeta.maskVALUE))
+            ret |= DBE_VALUE;
+        if(mask.logical_and(pvmeta.maskALARM))
+            ret |= DBE_ALARM;
+        if(mask.logical_and(pvmeta.maskPROPERTY))
+            ret |= DBE_PROPERTY;
+        return ret;
+    }
 };
 
 } // namespace

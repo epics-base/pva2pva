@@ -88,13 +88,14 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     PDBSingleChannel::shared_pointer channel;
     requester_t::weak_pointer requester;
 
-    epics::pvData::BitSetPtr changed;
+    epics::pvData::BitSetPtr changed, wait_changed;
     epics::pvData::PVStructurePtr pvf;
-    std::auto_ptr<PVIF> pvif;
+    std::auto_ptr<PVIF> pvif, wait_pvif;
     processNotify notify;
-    bool doProc, doProcForce, doWait;
+    int notifyBusy; // atomic: 0 - idle, 1 - active, 2 - being cancelled
 
-    std::tr1::shared_ptr<PDBSinglePut> procself; // make ref. loop while notify is active
+    // effectively const after ctor
+    bool doProc, doProcForce, doWait;
 
     static size_t num_instances;
 
@@ -107,7 +108,7 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     virtual void lock() {}
     virtual void unlock() {}
     virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
-    virtual void cancel() {}
+    virtual void cancel();
     virtual void lastRequest() {}
     virtual void put(
             epics::pvData::PVStructure::shared_pointer const & pvPutStructure,

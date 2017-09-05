@@ -266,6 +266,8 @@ struct epicsShareClass PVIF {
     //! Copy from pvalue to PDB record (call dbChannelPut())
     //! caller must lock record
     virtual void get(const epics::pvData::BitSet& mask) =0;
+    //! Calculate DBE mask from changed bitset
+    virtual unsigned dbe(const epics::pvData::BitSet& mask) =0;
 
     static void Init();
 
