@@ -215,7 +215,7 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
             (dbChannelFldDes(chan)->process_passive &&
              precord->scan == 0);
 
-    pvd::boolean wait;
+    pvd::boolean wait = doWait;
     try {
         getS(pvReq, "record._options.block", wait);
     } catch(std::runtime_error& e) {
