@@ -13,7 +13,9 @@
 #include "pvif.h"
 #include "pdb.h"
 #include "pdbsingle.h"
-#include "pdbgroup.h"
+#ifdef USE_MULTILOCK
+#  include "pdbgroup.h"
+#endif
 
 namespace pva = epics::pvAccess;
 
