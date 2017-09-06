@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include <string.h>
 
 #include <dbAccess.h>
@@ -299,7 +301,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
     } else {
         // assume value may be a different struct each time
         std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
-        {
+        try{
             DBScanLocker L(chan);
             putpvif->get(*changed);
 
@@ -315,15 +317,24 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
                 } else {
                     /* indicate that dbPutField called dbProcess */
                     precord->putf = TRUE;
-                    dbProcess(precord);
+                    long err = dbProcess(precord);
+                    if(err) {
+                        char buf[32];
+                        errSymLookup(err, buf, sizeof(buf));
+                        std::ostringstream msg;
+                        msg<<"process error : "<<buf;
+                        ret = pvd::Status::error(msg.str());
+                    }
                 }
             }
 
+        }catch(std::runtime_error& e){
+            ret = pvd::Status::error(e.what());
         }
     }
     requester_type::shared_pointer req(requester.lock());
     if(req)
-        req->putDone(pvd::Status(), shared_from_this());
+        req->putDone(ret, shared_from_this());
 }
 
 void PDBSinglePut::cancel()
