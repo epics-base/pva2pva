@@ -460,15 +460,6 @@ PDBProvider::~PDBProvider()
 {
     epics::atomic::decrement(num_instances);
 
-    {
-        epicsGuard<epicsMutex> G(transient_pv_map.mutex());
-        if(event_context) {
-            /* Explicit destroy to ensure that the dbEventCtx
-             * is free'd from the event thread.
-             */
-            errlogPrintf("Warning: PDBProvider free'd without destroy().  Possible race condition\nn");
-        }
-    }
     destroy();
 }
 
