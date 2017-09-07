@@ -150,11 +150,13 @@ int single_put_callback(struct processNotify *notify,notifyPutType type)
 {
     PDBSinglePut *self = (PDBSinglePut*)notify->usrPvt;
 
-    if(notify->status!=notifyOK || type==putDisabledType) return 0;
+    if(notify->status!=notifyOK) return 0;
 
     // we've previously ensured that wait_changed&DBE_VALUE is true
 
     switch(type) {
+    case putDisabledType:
+        return 0;
     case putFieldType:
     {
         DBScanLocker L(notify->chan);

@@ -409,7 +409,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
     if(!proc.groups.empty()) {
         fprintf(stderr, "pdbGroup(s) were defined, but need Base >=3.16.0.2 to function.  Ignoring.\n");
     }
-#endif USE_MULTILOCK
+#endif // USE_MULTILOCK
 
     event_context = db_init_events();
     if(!event_context)
