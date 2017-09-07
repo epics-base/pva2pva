@@ -73,7 +73,8 @@ struct pvCommon {
 
     pvd::uint32 nsecMask;
 
-    pvd::BitSet maskALWAYS, maskVALUE, maskALARM, maskPROPERTY;
+    pvd::BitSet maskALWAYS, maskVALUE, maskALARM, maskPROPERTY,
+                maskVALUEPut;
 
     pvd::PVLongPtr sec;
     pvd::PVIntPtr status, severity, nsec, userTag;
@@ -198,7 +199,12 @@ void attachAll(PVM& pvm, const pvd::PVStructurePtr& pv)
     pvm.value = pv->getSubField<typename PVM::pvd_type>("value.index");
     if(!pvm.value)
         pvm.value = pv->getSubFieldT<typename PVM::pvd_type>("value");
-    pvm.maskVALUE.set(pvm.value->getFieldOffset());
+    const pvd::PVField *fld = pvm.value.get();
+    pvm.maskVALUE.set(fld->getFieldOffset());
+    for(;fld; fld = fld->getParent()) {
+        // set field bit and all enclosing structure bits
+        pvm.maskVALUEPut.set(fld->getFieldOffset());
+    }
     attachMeta(pvm, pv);
 }
 
@@ -437,7 +443,7 @@ struct PVIFScalarNumeric : public PVIF
 
     virtual void get(const epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
-        if(mask.logical_and(pvmeta.maskVALUE))
+        if(mask.logical_and(pvmeta.maskVALUEPut))
             getValue(pvmeta);
     }
 
