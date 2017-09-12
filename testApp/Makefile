@@ -14,7 +14,7 @@ p2pTestIoc_DBD += base.dbd
 # Tests explicitly create/destory PDB provider
 #p2pTestIoc_DBD += qsrv.dbd
 
-LIBRARY += testutils
+TESTLIBRARY += testutils
 
 testutils_SRCS += utilities.cpp
 testutils_LIBS += pvAccess pvData Com
@@ -43,13 +43,13 @@ TESTS += testmon
 TESTPROD_HOST += testpvif
 testpvif_SRCS += testpvif.cpp
 testpvif_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpvif_LIBS += pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testpvif_LIBS += qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 TESTS += testpvif
 
 TESTPROD_HOST += testpdb
 testpdb_SRCS += testpdb.cpp
 testpdb_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpdb_LIBS += testutils pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testpdb_LIBS += testutils qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 TESTS += testpdb
 
 PROD_HOST += check_consist
@@ -59,7 +59,7 @@ check_consist_LIBS += testutils pvAccess pvData Com
 #TESTPROD_HOST += testpvalink
 testpvalink_SRCS += testpvalink.cpp
 testpvalink_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpvalink_LIBS += testutils pdbcore pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testpvalink_LIBS += testutils qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 #TESTS += testpvalink
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)

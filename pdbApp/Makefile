@@ -5,22 +5,22 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
-LIBRARY_HOST += pdbcore
+LIBRARY_HOST += qsrv
 
 USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 
-pdbcore_SRCS += pvif.cpp
-pdbcore_SRCS += qsrv.cpp
-pdbcore_SRCS += pdb.cpp
-pdbcore_SRCS += pdbsingle.cpp
-#pdbcore_SRCS += pvalink.cpp
-pdbcore_SRCS += demo.cpp
+qsrv_SRCS += pvif.cpp
+qsrv_SRCS += qsrv.cpp
+qsrv_SRCS += pdb.cpp
+qsrv_SRCS += pdbsingle.cpp
+#qsrv_SRCS += pvalink.cpp
+qsrv_SRCS += demo.cpp
 
 ifdef BASE_3_16
-pdbcore_SRCS += pdbgroup.cpp
+qsrv_SRCS += pdbgroup.cpp
 endif
 
-pdbcore_LIBS += pvAccess pvData Com
+qsrv_LIBS += pvAccess pvData Com
 
 FINAL_LOCATION ?= $(shell $(PERL) $(TOOLS)/fullPathName.pl $(INSTALL_LOCATION))
 
@@ -31,7 +31,7 @@ PROD_IOC += softIocPVA
 softIocPVA_SRCS += softMain.cpp
 softIocPVA_SRCS += softIocPVA_registerRecordDeviceDriver.cpp
 
-softIocPVA_LIBS += pdbcore pvAccessIOC pvAccess pvData $(MBLIB)
+softIocPVA_LIBS += qsrv pvAccessIOC pvAccess pvData $(MBLIB)
 softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 DBD += softIocPVA.dbd
