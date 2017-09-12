@@ -33,4 +33,7 @@ CASE(Int32, epics::pvData::int64, LONG, Long)
 // yes really, Base uses SHORT (16-bit) while PVD uses Int (32-bit)
 CASE(Enum16, epics::pvData::int32, ENUM, Int)
 #endif
+#ifdef CASE_STRING
+CASE(Int8, std::string, CHAR, String)
+#endif
 /* #undef CASE */
