@@ -29,6 +29,11 @@ teststream_SRCS = teststream.cpp
 teststream_LIBS = Com
 TESTS += teststream
 
+TESTPROD_HOST += testanyscalar
+testanyscalar_SRCS = testanyscalar.cpp
+testanyscalar_LIBS = pvData Com
+TESTS += testanyscalar
+
 TESTPROD_HOST += testtest
 testtest_SRCS = testtest.cpp
 testtest_LIBS = testutils p2pcore pvAccess pvData Com
