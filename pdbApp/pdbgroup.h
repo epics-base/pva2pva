@@ -8,6 +8,7 @@
 
 #include <pv/pvAccess.h>
 
+#include "helper.h"
 #include "pvahelper.h"
 #include "pvif.h"
 #include "pdb.h"
@@ -34,10 +35,11 @@ struct epicsShareClass PDBGroupPV : public PDBPV
 
     struct Info {
         DBCH chan;
+        p2p::auto_ptr<PVIFBuilder> builder;
         std::string attachment;
         std::vector<size_t> triggers;
         DBManyLock locker; // lock only those channels being triggered
-        std::auto_ptr<PVIF> pvif;
+        p2p::auto_ptr<PVIF> pvif;
         DBEvent evt_VALUE, evt_PROPERTY;
         bool had_initial_VALUE, had_initial_PROPERTY;
 

@@ -285,7 +285,7 @@ void pvaOpenLink(DBLINK *plink)
 void pvaRemoveLink(struct dbLocker *locker, DBLINK *plink)
 {
     try {
-        std::auto_ptr<pvaLink> self((pvaLink*)plink->value.json.jlink);
+        p2p::auto_ptr<pvaLink> self((pvaLink*)plink->value.json.jlink);
         assert(self->alive);
         Guard G(self->lchan->lock);
 

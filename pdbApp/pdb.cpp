@@ -362,7 +362,9 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
                 DBCH chan(mem.pvname);
 
-                builder->add(mem.pvfldname, PVIF::dtype(chan));
+                info.builder.reset(new ScalarBuilder);
+
+                builder->add(mem.pvfldname, info.builder->dtype(chan));
 
                 info.attachment = mem.pvfldname;
                 info.chan.swap(chan);
@@ -437,7 +439,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 info.evt_VALUE.index = info.evt_PROPERTY.index = i++;
                 info.evt_VALUE.self = info.evt_PROPERTY.self = pv;
 
-                info.pvif.reset(PVIF::attach(info.chan,
+                info.pvif.reset(info.builder->attach(info.chan,
                                              pv->complete->getSubFieldT<pvd::PVStructure>(info.attachment)));
 
                 info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);

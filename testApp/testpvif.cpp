@@ -8,6 +8,7 @@
 #include <mbbiRecord.h>
 #include <stringinRecord.h>
 
+#include "helper.h"
 #include "pvif.h"
 #include "utilities.h"
 
@@ -53,11 +54,13 @@ void testScalar()
     testEqual(dbChannelFinalFieldType(chan_ai_rval), DBR_LONG);
     testEqual(dbChannelFinalFieldType(chan_mbbi), DBR_ENUM);
 
-    pvd::StructureConstPtr dtype_li(PVIF::dtype(chan_li));
-    pvd::StructureConstPtr dtype_si(PVIF::dtype(chan_si));
-    pvd::StructureConstPtr dtype_ai(PVIF::dtype(chan_ai));
-    pvd::StructureConstPtr dtype_ai_rval(PVIF::dtype(chan_ai_rval));
-    pvd::StructureConstPtr dtype_mbbi(PVIF::dtype(chan_mbbi));
+    ScalarBuilder builder;
+
+    pvd::StructureConstPtr dtype_li(builder.dtype(chan_li));
+    pvd::StructureConstPtr dtype_si(builder.dtype(chan_si));
+    pvd::StructureConstPtr dtype_ai(builder.dtype(chan_ai));
+    pvd::StructureConstPtr dtype_ai_rval(builder.dtype(chan_ai_rval));
+    pvd::StructureConstPtr dtype_mbbi(builder.dtype(chan_mbbi));
 
     pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                       ->add("li", dtype_li)
@@ -69,11 +72,11 @@ void testScalar()
 
     pvd::PVStructurePtr root(pvd::getPVDataCreate()->createPVStructure(dtype_root));
 
-    std::auto_ptr<PVIF> pvif_li(PVIF::attach(chan_li, root->getSubField<pvd::PVStructure>("li")));
-    std::auto_ptr<PVIF> pvif_si(PVIF::attach(chan_si, root->getSubField<pvd::PVStructure>("si")));
-    std::auto_ptr<PVIF> pvif_ai(PVIF::attach(chan_ai, root->getSubField<pvd::PVStructure>("ai")));
-    std::auto_ptr<PVIF> pvif_ai_rval(PVIF::attach(chan_ai_rval, root->getSubField<pvd::PVStructure>("ai_rval")));
-    std::auto_ptr<PVIF> pvif_mbbi(PVIF::attach(chan_mbbi, root->getSubField<pvd::PVStructure>("mbbi")));
+    p2p::auto_ptr<PVIF> pvif_li(builder.attach(chan_li, root->getSubField<pvd::PVStructure>("li")));
+    p2p::auto_ptr<PVIF> pvif_si(builder.attach(chan_si, root->getSubField<pvd::PVStructure>("si")));
+    p2p::auto_ptr<PVIF> pvif_ai(builder.attach(chan_ai, root->getSubField<pvd::PVStructure>("ai")));
+    p2p::auto_ptr<PVIF> pvif_ai_rval(builder.attach(chan_ai_rval, root->getSubField<pvd::PVStructure>("ai_rval")));
+    p2p::auto_ptr<PVIF> pvif_mbbi(builder.attach(chan_mbbi, root->getSubField<pvd::PVStructure>("mbbi")));
 
     pvd::BitSet mask;
 

@@ -13,6 +13,8 @@
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
 
+#include <anyscalar.h>
+
 #include <shareLib.h>
 
 #ifndef VERSION_INT
@@ -257,7 +259,7 @@ struct epicsShareClass PVIF {
     PVIF(dbChannel *ch, const epics::pvData::PVStructurePtr& p);
     virtual ~PVIF() {}
 
-    dbChannel * const chan;
+    dbChannel * const chan; // borrowed reference from PVIFBuilder
     const epics::pvData::PVStructurePtr pvalue;
 
     //! Copy from PDB record to pvalue (call dbChannelGet())
@@ -269,11 +271,45 @@ struct epicsShareClass PVIF {
     //! Calculate DBE mask from changed bitset
     virtual unsigned dbe(const epics::pvData::BitSet& mask) =0;
 
-    // fetch the structure description for a DBR type
-    static epics::pvData::StructureConstPtr dtype(dbChannel *chan);
-
-    // Create a PVIF associating the given channel to the given PVStructure node (may not be actual root)
-    static PVIF* attach(dbChannel* ch, const epics::pvData::PVStructurePtr& root);
+private:
+    PVIF(const PVIF&);
+    PVIF& operator=(const PVIF&);
 };
+
+struct epicsShareClass PVIFBuilder {
+
+    virtual ~PVIFBuilder();
+
+    // fetch the structure description
+    virtual epics::pvData::StructureConstPtr dtype(dbChannel *channel) =0;
+
+    // Attach to a structure instance.
+    // must be of the type returned by dtype().
+    // need not be the root structure
+    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root) =0;
+
+    typedef std::map<std::string, AnyScalar> options_t;
+
+    static PVIFBuilder* create(const options_t& options);
+protected:
+    PVIFBuilder();
+private:
+    PVIFBuilder(const PVIFBuilder&);
+    PVIFBuilder& operator=(const PVIFBuilder&);
+};
+
+struct epicsShareClass ScalarBuilder : public PVIFBuilder
+{
+
+    ScalarBuilder() {}
+    ScalarBuilder(const options_t& options)
+    {}
+
+    virtual ~ScalarBuilder() {}
+
+    virtual epics::pvData::StructureConstPtr dtype(dbChannel *channel) OVERRIDE FINAL;
+    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root) OVERRIDE FINAL;
+};
+
 
 #endif // PVIF_H

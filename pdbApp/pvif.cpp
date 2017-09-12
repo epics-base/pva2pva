@@ -491,10 +491,11 @@ short PVD2DBR(pvd::ScalarType pvt)
     }
 }
 
-pvd::StructureConstPtr PVIF::dtype(dbChannel* chan)
+epics::pvData::StructureConstPtr
+ScalarBuilder::dtype(dbChannel *channel)
 {
-    const short dbr = dbChannelFinalFieldType(chan);
-    const long maxelem = dbChannelFinalElements(chan);
+    const short dbr = dbChannelFinalFieldType(channel);
+    const long maxelem = dbChannelFinalElements(channel);
     const pvd::ScalarType pvt = DBR2PVD(dbr);
 
     if(INVALID_DB_REQ(dbr))
@@ -516,10 +517,11 @@ pvd::StructureConstPtr PVIF::dtype(dbChannel* chan)
         return pvd::getStandardField()->scalarArray(pvt, options);
 }
 
-PVIF* PVIF::attach(dbChannel* chan, const epics::pvData::PVStructurePtr& root)
+PVIF*
+ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root)
 {
-    const short dbr = dbChannelFinalFieldType(chan);
-    const long maxelem = dbChannelFinalElements(chan);
+    const short dbr = dbChannelFinalFieldType(channel);
+    const long maxelem = dbChannelFinalElements(channel);
     //const pvd::ScalarType pvt = DBR2PVD(dbr);
 
     if(maxelem==1) {
@@ -530,14 +532,14 @@ PVIF* PVIF::attach(dbChannel* chan, const epics::pvData::PVStructurePtr& root)
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvScalar, metaLONG>(chan, dbr, root);
+            return new PVIFScalarNumeric<pvScalar, metaLONG>(channel, dbr, root);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(chan, dbr, root);
+            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, dbr, root);
         case DBR_ENUM:
-            return new PVIFScalarNumeric<pvScalar, metaENUM>(chan, dbr, root);
+            return new PVIFScalarNumeric<pvScalar, metaENUM>(channel, dbr, root);
         case DBR_STRING:
-            return new PVIFScalarNumeric<pvScalar, metaSTRING>(chan, dbr, root);
+            return new PVIFScalarNumeric<pvScalar, metaSTRING>(channel, dbr, root);
         }
     } else {
         switch(dbr) {
@@ -547,12 +549,32 @@ PVIF* PVIF::attach(dbChannel* chan, const epics::pvData::PVStructurePtr& root)
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvArray, metaLONG>(chan, dbr, root);
+            return new PVIFScalarNumeric<pvArray, metaLONG>(channel, dbr, root);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(chan, dbr, root);
+            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, dbr, root);
         }
     }
 
     throw std::invalid_argument("Channel has invalid/unsupported DBR type");
+}
+
+PVIFBuilder::PVIFBuilder()
+{}
+
+PVIFBuilder::~PVIFBuilder() {}
+
+
+PVIFBuilder* PVIFBuilder::create(const options_t& options)
+{
+    options_t::const_iterator it;
+
+    if((it = options.find("@type"))==options.end())
+        throw std::runtime_error("Field mapping missing required key \"@type\"");
+    const std::string& type(it->second.ref<std::string>());
+
+    if(type=="scalar")
+        return new ScalarBuilder(options);
+    else
+        throw std::runtime_error("Unknown mapping @type");
 }

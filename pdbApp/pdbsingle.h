@@ -10,6 +10,7 @@
 
 #include <pv/pvAccess.h>
 
+#include "helper.h"
 #include "pvahelper.h"
 #include "pvif.h"
 #include "pdb.h"
@@ -35,7 +36,8 @@ struct epicsShareClass PDBSinglePV : public PDBPV
     epicsMutex lock;
 
     epics::pvData::BitSet scratch;
-    std::auto_ptr<PVIF> pvif;
+    p2p::auto_ptr<PVIFBuilder> builder;
+    p2p::auto_ptr<PVIF> pvif;
 
     epics::pvData::PVStructurePtr complete; // complete copy from subscription
 
@@ -90,7 +92,7 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
 
     epics::pvData::BitSetPtr changed, wait_changed;
     epics::pvData::PVStructurePtr pvf;
-    std::auto_ptr<PVIF> pvif, wait_pvif;
+    p2p::auto_ptr<PVIF> pvif, wait_pvif;
     processNotify notify;
     int notifyBusy; // atomic: 0 - idle, 1 - active, 2 - being cancelled
 

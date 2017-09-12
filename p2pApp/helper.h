@@ -1,6 +1,8 @@
 #ifndef HELPER_H
 #define HELPER_H
 
+#include <memory>
+
 #if __cplusplus>=201103L
 # define AUTO_VAL(NAME,VAL) auto NAME = VAL
 # define AUTO_REF(NAME,VAL) auto& NAME = VAL
@@ -12,5 +14,16 @@
 #else
 # error Require C++11 or G++
 #endif
+
+namespace p2p {
+#if __cplusplus>=201103L
+template<typename T>
+using auto_ptr = std::unique_ptr<T>;
+#define PTRMOVE(AUTO) std::move(AUTO)
+#else
+using std::auto_ptr;
+#define PTRMOVE(AUTO) (AUTO)
+#endif
+}
 
 #endif // HELPER_H

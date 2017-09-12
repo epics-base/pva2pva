@@ -69,16 +69,17 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
 PDBSinglePV::PDBSinglePV(DBCH& chan,
             const PDBProvider::shared_pointer& prov)
     :provider(prov)
+    ,builder(new ScalarBuilder)
     ,evt_VALUE(this)
     ,evt_PROPERTY(this)
     ,hadevent_VALUE(false)
     ,hadevent_PROPERTY(false)
 {
     this->chan.swap(chan);
-    fielddesc = PVIF::dtype(this->chan);
+    fielddesc = builder->dtype(this->chan);
 
     complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
-    pvif.reset(PVIF::attach(this->chan, complete));
+    pvif.reset(builder->attach(this->chan, complete));
 
     epics::atomic::increment(num_instances);
 }
@@ -206,7 +207,7 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     ,requester(requester)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
-    ,pvif(PVIF::attach(channel->pv->chan, pvf))
+    ,pvif(channel->pv->builder->attach(channel->pv->chan, pvf))
     ,notifyBusy(0)
     ,doProc(true)
     ,doProcForce(false)
@@ -280,7 +281,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         // TODO: dbNotify doesn't allow us for force processing
 
         // assume value may be a different struct each time
-        std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
+        p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value));
         unsigned mask = putpvif->dbe(*changed);
 
         if(mask&~DBE_VALUE) {
@@ -294,7 +295,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 
         notify.requestType = (mask&DBE_VALUE) ? putProcessRequest : processRequest;
 
-        wait_pvif = putpvif;
+        wait_pvif = PTRMOVE(putpvif);
         wait_changed = changed;
 
         dbProcessNotify(&notify);
@@ -302,7 +303,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         return; // skip notification
     } else {
         // assume value may be a different struct each time
-        std::auto_ptr<PVIF> putpvif(PVIF::attach(channel->pv->chan, value));
+        p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value));
         try{
             DBScanLocker L(chan);
             putpvif->get(*changed);
