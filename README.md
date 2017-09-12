@@ -1,8 +1,23 @@
-PV Access to PV Access protocol gateway
-=======================================
+This repository contains two distinct pieces of software.
 
-The is unreleased, untested, alpha level software.
-You have been warned.
+QSRV
+----
+
+A PV Access (protocol) server to be included in an EPICS IOC.
+
+```
+myioc_DBD += qsrv.dbd
+myioc_LIBS += qsrv
+```
+
+For convenience an executable `softIocPVA' is also built which is equivalent to the
+'softIoc' executable from EPICS Base with the addition of QSRV.
+
+p2p
+---
+
+A PV Access gateway (aka proxy).
+The 'p2p' executable.
 
 Dependencies
 ------------
@@ -11,30 +26,34 @@ Dependencies
 - [pvDataCPP](http://epics-pvdata.sourceforge.net/)
 - [pvAccessCPP](http://epics-pvdata.sourceforge.net/)
 
-Portability
------------
-
-To this point all development/testing has been been carried out on Debian Linux 8 on amd64.
-
 Building
 --------
 
-At present pva2pva depends on un-merged changes to pvDataCPP and pvAccessCPP
-It must be built against the source for development Git repositories.
+To build all dependencies from source:
 
-```
-git clone --recurse-submodules --branch pva2pva https://github.com/mdavidsaver/v4workspace.git
-cd v4workspace
+```sh
+git clone https://github.com/epics-base/epics-base.git
+git clone https://github.com/epics-base/pvDataCPP.git
+git clone https://github.com/epics-base/pvAccessCPP.git
+git clone https://github.com/mdavidsaver/pva2pva.git
+
 make -C epics-base
-make -C pvData
-make -C pvAccess
+make -C pvDataCPP
+make -C pvAccessCPP
 make -C pva2pva
 ```
 
-Running
--------
+Running QSRV
+------------
 
-Use of pva2pva requires a computer with at least two ethernet interfaces.
+Any IOC which includes QSRV will automatically start a PV Access server
+which exposes all channels (aka. "recordname.FLD") in the same manner
+as the built-in Channel Access (protocol) server.
+
+Running p2p
+-----------
+
+pva2pva gateway is intended for use on a computer with at least two ethernet interfaces.
 At present each pva2pva process can act as a uni-directional proxy,
 presenting a pvAccess server on one interface,
 and a client on other(s).
