@@ -1,19 +1,28 @@
 #ifndef ANYSCALAR_H
 #define ANYSCALAR_H
 
+#if __cplusplus>=201103L
+#  include <type_traits>
+#endif
+
 #include <ostream>
 #include <exception>
 #include <map>
+
+#include <epicsAssert.h>
 
 #include <pv/templateMeta.h>
 #include <pv/typeCast.h>
 #include <pv/pvIntrospect.h> /* for ScalarType enum */
 
 namespace detail {
+
+// special mangling for AnyScalar ctor to map from argument type to storage type
 template <typename T>
 struct any_storage_type { typedef T type; };
 template<> struct any_storage_type<char*> { typedef std::string type; };
 template<> struct any_storage_type<const char*> { typedef std::string type; };
+
 }// namespace detail
 
 /** A type-safe variant union capable of holding
@@ -35,114 +44,216 @@ public:
     };
 
 private:
-    struct HolderBase {
-        virtual ~HolderBase() {}
-        virtual HolderBase* clone() =0;
-        virtual epics::pvData::ScalarType type() =0;
-        virtual void* ptr() =0;
-        virtual void show(std::ostream&) =0;
-    };
+    typedef epics::pvData::ScalarType ScalarType;
+    ScalarType _stype;
+
+    // always reserve enough storage for std::string (assumed worst case)
+#if __cplusplus>=201103L
+    struct wrap_t {
+        typename std::aligned_storage<sizeof(std::string), alignof(std::string)>::type blob[1];
+    } _wrap;
+#else
+    union wrap_t {
+        char blob[sizeof(std::string)];
+        double align_f; // assume std::string alignment <= 8
+    } _wrap;
+#endif
 
     template<typename T>
-    struct Holder : public HolderBase {
-        T held;
-
-        Holder(typename epics::pvData::meta::arg_type<T>::type v,
-               epics::pvData::ScalarType t = (epics::pvData::ScalarType)epics::pvData::ScalarTypeID<T>::value)
-            :held(v)
-        {}
-        virtual ~Holder() {}
-
-        virtual HolderBase* clone() {
-            return new Holder(held);
-        }
-
-        virtual epics::pvData::ScalarType type() {
-            return (epics::pvData::ScalarType)epics::pvData::ScalarTypeID<T>::value;
-        }
-
-        virtual void* ptr() {
-            return static_cast<void*>(&held);
-        }
-
-        virtual void show(std::ostream& strm) {
-            strm<<held;
-        }
-    };
-
-    HolderBase *holder;
+    inline T& _as() {
+        return *reinterpret_cast<T*>(_wrap.blob);
+    }
+    template<typename T>
+    inline const T& _as() const {
+        return *reinterpret_cast<const T*>(_wrap.blob);
+    }
 public:
-    AnyScalar() :holder(0) {}
+    AnyScalar() : _stype((ScalarType)-1) {}
 
     template<typename T>
     explicit AnyScalar(T v)
-        :holder(new Holder<typename epics::pvData::meta::strip_const<typename detail::any_storage_type<T>::type>::type>(v))
-    {}
+    {
+        typedef typename epics::pvData::meta::strip_const<T>::type T2;
+        typedef typename detail::any_storage_type<T2>::type TT;
+
+        STATIC_ASSERT(sizeof(TT)<=sizeof(_wrap.blob));
+
+        new (_wrap.blob) TT(v);
+
+        // this line fails to compile when type T can't be mapped to one of
+        // the PVD scalar types.
+        _stype = (ScalarType)epics::pvData::ScalarTypeID<TT>::value;
+    }
 
     AnyScalar(const AnyScalar& o)
-        :holder(o.holder ? o.holder->clone() : 0)
-    {}
+        :_stype(o._stype)
+    {
+        if(o._stype==epics::pvData::pvString) {
+            new (_wrap.blob) std::string(o._as<std::string>());
+        } else {
+            memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+        }
+    }
 
 #if __cplusplus>=201103L
     AnyScalar(AnyScalar&& o)
-        :holder(o.holder)
-    { o.holder = 0; }
+        :_stype(o._stype)
+    {
+        if(o._stype==epics::pvData::pvString) {
+            _as<std::string>() = std::move(o._as<std::string>());
+        } else {
+            memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+        }
+        o._stype = (ScalarType)-1;
+    }
 #endif
 
-    ~AnyScalar() { delete holder; }
+    ~AnyScalar() {
+        if(_stype==epics::pvData::pvString) {
+            typedef std::string string;
+            (&_as<string>())->~string();
+        }
+        // other types need no cleanup
+    }
 
     AnyScalar& operator=(const AnyScalar& o) {
         AnyScalar(o).swap(*this);
         return *this;
     }
 
+    template<typename T>
+    AnyScalar& operator=(T v) {
+        AnyScalar(v).swap(*this);
+        return *this;
+    }
+
     inline void swap(AnyScalar& o) {
-        std::swap(holder, o.holder);
+        typedef std::string string;
+        switch((unsigned)_stype) {
+        case -1:
+            switch((unsigned)o._stype) {
+            case -1:
+                // nil <-> nil
+                break;
+            case epics::pvData::pvString:
+                // nil <-> string
+                new (_wrap.blob) std::string();
+                _as<std::string>().swap(o._as<std::string>());
+                o._as<std::string>().~string();
+                break;
+            default:
+                // nil <-> non-string
+                memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+                break;
+            }
+            break;
+        case epics::pvData::pvString:
+            switch((unsigned)o._stype) {
+            case -1:
+                // string <-> nil
+                new (o._wrap.blob) std::string();
+                _as<std::string>().swap(o._as<std::string>());
+                _as<std::string>().~string();
+                break;
+            case epics::pvData::pvString:
+                // string <-> string
+                _as<std::string>().swap(o._as<std::string>());
+                break;
+            default: {
+                // string <-> non-string
+                std::string temp;
+                temp.swap(_as<std::string>());
+
+                _as<std::string>().~string();
+
+                memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+
+                new (o._wrap.blob) std::string();
+                temp.swap(o._as<std::string>());
+            }
+                break;
+            }
+            break;
+        default:
+            switch((unsigned)o._stype) {
+            case -1:
+                // non-string <-> nil
+                memcpy(o._wrap.blob, _wrap.blob, sizeof(_wrap.blob));
+                break;
+            case epics::pvData::pvString: {
+                // non-string <-> string
+                std::string temp;
+                temp.swap(o._as<std::string>());
+
+                o._as<std::string>().~string();
+
+                memcpy(o._wrap.blob, _wrap.blob, sizeof(_wrap.blob));
+
+                new (_wrap.blob) std::string();
+                temp.swap(_as<std::string>());
+            }
+                break;
+            default:
+                // non-string <-> non-string
+                std::swap(o._wrap.blob, _wrap.blob);
+                break;
+            }
+            break;
+        }
+        std::swap(_stype, o._stype);
     }
 
     inline epics::pvData::ScalarType type() const {
-        return holder ? holder->type() : ((epics::pvData::ScalarType)-1);
+        return _stype;
     }
 
-    inline bool empty() const { return !holder; }
+    inline bool empty() const { return _stype==(ScalarType)-1; }
 
 #if __cplusplus>=201103L
-    explicit operator bool() const { return holder; }
+    explicit operator bool() const { return !empty(); }
 #else
 private:
     typedef void (AnyScalar::bool_type)(AnyScalar&);
 public:
-    operator bool_type() const { holder ? &AnyScalar::swap : 0 }
+    operator bool_type() const { !empty() ? &AnyScalar::swap : 0 }
 #endif
 
     /** Return reference to wrapped value */
     template<typename T>
-    T&
+    // T -> strip_const -> map to storage type -> add reference
+    typename detail::any_storage_type<typename epics::pvData::meta::strip_const<T>::type>::type&
     ref() {
         typedef typename epics::pvData::meta::strip_const<T>::type T2;
-        if(!holder || type()!=(epics::pvData::ScalarType)epics::pvData::ScalarTypeID<T2>::value)
+        typedef typename detail::any_storage_type<T2>::type TT;
+
+        if(_stype!=(ScalarType)epics::pvData::ScalarTypeID<TT>::value)
             throw bad_cast();
-        return *static_cast<T*>(holder->ptr());
+        return _as<TT>();
     }
 
     template<typename T>
-    typename epics::pvData::meta::decorate_const<T&>::type
+    // T -> strip_const -> map to storage type -> add const reference
+    typename epics::pvData::meta::decorate_const<typename detail::any_storage_type<typename epics::pvData::meta::strip_const<T>::type>::type>::type&
     ref() const {
         typedef typename epics::pvData::meta::strip_const<T>::type T2;
-        if(!holder || type()!=(epics::pvData::ScalarType)epics::pvData::ScalarTypeID<T2>::value)
+        typedef typename detail::any_storage_type<T2>::type TT;
+
+        if(_stype!=(ScalarType)epics::pvData::ScalarTypeID<TT>::value)
             throw bad_cast();
-        return *static_cast<T*>(holder->ptr());
+        return _as<TT>();
     }
 
     /** copy out wrapped value, with a value conversion. */
     template<typename T>
     T as() const {
         typedef typename epics::pvData::meta::strip_const<T>::type T2;
-        if(!holder)
+        typedef typename detail::any_storage_type<T2>::type TT;
+
+        if(_stype==(ScalarType)-1)
             throw bad_cast();
-        T2 ret;
-        epics::pvData::castUnsafeV(1, (epics::pvData::ScalarType)epics::pvData::ScalarTypeID<T2>::value, &ret,
-                                   holder->type(), holder->ptr());
+        TT ret;
+        epics::pvData::castUnsafeV(1, (ScalarType)epics::pvData::ScalarTypeID<T2>::value, &ret,
+                                   _stype, _wrap.blob);
         return ret;
     }
 
@@ -153,10 +264,17 @@ private:
 inline
 std::ostream& operator<<(std::ostream& strm, const AnyScalar& v)
 {
-    if(v.holder)
-        v.holder->show(strm);
-    else
-        strm<<"(nil)";
+    switch(v.type()) {
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case epics::pvData::pv ## PVACODE: strm<<v._as<PVATYPE>(); break;
+#define CASE_REAL_INT64
+#define CASE_STRING
+#include "pvatypemap.h"
+#undef CASE
+#undef CASE_REAL_INT64
+#undef CASE_STRING
+    default:
+        strm<<"(nil)"; break;
+    }
     return strm;
 }
 
