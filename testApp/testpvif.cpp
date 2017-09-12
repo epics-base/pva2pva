@@ -208,7 +208,6 @@ void testScalar()
 MAIN(testpvif)
 {
     testPlan(57);
-    PVIF::Init();
     testScalar();
     return testDone();
 }

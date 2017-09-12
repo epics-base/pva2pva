@@ -491,10 +491,6 @@ short PVD2DBR(pvd::ScalarType pvt)
     }
 }
 
-void PVIF::Init()
-{
-}
-
 pvd::StructureConstPtr PVIF::dtype(dbChannel* chan)
 {
     const short dbr = dbChannelFinalFieldType(chan);

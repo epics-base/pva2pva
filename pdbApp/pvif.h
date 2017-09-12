@@ -257,8 +257,8 @@ struct epicsShareClass PVIF {
     PVIF(dbChannel *ch, const epics::pvData::PVStructurePtr& p);
     virtual ~PVIF() {}
 
-    dbChannel *chan;
-    epics::pvData::PVStructurePtr pvalue;
+    dbChannel * const chan;
+    const epics::pvData::PVStructurePtr pvalue;
 
     //! Copy from PDB record to pvalue (call dbChannelGet())
     //! caller must lock record
@@ -268,8 +268,6 @@ struct epicsShareClass PVIF {
     virtual void get(const epics::pvData::BitSet& mask) =0;
     //! Calculate DBE mask from changed bitset
     virtual unsigned dbe(const epics::pvData::BitSet& mask) =0;
-
-    static void Init();
 
     // fetch the structure description for a DBR type
     static epics::pvData::StructureConstPtr dtype(dbChannel *chan);
