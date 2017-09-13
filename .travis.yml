@@ -12,12 +12,12 @@ addons:
 env:
  - BRBASE=3.16 BRPVD=master BRPVA=master
  - BRBASE=3.16 BRPVD=master BRPVA=master CMPLR=clang
- - BRBASE=3.16 BRPVD=master BRPVA=master USR_CXXFLAGS=-std=c++11
- - BRBASE=3.16 BRPVD=master BRPVA=master USR_CXXFLAGS=-std=c++11 CMPLR=clang
+ - BRBASE=3.16 BRPVD=master BRPVA=master EXTRA="USR_CXXFLAGS=-std=c++11"
+ - BRBASE=3.16 BRPVD=master BRPVA=master EXTRA="USR_CXXFLAGS=-std=c++11" CMPLR=clang
  - BRBASE=3.15 BRPVD=master BRPVA=master
 install:
- - ./build-deps.sh
+ - ./build-deps.sh "$EXTRA"
 script:
- - make -j2
+ - make -j2 "$EXTRA"
  - make tapfiles
  - find . -name '*.tap' -print0 | xargs -0 -n1 prove -e cat -f

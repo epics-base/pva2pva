@@ -53,6 +53,6 @@ PVDATA=$HOME/.source/pvDataCPP
 EPICS_BASE=$HOME/.source/epics-base
 EOF
 
-make -j2 -C epics-base
-make -j2 -C pvDataCPP
-make -j2 -C pvAccessCPP
+make -j2 -C epics-base "$EXTRA"
+make -j2 -C pvDataCPP "$EXTRA"
+make -j2 -C pvAccessCPP "$EXTRA"
