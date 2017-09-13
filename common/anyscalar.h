@@ -213,9 +213,9 @@ public:
     explicit operator bool() const { return !empty(); }
 #else
 private:
-    typedef void (AnyScalar::bool_type)(AnyScalar&);
+    typedef void (AnyScalar::*bool_type)(AnyScalar&);
 public:
-    operator bool_type() const { !empty() ? &AnyScalar::swap : 0 }
+    operator bool_type() const { return !empty() ? &AnyScalar::swap : 0; }
 #endif
 
     /** Return reference to wrapped value */
