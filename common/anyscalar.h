@@ -34,11 +34,11 @@ public:
 #if __cplusplus>=201103L
         bad_cast() noexcept {}
         virtual ~bad_cast() noexcept {}
-        virtual const char* what() noexcept
+        virtual const char* what() const noexcept
 #else
         bad_cast() throw() {}
         virtual ~bad_cast() throw() {}
-        virtual const char* what() throw()
+        virtual const char* what() const throw()
 #endif
         { return "bad_cast() type mis-match"; }
     };
