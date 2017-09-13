@@ -76,7 +76,7 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
     ,hadevent_PROPERTY(false)
 {
     this->chan.swap(chan);
-    fielddesc = std::static_pointer_cast<const pvd::Structure>(builder->dtype(this->chan));
+    fielddesc = std::tr1::static_pointer_cast<const pvd::Structure>(builder->dtype(this->chan));
 
     complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
     pvif.reset(builder->attach(this->chan, complete));
