@@ -67,6 +67,12 @@ testpvalink_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
 testpvalink_LIBS += testutils qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
 #TESTS += testpvalink
 
+ifdef BASE_3_16
+TESTPROD_HOST += testgroupconfig
+testgroupconfig_SRCS += testgroupconfig
+testgroupconfig_LIBS += qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+endif
+
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
 

@@ -1,6 +1,10 @@
 #ifndef PDBGROUP_H
 #define PDBGROUP_H
 
+#include <istream>
+#include <map>
+#include <limits>
+
 #include <dbAccess.h>
 
 #include <dbEvent.h>
@@ -14,6 +18,49 @@
 #include "pdb.h"
 
 #include <shareLib.h>
+
+struct epicsShareClass GroupConfig
+{
+    struct epicsShareClass Field {
+        std::string type, channel, trigger;
+        int putorder;
+
+        Field() :putorder(std::numeric_limits<int>::min()) {}
+
+        void swap(Field& o) {
+            std::swap(type, o.type);
+            std::swap(channel, o.channel);
+            std::swap(trigger, o.trigger);
+            std::swap(putorder, o.putorder);
+        }
+    };
+
+    struct epicsShareClass Group {
+        typedef std::map<std::string, Field> fields_t;
+        fields_t fields;
+        bool atomic, atomic_set;
+
+        Group() :atomic(true), atomic_set(false) {}
+
+        void swap(Group& o) {
+            std::swap(fields, o.fields);
+            std::swap(atomic, o.atomic);
+            std::swap(atomic_set, o.atomic_set);
+        }
+    };
+
+    typedef std::map<std::string, Group> groups_t;
+    groups_t groups;
+    std::string warning;
+
+    void swap(GroupConfig& o) {
+        std::swap(groups, o.groups);
+        std::swap(warning, o.warning);
+    }
+
+    static void parse(const char *txt,
+                      GroupConfig& result);
+};
 
 struct PDBGroupMonitor;
 

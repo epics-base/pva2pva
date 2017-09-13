@@ -18,6 +18,7 @@ qsrv_SRCS += demo.cpp
 
 ifdef BASE_3_16
 qsrv_SRCS += pdbgroup.cpp
+qsrv_SRCS += configparse.cpp
 endif
 
 qsrv_LIBS += pvAccess pvData Com
