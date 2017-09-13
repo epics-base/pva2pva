@@ -36,7 +36,7 @@ struct epicsShareClass PDBSinglePV : public PDBPV
     epicsMutex lock;
 
     epics::pvData::BitSet scratch;
-    p2p::auto_ptr<PVIFBuilder> builder;
+    p2p::auto_ptr<ScalarBuilder> builder;
     p2p::auto_ptr<PVIF> pvif;
 
     epics::pvData::PVStructurePtr complete; // complete copy from subscription

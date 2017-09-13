@@ -256,11 +256,10 @@ struct DBManyLocker
 #endif
 
 struct epicsShareClass PVIF {
-    PVIF(dbChannel *ch, const epics::pvData::PVStructurePtr& p);
+    PVIF(dbChannel *ch);
     virtual ~PVIF() {}
 
     dbChannel * const chan; // borrowed reference from PVIFBuilder
-    const epics::pvData::PVStructurePtr pvalue;
 
     //! Copy from PDB record to pvalue (call dbChannelGet())
     //! caller must lock record
@@ -281,12 +280,12 @@ struct epicsShareClass PVIFBuilder {
     virtual ~PVIFBuilder();
 
     // fetch the structure description
-    virtual epics::pvData::StructureConstPtr dtype(dbChannel *channel) =0;
+    virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) =0;
 
     // Attach to a structure instance.
     // must be of the type returned by dtype().
     // need not be the root structure
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root) =0;
+    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) =0;
 
     typedef std::map<std::string, AnyScalar> options_t;
 
@@ -300,15 +299,12 @@ private:
 
 struct epicsShareClass ScalarBuilder : public PVIFBuilder
 {
-
     ScalarBuilder() {}
-    ScalarBuilder(const options_t& options)
-    {}
 
     virtual ~ScalarBuilder() {}
 
-    virtual epics::pvData::StructureConstPtr dtype(dbChannel *channel) OVERRIDE FINAL;
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root) OVERRIDE FINAL;
+    virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL;
+    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) OVERRIDE FINAL;
 };
 
 

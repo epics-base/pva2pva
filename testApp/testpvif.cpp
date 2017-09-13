@@ -56,11 +56,11 @@ void testScalar()
 
     ScalarBuilder builder;
 
-    pvd::StructureConstPtr dtype_li(builder.dtype(chan_li));
-    pvd::StructureConstPtr dtype_si(builder.dtype(chan_si));
-    pvd::StructureConstPtr dtype_ai(builder.dtype(chan_ai));
-    pvd::StructureConstPtr dtype_ai_rval(builder.dtype(chan_ai_rval));
-    pvd::StructureConstPtr dtype_mbbi(builder.dtype(chan_mbbi));
+    pvd::FieldConstPtr dtype_li(builder.dtype(chan_li));
+    pvd::FieldConstPtr dtype_si(builder.dtype(chan_si));
+    pvd::FieldConstPtr dtype_ai(builder.dtype(chan_ai));
+    pvd::FieldConstPtr dtype_ai_rval(builder.dtype(chan_ai_rval));
+    pvd::FieldConstPtr dtype_mbbi(builder.dtype(chan_mbbi));
 
     pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                       ->add("li", dtype_li)
@@ -206,11 +206,133 @@ void testScalar()
     iocshCmd("stopPVAServer");
 }
 
+void testPlain()
+{
+    testDiag("testPlain()");
+
+    TestIOC IOC;
+
+    testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
+    p2pTestIoc_registerRecordDeviceDriver(pdbbase);
+    testdbReadDatabase("testpvif.db", NULL, NULL);
+
+    longinRecord *prec_li = (longinRecord*)testdbRecordPtr("test:li");
+    stringinRecord *prec_si = (stringinRecord*)testdbRecordPtr("test:si");
+    aiRecord *prec_ai = (aiRecord*)testdbRecordPtr("test:ai");
+    mbbiRecord *prec_mbbi = (mbbiRecord*)testdbRecordPtr("test:mbbi");
+
+    IOC.init();
+
+    DBCH chan_li("test:li");
+    DBCH chan_si("test:si");
+    DBCH chan_ai("test:ai");
+    DBCH chan_mbbi("test:mbbi");
+
+    p2p::auto_ptr<PVIFBuilder> builder;
+    {
+        PVIFBuilder::options_t opts;
+        opts["@type"] = "plain";
+        builder.reset(PVIFBuilder::create(opts));
+    }
+
+    pvd::FieldConstPtr dtype_li(builder->dtype(chan_li));
+    pvd::FieldConstPtr dtype_si(builder->dtype(chan_si));
+    pvd::FieldConstPtr dtype_ai(builder->dtype(chan_ai));
+    pvd::FieldConstPtr dtype_mbbi(builder->dtype(chan_mbbi));
+
+    pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
+                                      ->add("li", dtype_li)
+                                      ->add("si", dtype_si)
+                                      ->add("ai", dtype_ai)
+                                      ->add("mbbi", dtype_mbbi)
+                                      ->createStructure());
+
+    pvd::PVStructurePtr root(pvd::getPVDataCreate()->createPVStructure(dtype_root));
+
+    p2p::auto_ptr<PVIF> pvif_li(builder->attach(chan_li, root->getSubFieldT("li")));
+    p2p::auto_ptr<PVIF> pvif_si(builder->attach(chan_si, root->getSubFieldT("si")));
+    p2p::auto_ptr<PVIF> pvif_ai(builder->attach(chan_ai, root->getSubFieldT("ai")));
+    p2p::auto_ptr<PVIF> pvif_mbbi(builder->attach(chan_mbbi, root->getSubFieldT("mbbi")));
+
+    pvd::BitSet mask;
+
+    mask.clear();
+    dbScanLock((dbCommon*)prec_li);
+    pvif_li->put(mask, DBE_VALUE, NULL);
+    dbScanUnlock((dbCommon*)prec_li);
+
+    testEqual(mask, pvd::BitSet().set(root->getSubFieldT("li")->getFieldOffset()));
+
+    testFieldEqual<pvd::PVInt>(root, "li", 102042);
+
+    mask.clear();
+    dbScanLock((dbCommon*)prec_si);
+    pvif_si->put(mask, DBE_VALUE, NULL);
+    dbScanUnlock((dbCommon*)prec_si);
+
+    testEqual(mask, pvd::BitSet().set(root->getSubFieldT("si")->getFieldOffset()));
+
+    testFieldEqual<pvd::PVString>(root, "si", "hello");
+
+    mask.clear();
+    dbScanLock((dbCommon*)prec_ai);
+    pvif_ai->put(mask, DBE_VALUE, NULL);
+    dbScanUnlock((dbCommon*)prec_ai);
+
+    testEqual(mask, pvd::BitSet().set(root->getSubFieldT("ai")->getFieldOffset()));
+
+    testFieldEqual<pvd::PVDouble>(root, "ai", 42.2);
+
+    mask.clear();
+    dbScanLock((dbCommon*)prec_mbbi);
+    pvif_mbbi->put(mask, DBE_VALUE, NULL);
+    dbScanUnlock((dbCommon*)prec_mbbi);
+
+    testEqual(mask, pvd::BitSet().set(root->getSubFieldT("mbbi")->getFieldOffset()));
+
+    testFieldEqual<pvd::PVInt>(root, "mbbi", 1);
+
+
+    root->getSubFieldT<pvd::PVInt>("li")->put(102043);
+    root->getSubFieldT<pvd::PVString>("si")->put("world");
+    root->getSubFieldT<pvd::PVDouble>("ai")->put(44.4);
+    root->getSubFieldT<pvd::PVInt>("mbbi")->put(2);
+
+    dbScanLock((dbCommon*)prec_li);
+    mask.clear();
+    mask.set(root->getSubFieldT("li")->getFieldOffset());
+    pvif_li->get(mask);
+    testEqual(prec_li->val, 102043);
+    dbScanUnlock((dbCommon*)prec_li);
+
+    dbScanLock((dbCommon*)prec_si);
+    mask.clear();
+    mask.set(root->getSubFieldT("si")->getFieldOffset());
+    pvif_si->get(mask);
+    testOk(strcmp(prec_si->val, "world")==0, "\"%s\" == \"%s\"", prec_si->val, "world");
+    dbScanUnlock((dbCommon*)prec_si);
+
+    dbScanLock((dbCommon*)prec_ai);
+    mask.clear();
+    mask.set(root->getSubFieldT("ai")->getFieldOffset());
+    pvif_ai->get(mask);
+    testEqual(prec_ai->val, 44.4);
+    dbScanUnlock((dbCommon*)prec_ai);
+
+    dbScanLock((dbCommon*)prec_mbbi);
+    mask.clear();
+    mask.set(root->getSubFieldT("mbbi")->getFieldOffset());
+    pvif_mbbi->get(mask);
+    testEqual(prec_mbbi->val, 2);
+    dbScanUnlock((dbCommon*)prec_mbbi);
+}
+
 } // namespace
 
 MAIN(testpvif)
 {
-    testPlan(57);
+    testPlan(69);
     testScalar();
+    testPlain();
     return testDone();
 }
