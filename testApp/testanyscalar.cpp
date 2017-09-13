@@ -166,16 +166,60 @@ void test_swap()
     }
 }
 
+void test_move()
+{
+    testDiag("test_move()");
+#if __cplusplus>=201103L
+    {
+        AnyScalar x, y(std::move(x));
+        testOk1(x.empty());
+        testOk1(y.empty());
+    }
+    {
+        AnyScalar x(5), y(std::move(x));
+        testOk1(x.empty());
+        testEqual(y.ref<pvd::int32>(), 5);
+    }
+    {
+        AnyScalar x("hello"), y(std::move(x));
+        testOk1(x.empty());
+        testEqual(y.ref<std::string>(), "hello");
+    }
+
+    {
+        AnyScalar x, y;
+        y = std::move(x);
+        testOk1(x.empty());
+        testOk1(y.empty());
+    }
+    {
+        AnyScalar x, y(5);
+        y = std::move(x);
+        testOk1(x.empty());
+        testOk1(y.empty());
+    }
+    {
+        AnyScalar x, y("test");
+        y = std::move(x);
+        testOk1(x.empty());
+        testOk1(y.empty());
+    }
+#else
+    testSkip(12, "No c++11");
+#endif
 }
+
+} // namespace
 
 MAIN(testanyscalar)
 {
-    testPlan(54);
+    testPlan(66);
     try {
         test_empty();
         test_ctor();
         test_basic();
         test_swap();
+        test_move();
     }catch(std::exception& e){
         testAbort("Unexpected exception: %s", e.what());
     }

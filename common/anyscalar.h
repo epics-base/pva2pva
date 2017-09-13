@@ -17,9 +17,12 @@
 
 namespace detail {
 
-// special mangling for AnyScalar ctor to map from argument type to storage type
+// special mangling for AnyScalar ctor to map from argument type to storage type.
+// allow construction from constants.
 template <typename T>
 struct any_storage_type { typedef T type; };
+template<> struct any_storage_type<int> { typedef epics::pvData::int32 type; };
+template<> struct any_storage_type<unsigned> { typedef epics::pvData::uint32 type; };
 template<> struct any_storage_type<char*> { typedef std::string type; };
 template<> struct any_storage_type<const char*> { typedef std::string type; };
 
@@ -53,11 +56,16 @@ private:
         typename std::aligned_storage<sizeof(std::string), alignof(std::string)>::type blob[1];
     } _wrap;
 #else
-    union wrap_t {
-        char blob[sizeof(std::string)];
-        double align_f; // assume std::string alignment <= 8
+    struct wrap_t {
+        union blob_t {
+            char data[sizeof(std::string)];
+            double align_f; // assume std::string alignment <= 8
+        } blob[1];
     } _wrap;
 #endif
+
+    // assumed largest non-string type
+    typedef double _largest_blob;
 
     template<typename T>
     inline T& _as() {
@@ -90,8 +98,8 @@ public:
     {
         if(o._stype==epics::pvData::pvString) {
             new (_wrap.blob) std::string(o._as<std::string>());
-        } else {
-            memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+        } else if(o._stype!=(ScalarType)-1) {
+            memcpy(_wrap.blob, o._wrap.blob, sizeof(_largest_blob));
         }
     }
 
@@ -99,10 +107,13 @@ public:
     AnyScalar(AnyScalar&& o)
         :_stype(o._stype)
     {
+        typedef std::string string;
         if(o._stype==epics::pvData::pvString) {
+            new (_wrap.blob) std::string();
             _as<std::string>() = std::move(o._as<std::string>());
-        } else {
-            memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+            o._as<string>().~string();
+        } else if(o._stype!=(ScalarType)-1) {
+            memcpy(_wrap.blob, o._wrap.blob, sizeof(_largest_blob));
         }
         o._stype = (ScalarType)-1;
     }
@@ -111,7 +122,7 @@ public:
     ~AnyScalar() {
         if(_stype==epics::pvData::pvString) {
             typedef std::string string;
-            (&_as<string>())->~string();
+            _as<string>().~string();
         }
         // other types need no cleanup
     }
@@ -127,7 +138,19 @@ public:
         return *this;
     }
 
-    inline void swap(AnyScalar& o) {
+#if __cplusplus>=201103L
+    AnyScalar& operator=(AnyScalar&& o) {
+        if(_stype==epics::pvData::pvString) {
+            typedef std::string string;
+            _as<string>().~string();
+        }
+        _stype = (ScalarType)-1;
+        swap(o);
+        return *this;
+    }
+#endif
+
+    void swap(AnyScalar& o) {
         typedef std::string string;
         switch((unsigned)_stype) {
         case -1:
@@ -143,7 +166,7 @@ public:
                 break;
             default:
                 // nil <-> non-string
-                memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+                memcpy(_wrap.blob, o._wrap.blob, sizeof(_largest_blob));
                 break;
             }
             break;
@@ -166,7 +189,7 @@ public:
 
                 _as<std::string>().~string();
 
-                memcpy(_wrap.blob, o._wrap.blob, sizeof(_wrap.blob));
+                memcpy(_wrap.blob, o._wrap.blob, sizeof(_largest_blob));
 
                 new (o._wrap.blob) std::string();
                 temp.swap(o._as<std::string>());
@@ -178,7 +201,7 @@ public:
             switch((unsigned)o._stype) {
             case -1:
                 // non-string <-> nil
-                memcpy(o._wrap.blob, _wrap.blob, sizeof(_wrap.blob));
+                memcpy(o._wrap.blob, _wrap.blob, sizeof(_largest_blob));
                 break;
             case epics::pvData::pvString: {
                 // non-string <-> string
@@ -187,7 +210,7 @@ public:
 
                 o._as<std::string>().~string();
 
-                memcpy(o._wrap.blob, _wrap.blob, sizeof(_wrap.blob));
+                memcpy(o._wrap.blob, _wrap.blob, sizeof(_largest_blob));
 
                 new (_wrap.blob) std::string();
                 temp.swap(_as<std::string>());
@@ -195,7 +218,11 @@ public:
                 break;
             default:
                 // non-string <-> non-string
-                std::swap(o._wrap.blob, _wrap.blob);
+                _largest_blob temp;
+                memcpy(&temp, _wrap.blob, sizeof(_largest_blob));
+                memcpy(_wrap.blob, o._wrap.blob, sizeof(_largest_blob));
+                memcpy(o._wrap.blob, &temp, sizeof(_largest_blob));
+                // std::swap(o._wrap.blob, _wrap.blob); // gcc <=4.3 doesn't like this
                 break;
             }
             break;
