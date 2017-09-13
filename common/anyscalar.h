@@ -152,9 +152,9 @@ public:
 
     void swap(AnyScalar& o) {
         typedef std::string string;
-        switch((unsigned)_stype) {
+        switch((int)_stype) {
         case -1:
-            switch((unsigned)o._stype) {
+            switch((int)o._stype) {
             case -1:
                 // nil <-> nil
                 break;
@@ -171,7 +171,7 @@ public:
             }
             break;
         case epics::pvData::pvString:
-            switch((unsigned)o._stype) {
+            switch((int)o._stype) {
             case -1:
                 // string <-> nil
                 new (o._wrap.blob) std::string();
@@ -198,7 +198,7 @@ public:
             }
             break;
         default:
-            switch((unsigned)o._stype) {
+            switch((int)o._stype) {
             case -1:
                 // non-string <-> nil
                 memcpy(o._wrap.blob, _wrap.blob, sizeof(_largest_blob));
