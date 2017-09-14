@@ -46,10 +46,13 @@ struct Splitter {
 
 
 struct GroupMemberInfo {
-    GroupMemberInfo(const std::string& a, const std::string& b) :pvname(a), pvfldname(b) {}
+    // consumes builder
+    GroupMemberInfo(const std::string& a, const std::string& b, p2p::auto_ptr<PVIFBuilder>& builder)
+        :pvname(a), pvfldname(b), builder(PTRMOVE(builder)) {}
     std::string pvname, pvfldname;
     std::set<size_t> triggers; // indices in GroupInfo::members which are post()d on events from pvfldname
     size_t index; // index in GroupInfo::members
+    p2p::auto_ptr<PVIFBuilder> builder;
 };
 
 struct GroupInfo {
@@ -74,72 +77,6 @@ struct PDBProcessor
 
     std::string recbase;
     GroupInfo *curgroup;
-
-    // split off the group name from an info() value
-    // find or create this group
-    void setupGroup(const char **pvalue)
-    {
-        const char *start = *pvalue,
-                   *split = strchr(start, '|');
-        if(!split) {
-            std::ostringstream strm;
-            strm<<"Expected '|' in \""<<start<<"\"";
-            throw std::runtime_error(strm.str());
-        }else if(start==split) {
-            std::ostringstream strm;
-            strm<<"Empty group name in \""<<start<<"\"";
-            throw std::runtime_error(strm.str());
-        }
-
-        std::string groupname(start, split-start);
-
-        groups_t::iterator it = groups.find(groupname);
-        if(it==groups.end()) {
-            // lazy creation of group
-            std::pair<groups_t::iterator, bool> ins(groups.insert(std::make_pair(groupname, GroupInfo(groupname))));
-            it = ins.first;
-        }
-        curgroup = &it->second;
-
-        *pvalue = split+1; // write back first char after '|'
-    }
-
-    // process "pdbGroup" to create/extend PDB to PVA mappings
-    void addMappings(const char *value)
-    {
-        Splitter tok(value, '|');
-        std::string mapent;
-
-        while(tok.snip(mapent))
-        {
-            size_t eq = mapent.find_first_of('=');
-            if(eq==mapent.npos) {
-                std::ostringstream strm;
-                strm<<"Expected '=' in \""<<value<<"\"";
-                throw std::runtime_error(strm.str());
-            }
-
-            std::string pvf(mapent.substr(0, eq)),
-                        dbf(mapent.substr(eq+1));
-
-            if(pvf.empty() || dbf.empty()) {
-                std::ostringstream strm;
-                strm<<"empty PVA or DB field name in \""<<value<<"\"";
-                throw std::runtime_error(strm.str());
-            }
-
-            curgroup->members.push_back(GroupMemberInfo(recbase + dbf, pvf));
-            curgroup->members.back().index = curgroup->members.size()-1;
-            curgroup->members_map[pvf] = curgroup->members.back().index;
-
-            if(PDBProviderDebug>2) {
-                fprintf(stderr, "  pdb map '%s.%s' <-> '%s'\n",
-                        curgroup->name.c_str(),
-                        curgroup->members.back().pvfldname.c_str(),
-                        curgroup->members.back().pvname.c_str());
-            }
-        }
-    }
 
     // process "pdbTrigger" to create/extend PDB to PVA monitor trigger mappings
     void addTriggers(const char *value)
@@ -240,75 +177,92 @@ struct PDBProcessor
         }
     }
 
-    void setAtomic(const char *value)
-    {
-        GroupInfo::tribool V = GroupInfo::Unset;
-        if(epicsStrCaseCmp(value,"yes")==0) V = GroupInfo::True;
-        else if(epicsStrCaseCmp(value,"no")==0) V = GroupInfo::False;
-        else {
-            fprintf(stderr, "Ignoring unknown value for pdbAtomic \"%s\".\n", value);
-        }
-
-        if(V==GroupInfo::Unset) return;
-
-        if(curgroup->atomic!=GroupInfo::Unset && curgroup->atomic!=V)
-            fprintf(stderr, "  pdb atomic setting inconsistent '%s'\n",
-                    curgroup->name.c_str());
-
-        curgroup->atomic=V;
-
-        if(PDBProviderDebug>2)
-            fprintf(stderr, "  pdb atomic '%s' %s\n",
-                    curgroup->name.c_str(), curgroup->atomic ? "YES" : "NO");
-    }
-
     PDBProcessor() : curgroup(NULL)
     {
-        /* syntax:
-         *   info(pdbGroup, "<groupname>|field=FLD|other=FLD2?{}|...")
-         *     eg. connect PVA "<groupname>.field" to "<recordname>.FLD"
-         *   info(pdbTrigger, "<groupname>|field>field,other,...|field2>*")
-         *     eg. subscribe to "<recordname>.FLD" (aka ".field"), on event
-         *     post() a PVA monitor with ".FLD"  and ".FLD2" (aka ".other").
-         *     If no triggers specified, then every field subscribed to trigger itself
-         *   info(pdbAtomic, "<groupname>|...")
-         *     Allowed values are "YES" or "NO".  Defaults to "YES"
-         *     Whether triggers use multi or single record locking.
-         *     Defines default to get/put operations, but individual
-         *     requests may override.
-         */
         for(pdbRecordIterator rec; !rec.done(); rec.next())
         {
-            bool firsttag = true;
-            for(pdbInfoIterator info(rec); !info.done(); info.next()) {
-                if(firsttag) {
-                    recbase = rec.record()->name;
-                    recbase += ".";
-                    firsttag = false;
-                }
+            const char *json = rec.info("Q:group");
+            if(!json) continue;
 
-                const char *value = info.value();
-                const char *tagname = info.name();
+            GroupConfig conf;
+            try {
+                GroupConfig::parse(json, conf);
 
-                try {
-                    if(strncmp(tagname, "pdbGroup", 8)==0) {
-                        setupGroup(&value);
-                        addMappings(value);
+                recbase = rec.record()->name;
+                recbase += ".";
 
-                    } else if(strncmp(tagname, "pdbTrigger", 10)==0) {
-                        setupGroup(&value);
-                        addTriggers(value);
+                for(GroupConfig::groups_t::const_iterator git=conf.groups.begin(), gend=conf.groups.end();
+                    git!=gend; ++git)
+                {
+                    const std::string& grpname = git->first;
+                    const GroupConfig::Group& grp = git->second;
 
-                    } else if(strncmp(tagname, "pdbAtomic", 9)==0) {
-                        setupGroup(&value);
-                        setAtomic(value);
+                    groups_t::iterator it = groups.find(grpname);
+                    if(it==groups.end()) {
+                        // lazy creation of group
+                        std::pair<groups_t::iterator, bool> ins(groups.insert(std::make_pair(grpname, GroupInfo(grpname))));
+                        it = ins.first;
                     }
-                }catch(std::exception& e){
-                    fprintf(stderr, "Error processing PDB info(%s, \"%s\") for record \"%s\": %s\n",
-                            tagname, value, rec.record()->name, e.what());
+                    curgroup = &it->second;
+
+                    for(GroupConfig::Group::fields_t::const_iterator fit=grp.fields.begin(), fend=grp.fields.end();
+                        fit!=fend; ++fit)
+                    {
+                        const std::string& fldname = fit->first;
+                        const GroupConfig::Field& fld = fit->second;
+
+                        if(fld.channel.empty())
+                            throw std::runtime_error("Missing required +channel");
+
+                        GroupInfo::members_map_t::const_iterator oldgrp = curgroup->members_map.find(fldname);
+                        if(oldgrp!=curgroup->members_map.end()) {
+                            const GroupMemberInfo& other = curgroup->members[oldgrp->second];
+                            fprintf(stderr, "%s.%s ignoring duplicate mapping %s%s and %s\n",
+                                    grpname.c_str(), fldname.c_str(),
+                                    recbase.c_str(), fld.channel.c_str(),
+                                    other.pvname.c_str());
+                            continue;
+                        }
+
+                        p2p::auto_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
+
+                        curgroup->members.push_back(GroupMemberInfo(recbase + fld.channel, fldname, builder));
+                        curgroup->members.back().index = curgroup->members.size()-1;
+                        curgroup->members_map[fldname] = curgroup->members.back().index;
+
+                        if(PDBProviderDebug>2) {
+                            fprintf(stderr, "  pdb map '%s.%s' <-> '%s'\n",
+                                    curgroup->name.c_str(),
+                                    curgroup->members.back().pvfldname.c_str(),
+                                    curgroup->members.back().pvname.c_str());
+                        }
+
+                        if(!fld.trigger.empty()) {
+                            addTriggers(fld.trigger.c_str());
+                        }
+                    }
+
+                    if(grp.atomic_set) {
+                        GroupInfo::tribool V = grp.atomic ? GroupInfo::True : GroupInfo::False;
+
+                        if(curgroup->atomic!=GroupInfo::Unset && curgroup->atomic!=V)
+                            fprintf(stderr, "  pdb atomic setting inconsistent '%s'\n",
+                                    curgroup->name.c_str());
+
+                        curgroup->atomic=V;
+
+                        if(PDBProviderDebug>2)
+                            fprintf(stderr, "  pdb atomic '%s' %s\n",
+                                    curgroup->name.c_str(), curgroup->atomic ? "YES" : "NO");
+                    }
                 }
+
+            }catch(std::exception& e){
+                fprintf(stderr, "%s: Error parsing info(\"Q:group\", ... : %s\n",
+                        rec.record()->name, e.what());
             }
         }
+
         resolveTriggers();
     }
 
@@ -362,9 +316,25 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
                 DBCH chan(mem.pvname);
 
-                info.builder.reset(new ScalarBuilder);
+                info.builder = PTRMOVE(mem.builder);
+                assert(info.builder.get());
 
-                builder->add(mem.pvfldname, info.builder->dtype(chan));
+                std::vector<std::string> parts;
+                {
+                    Splitter S(mem.pvfldname.c_str(), '.');
+                    std::string part;
+                    while(S.snip(part))
+                        parts.push_back(part);
+                }
+                assert(!parts.empty());
+
+                for(size_t j=0; j<parts.size()-1; j++)
+                    builder = builder->addNestedStructure(parts[j]);
+
+                builder->add(parts.back(), info.builder->dtype(chan));
+
+                for(size_t j=0; j<parts.size()-1; j++)
+                    builder = builder->endNested();
 
                 info.attachment = mem.pvfldname;
                 info.chan.swap(chan);
@@ -404,12 +374,12 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             persist_pv_map[info.name] = pv;
 
         }catch(std::exception& e){
-            fprintf(stderr, "%s: pdbGroup not created: %s\n", info.name.c_str(), e.what());
+            fprintf(stderr, "%s: Error Group not created: %s\n", info.name.c_str(), e.what());
         }
     }
 #else
     if(!proc.groups.empty()) {
-        fprintf(stderr, "pdbGroup(s) were defined, but need Base >=3.16.0.2 to function.  Ignoring.\n");
+        fprintf(stderr, "Group(s) were defined, but need Base >=3.16.0.2 to function.  Ignoring.\n");
     }
 #endif // USE_MULTILOCK
 
@@ -440,7 +410,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 info.evt_VALUE.self = info.evt_PROPERTY.self = pv;
 
                 info.pvif.reset(info.builder->attach(info.chan,
-                                             pv->complete->getSubFieldT<pvd::PVStructure>(info.attachment)));
+                                             pv->complete->getSubFieldT(info.attachment)));
 
                 info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);
 
