@@ -2,6 +2,8 @@ record(ao, "$(N)Rate") {
     field(VAL, "1.0")
     field(PINI, "YES")
     field(PREC, "3")
+    field(DRVH, "2.0")
+    field(DRVL, "0.000000000001")
     field( OUT, "$(N)dly_.ODLY NPP")
 }
 
@@ -17,7 +19,9 @@ record(calc, "$(N)Phase:I") {
     field( EGU, "rad")
     field(PREC, "3")
     field(FLNK, "$(N)Phase:Q")
-    info(pdbGroup0, "$(N)iq|phas_i=VAL")
+    info(Q:group, {
+	"$(N)iq":{"phas.i": {+type:"plain", +channel:"VAL"}}
+    })
     #field(TPRO, "1")
 }
 
@@ -28,7 +32,9 @@ record(calc, "$(N)Phase:Q") {
     field( EGU, "rad")
     field(PREC, "3")
     field(FLNK, "$(N)I")
-    info(pdbGroup0, "$(N)iq|phas_q=VAL")
+    info(Q:group, {
+	"$(N)iq":{"phas.q": {+type:"plain", +channel:"VAL"}}
+    })
 }
 
 record(waveform, "$(N)I") {
@@ -37,7 +43,9 @@ record(waveform, "$(N)I") {
     field(FTVL, "DOUBLE")
     field(NELM, "500")
     field(FLNK, "$(N)Q")
-    info(pdbGroup0, "$(N)iq|I=VAL")
+    info(Q:group, {
+	"$(N)iq":{"I": {+channel:"VAL"}}
+    })
 }
 
 record(waveform, "$(N)Q") {
@@ -46,8 +54,9 @@ record(waveform, "$(N)Q") {
     field(FTVL, "DOUBLE")
     field(NELM, "500")
     field(FLNK, "$(N)dly_")
-    info(pdbGroup0, "$(N)iq|Q=VAL")
-    info(pdbTrigger,"$(N)iq|Q>*")
+    info(Q:group, {
+	"$(N)iq":{"Q": {+channel:"VAL", +trigger:"Q>*"}}
+    })
 }
 
 record(calcout, "$(N)dly_") {

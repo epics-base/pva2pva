@@ -38,7 +38,7 @@ long process_spin(waveformRecord *prec)
 
     phase *= pi_180; // deg -> rad
 
-    for(size_t i=0; i<prec->nelm; i++)
+    for(size_t i=0, N=prec->nelm; i<N; i++)
         val[i] = sin(freq*i+phase);
 
     prec->nord = prec->nelm;
