@@ -20,7 +20,7 @@ record(calc, "$(N)Phase:I") {
     field(PREC, "3")
     field(FLNK, "$(N)Phase:Q")
     info(Q:group, {
-	"$(N)iq":{"phas.i": {+type:"plain", +channel:"VAL"}}
+        "$(N)iq":{"phas.i": {+type:"plain", +channel:"VAL"}}
     })
     #field(TPRO, "1")
 }
@@ -33,7 +33,7 @@ record(calc, "$(N)Phase:Q") {
     field(PREC, "3")
     field(FLNK, "$(N)I")
     info(Q:group, {
-	"$(N)iq":{"phas.q": {+type:"plain", +channel:"VAL"}}
+        "$(N)iq":{"phas.q": {+type:"plain", +channel:"VAL"}}
     })
 }
 
@@ -44,7 +44,7 @@ record(waveform, "$(N)I") {
     field(NELM, "500")
     field(FLNK, "$(N)Q")
     info(Q:group, {
-	"$(N)iq":{"I": {+channel:"VAL"}}
+        "$(N)iq":{"I": {+channel:"VAL"}}
     })
 }
 
@@ -55,7 +55,7 @@ record(waveform, "$(N)Q") {
     field(NELM, "500")
     field(FLNK, "$(N)dly_")
     info(Q:group, {
-	"$(N)iq":{"Q": {+channel:"VAL", +trigger:"Q>*"}}
+        "$(N)iq":{"Q": {+channel:"VAL", +trigger:"*"}}
     })
 }
 

@@ -78,41 +78,6 @@ struct PDBProcessor
     std::string recbase;
     GroupInfo *curgroup;
 
-    // process "pdbTrigger" to create/extend PDB to PVA monitor trigger mappings
-    void addTriggers(const char *value)
-    {
-        Splitter tok(value, '|');
-        std::string trigent;
-
-        while(tok.snip(trigent))
-        {
-            size_t eq = trigent.find_first_of('>');
-            if(eq==trigent.npos) {
-                std::ostringstream strm;
-                strm<<"Expected '>' in \""<<value<<"\"";
-                throw std::runtime_error(strm.str());
-            }
-
-            std::string pvf(trigent.substr(0, eq)),
-                        trigs(trigent.substr(eq+1));
-
-            GroupInfo::triggers_t::iterator it = curgroup->triggers.find(pvf);
-            if(it==curgroup->triggers.end()) {
-                std::pair<GroupInfo::triggers_t::iterator, bool> ins(curgroup->triggers.insert(
-                                                                         std::make_pair(pvf, GroupInfo::triggers_set_t())));
-                it = ins.first;
-            }
-
-            Splitter sep(trigs.c_str(), ',');
-            std::string target;
-
-            while(sep.snip(target)) {
-                curgroup->hastriggers = true;
-                it->second.insert(target);
-            }
-        }
-    }
-
     // validate trigger mappings and process into bit map form
     void resolveTriggers()
     {
@@ -238,7 +203,20 @@ struct PDBProcessor
                         }
 
                         if(!fld.trigger.empty()) {
-                            addTriggers(fld.trigger.c_str());
+                            GroupInfo::triggers_t::iterator it = curgroup->triggers.find(fldname);
+                            if(it==curgroup->triggers.end()) {
+                                std::pair<GroupInfo::triggers_t::iterator, bool> ins(curgroup->triggers.insert(
+                                                                                         std::make_pair(fldname, GroupInfo::triggers_set_t())));
+                                it = ins.first;
+                            }
+
+                            Splitter sep(fld.trigger.c_str(), ',');
+                            std::string target;
+
+                            while(sep.snip(target)) {
+                                curgroup->hastriggers = true;
+                                it->second.insert(target);
+                            }
                         }
                     }
 
