@@ -640,15 +640,9 @@ PVIFBuilder::PVIFBuilder()
 PVIFBuilder::~PVIFBuilder() {}
 
 
-PVIFBuilder* PVIFBuilder::create(const options_t& options)
+PVIFBuilder* PVIFBuilder::create(const std::string& type)
 {
-    options_t::const_iterator it;
-
-    if((it = options.find("@type"))==options.end())
-        throw std::runtime_error("Field mapping missing required key \"@type\"");
-    const std::string& type(it->second.ref<std::string>());
-
-    if(type=="scalar")
+    if(type.empty() || type=="scalar")
         return new ScalarBuilder;
     else if(type=="plain")
         return new PlainBuilder;

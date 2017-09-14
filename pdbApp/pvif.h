@@ -287,9 +287,7 @@ struct epicsShareClass PVIFBuilder {
     // need not be the root structure
     virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) =0;
 
-    typedef std::map<std::string, AnyScalar> options_t;
-
-    static PVIFBuilder* create(const options_t& options);
+    static PVIFBuilder* create(const std::string& name);
 protected:
     PVIFBuilder();
 private:

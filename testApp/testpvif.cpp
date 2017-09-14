@@ -230,9 +230,7 @@ void testPlain()
 
     p2p::auto_ptr<PVIFBuilder> builder;
     {
-        PVIFBuilder::options_t opts;
-        opts["@type"] = "plain";
-        builder.reset(PVIFBuilder::create(opts));
+        builder.reset(PVIFBuilder::create("plain"));
     }
 
     pvd::FieldConstPtr dtype_li(builder->dtype(chan_li));
