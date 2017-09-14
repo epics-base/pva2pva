@@ -50,8 +50,6 @@ struct context {
 
             if(key=="+type") {
                 fld.type = value.ref<std::string>();
-                if(fld.type.empty())
-                    throw std::runtime_error("+type can't be empty string");
 
             } else if(key=="+channel") {
                 fld.channel = value.ref<std::string>();
@@ -60,8 +58,9 @@ struct context {
 
             } else if(key=="+trigger") {
                 fld.trigger = value.ref<std::string>();
-                if(fld.trigger.empty())
-                    throw std::runtime_error("+trigger can't be empty string");
+
+            } else if(key=="+predef") {
+                fld.predef = value.ref<std::string>();
 
             } else if(key=="+putorder") {
                 fld.putorder = value.as<pvd::int32>();

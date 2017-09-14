@@ -22,7 +22,7 @@
 struct epicsShareClass GroupConfig
 {
     struct epicsShareClass Field {
-        std::string type, channel, trigger;
+        std::string type, channel, trigger, predef;
         int putorder;
 
         Field() :putorder(std::numeric_limits<int>::min()) {}
@@ -31,6 +31,7 @@ struct epicsShareClass GroupConfig
             std::swap(type, o.type);
             std::swap(channel, o.channel);
             std::swap(trigger, o.trigger);
+            std::swap(predef, o.predef);
             std::swap(putorder, o.putorder);
         }
     };

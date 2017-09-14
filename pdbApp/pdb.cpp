@@ -44,12 +44,21 @@ struct Splitter {
     }
 };
 
+pvd::StructureConstPtr NTNDArray(pvd::getFieldCreate()->createFieldBuilder()
+                                 ->setId("epics:nt/NTNDArray:1.0")
+                                 //->add("value", pvd::getFieldCreate()->createVariantUnion())
+                                 ->addNestedStructureArray("dimension")
+                                    ->add("size", pvd::pvInt)
+                                 ->endNested()
+                                 ->createStructure());
 
 struct GroupMemberInfo {
     // consumes builder
     GroupMemberInfo(const std::string& a, const std::string& b, p2p::auto_ptr<PVIFBuilder>& builder)
         :pvname(a), pvfldname(b), builder(PTRMOVE(builder)) {}
-    std::string pvname, pvfldname;
+
+    std::string pvname, // aka. name passed to dbChannelOpen()
+                pvfldname; // PVStructure sub-field
     std::set<size_t> triggers; // indices in GroupInfo::members which are post()d on events from pvfldname
     size_t index; // index in GroupInfo::members
     p2p::auto_ptr<PVIFBuilder> builder;
@@ -58,15 +67,22 @@ struct GroupMemberInfo {
 struct GroupInfo {
     GroupInfo(const std::string& name) : name(name),atomic(Unset),hastriggers(false) {}
     std::string name;
+
     typedef std::vector<GroupMemberInfo> members_t;
     members_t members;
+
     typedef std::map<std::string, size_t> members_map_t;
     members_map_t members_map;
+
     typedef std::set<std::string> triggers_set_t;
     typedef std::map<std::string, triggers_set_t> triggers_t;
     triggers_t triggers;
+
     enum tribool {Unset,True,False} atomic;
     bool hastriggers;
+
+    typedef std::map<std::string, pvd::StructureConstPtr> predefs_t;
+    predefs_t predefs;
 };
 
 // Iterates all PDB records and gathers info() to construct PDB groups
@@ -183,6 +199,18 @@ struct PDBProcessor
                         const std::string& fldname = fit->first;
                         const GroupConfig::Field& fld = fit->second;
 
+                        if(!fld.predef.empty()) {
+                            if(fld.predef=="epics:nt/NTNDArray:1.0") {
+                                curgroup->predefs[fldname] = NTNDArray;
+                            } else {
+                                fprintf(stderr, "%s.%s : unknown pre-defined type \"%s\"\n",
+                                        grpname.c_str(), fldname.c_str(), fld.predef.c_str());
+                            }
+                            // allow pre-defined fields to skip a channel mapping
+                            if(fld.channel.empty())
+                                continue;
+                        }
+
                         if(fld.channel.empty())
                             throw std::runtime_error("Missing required +channel");
 
@@ -293,6 +321,31 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
             pvd::FieldBuilderPtr builder(fcreate->createFieldBuilder());
             builder->add("record", _options);
+
+            for(GroupInfo::predefs_t::const_iterator it=info.predefs.begin(), end=info.predefs.end();
+                it!=end; ++it)
+            {
+                if(PDBProviderDebug>2)
+                    fprintf(stderr, "%s.%s add pre-defined %s\n",
+                            info.name.c_str(), it->first.c_str(), it->second->getID().c_str());
+
+                std::vector<std::string> parts;
+                {
+                    Splitter S(it->first.c_str(), '.');
+                    std::string part;
+                    while(S.snip(part))
+                        parts.push_back(part);
+                }
+                assert(!parts.empty());
+
+                for(size_t j=0; j<parts.size()-1; j++)
+                    builder = builder->addNestedStructure(parts[j]);
+
+                builder->add(parts.back(), it->second);
+
+                for(size_t j=0; j<parts.size()-1; j++)
+                    builder = builder->endNested();
+            }
 
             for(size_t i=0; i<nchans; i++)
             {
