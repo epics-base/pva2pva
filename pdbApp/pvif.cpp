@@ -647,5 +647,5 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
     else if(type=="plain")
         return new PlainBuilder;
     else
-        throw std::runtime_error("Unknown mapping @type");
+        throw std::runtime_error(std::string("Unknown +type=")+type);
 }
