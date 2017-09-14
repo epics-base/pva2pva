@@ -149,9 +149,11 @@ struct PDBProcessor
             const char *json = rec.info("Q:group");
             if(!json) continue;
 
-            GroupConfig conf;
             try {
+                GroupConfig conf;
                 GroupConfig::parse(json, conf);
+                if(!conf.warning.empty())
+                    fprintf(stderr, "%s: warning(s) from info(Q:group, ...\n%s", rec.record()->name, conf.warning.c_str());
 
                 recbase = rec.record()->name;
                 recbase += ".";
@@ -161,6 +163,11 @@ struct PDBProcessor
                 {
                     const std::string& grpname = git->first;
                     const GroupConfig::Group& grp = git->second;
+
+                    if(dbChannelTest(grpname.c_str())==0) {
+                        fprintf(stderr, "%s : Group name conflicts with record name.  Ignoring...\n", grpname.c_str());
+                        continue;
+                    }
 
                     groups_t::iterator it = groups.find(grpname);
                     if(it==groups.end()) {
