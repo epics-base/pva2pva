@@ -38,7 +38,7 @@ record(calc, "$(N)Phase:Q") {
 }
 
 record(waveform, "$(N)I") {
-    field(DTYP, "PDB Demo")
+    field(DTYP, "QSRV Demo")
     field( INP, "$(N)Phase:I")
     field(FTVL, "DOUBLE")
     field(NELM, "500")
@@ -49,7 +49,7 @@ record(waveform, "$(N)I") {
 }
 
 record(waveform, "$(N)Q") {
-    field(DTYP, "PDB Demo")
+    field(DTYP, "QSRV Demo")
     field( INP, "$(N)Phase:Q")
     field(FTVL, "DOUBLE")
     field(NELM, "500")

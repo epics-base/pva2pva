@@ -1,0 +1,40 @@
+
+
+record(longout, "$(N):ArraySize0_RBV") {
+    info(Q:group, {
+        "$(N):Array":{
+            "foo.dimension[0].size":{+channel:"VAL", +type:"existing"}
+        }
+    })
+    field(FLNK, "$(N):ArraySize1_RBV")
+}
+
+record(longout, "$(N):ArraySize1_RBV") {
+    info(Q:group, {
+        "$(N):Array":{
+            "foo.dimension[1].size":{+channel:"VAL", +type:"existing"}
+        }
+    })
+    field(FLNK, "$(N):ArrayData_")
+}
+
+record(aSub, "$(N):ArrayData_") {
+    field(SNAM, "QSRV_image_demo")
+    field(FTA, "ULONG")
+    field(FTB, "ULONG")
+    field(FTVA, "USHORT")
+    field(NOVA, "262144") # eg. 512x512
+    field(INPA, "$(N):ArraySize0_RBV NPP MSI")
+    field(INPB, "$(N):ArraySize1_RBV NPP MSI")
+    field(OUTA, "$(N):ArrayData PP MSI")
+}
+
+record(waveform, "$(N):ArrayData") {
+    field(FTVL, "UCHAR")
+    field(NELM, "256")
+    info(Q:group, {
+        "$(N):Array":{
+            "foo":{+type:"NTNDArray", +channel:"VAL", +trigger:"*"}
+        }
+    })
+}

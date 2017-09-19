@@ -3,4 +3,6 @@ registrar(QSRVRegistrar)
 #link("pva", "lsetPVA")
 
 # from demo.cpp
-device(waveform, CONSTANT, devWfPDBDemo, "PDB Demo")
+device(waveform, CONSTANT, devWfPDBDemo, "QSRV Demo")
+# from imagedemo.c
+function(QSRV_image_demo)

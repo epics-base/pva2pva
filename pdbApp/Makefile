@@ -15,6 +15,7 @@ qsrv_SRCS += pdb.cpp
 qsrv_SRCS += pdbsingle.cpp
 #qsrv_SRCS += pvalink.cpp
 qsrv_SRCS += demo.cpp
+qsrv_SRCS += imagedemo.c
 
 ifdef BASE_3_16
 qsrv_SRCS += pdbgroup.cpp

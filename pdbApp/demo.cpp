@@ -26,6 +26,11 @@ long init_spin(waveformRecord *prec)
 
 long process_spin(waveformRecord *prec)
 {
+    if(prec->dpvt != &dummy) {
+        (void)recGblSetSevr(prec, COMM_ALARM, INVALID_ALARM);
+        return 0;
+    }
+
     const double freq = 360.0*pi_180/100; // rad/sample
     double phase = 0;
     double *val = static_cast<double*>(prec->bptr);
