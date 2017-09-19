@@ -59,9 +59,6 @@ struct context {
             } else if(key=="+trigger") {
                 fld.trigger = value.ref<std::string>();
 
-            } else if(key=="+predef") {
-                fld.predef = value.ref<std::string>();
-
             } else if(key=="+putorder") {
                 fld.putorder = value.as<pvd::int32>();
 

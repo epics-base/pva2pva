@@ -277,6 +277,8 @@ private:
 
 struct epicsShareClass PVIFBuilder {
 
+    const bool buildsType;
+
     virtual ~PVIFBuilder();
 
     // fetch the structure description
@@ -289,7 +291,7 @@ struct epicsShareClass PVIFBuilder {
 
     static PVIFBuilder* create(const std::string& name);
 protected:
-    PVIFBuilder();
+    PVIFBuilder(bool buildsType);
 private:
     PVIFBuilder(const PVIFBuilder&);
     PVIFBuilder& operator=(const PVIFBuilder&);
@@ -297,7 +299,7 @@ private:
 
 struct epicsShareClass ScalarBuilder : public PVIFBuilder
 {
-    ScalarBuilder() {}
+    ScalarBuilder() :PVIFBuilder(true) {}
 
     virtual ~ScalarBuilder() {}
 
