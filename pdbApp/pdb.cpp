@@ -54,6 +54,8 @@ struct GroupMemberInfo {
     std::set<size_t> triggers; // indices in GroupInfo::members which are post()d on events from pvfldname
     size_t index; // index in GroupInfo::members
     p2p::auto_ptr<PVIFBuilder> builder;
+
+    bool operator<(const GroupMemberInfo& o) const { return pvfldname<o.pvfldname; }
 };
 
 struct GroupInfo {
@@ -204,8 +206,7 @@ struct PDBProcessor
                         p2p::auto_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
 
                         curgroup->members.push_back(GroupMemberInfo(recbase + fld.channel, fldname, builder));
-                        curgroup->members.back().index = curgroup->members.size()-1;
-                        curgroup->members_map[fldname] = curgroup->members.back().index;
+                        curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below
 
                         if(PDBProviderDebug>2) {
                             fprintf(stderr, "  pdb map '%s.%s' <-> '%s'\n",
@@ -250,6 +251,23 @@ struct PDBProcessor
             }catch(std::exception& e){
                 fprintf(stderr, "%s: Error parsing info(\"Q:group\", ... : %s\n",
                         rec.record()->name, e.what());
+            }
+        }
+
+        // re-sort GroupInfo::members to ensure the shorter names appear first
+        // allows use of 'existing' PVIFBuilder on leaves
+        for(groups_t::iterator it = groups.begin(), end = groups.end(); it!=end; ++it)
+        {
+            GroupInfo& info = it->second;
+            std::sort(info.members.begin(),
+                      info.members.end());
+
+            info.members_map.clear();
+
+            for(size_t i=0, N=info.members.size(); i<N; i++)
+            {
+                info.members[i].index = i;
+                info.members_map[info.members[i].pvfldname] = i;
             }
         }
 
@@ -385,14 +403,14 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
         throw std::runtime_error("Failed to stsart dbEvent context");
 
     // setup group monitors
-    try {
 #ifdef USE_MULTILOCK
-        FOREACH(it, end, persist_pv_map)
-        {
-            const PDBPV::shared_pointer& ppv = it->second;
-            PDBGroupPV *pv = dynamic_cast<PDBGroupPV*>(ppv.get());
-            if(!pv)
-                continue;
+    FOREACH(it, end, persist_pv_map)
+    {
+        const PDBPV::shared_pointer& ppv = it->second;
+        PDBGroupPV *pv = dynamic_cast<PDBGroupPV*>(ppv.get());
+        if(!pv)
+            continue;
+        try {
 
             // prepare for monitor
 
@@ -412,13 +430,11 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                     info.evt_VALUE.create(event_context, info.chan, &pdb_group_event, DBE_VALUE|DBE_ALARM);
                 }
             }
+        }catch(std::exception& e){
+            fprintf(stderr, "%s: Error initializing dbEvent\n", pv->name.c_str());
         }
-#endif // USE_MULTILOCK
-    }catch(...){
-        db_close_events(event_context);
-        // TODO, remove PV and continue?
-        throw;
     }
+#endif // USE_MULTILOCK
     epics::atomic::increment(num_instances);
 }
 
