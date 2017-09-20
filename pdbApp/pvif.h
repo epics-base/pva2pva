@@ -255,6 +255,45 @@ struct DBManyLocker
 };
 #endif
 
+struct epicsShareClass FieldName
+{
+    struct Component {
+        std::string name;
+        epicsUInt32 index;
+        Component() :index((epicsUInt32)-1) {}
+        Component(const std::string& name, epicsUInt32 index = (epicsUInt32)-1)
+            :name(name), index(index)
+        {}
+        bool isArray() const { return index!=(epicsUInt32)-1; }
+    };
+    typedef std::vector<Component> parts_t;
+    parts_t parts;
+    bool has_sarr;
+
+    FieldName() :has_sarr(false) {}
+    explicit FieldName(const std::string&);
+
+    void swap(FieldName& o) {
+        parts.swap(o.parts);
+        std::swap(has_sarr, o.has_sarr);
+    }
+
+    bool empty() const { return parts.empty(); }
+    size_t size() const { return parts.size(); }
+    const Component& operator[](size_t i) const { return parts[i]; }
+    const Component& back() const { return parts.back(); }
+
+    // Apply field name(s) to given structure
+    // if ppenclose!=NULL then the address of the enclosing field (eg. structureArray)
+    // whose fieldOffset shoulbe by used, or NULL if no enclosing
+    epics::pvData::PVFieldPtr
+    lookup(const epics::pvData::PVStructurePtr& S, epics::pvData::PVField** ppenclose) const;
+
+private:
+    FieldName(const FieldName&);
+    FieldName& operator=(const FieldName&);
+};
+
 struct epicsShareClass PVIF {
     PVIF(dbChannel *ch);
     virtual ~PVIF() {}
@@ -277,21 +316,19 @@ private:
 
 struct epicsShareClass PVIFBuilder {
 
-    const bool buildsType;
-
-    virtual ~PVIFBuilder();
+    virtual ~PVIFBuilder() {}
 
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) =0;
 
     // Attach to a structure instance.
     // must be of the type returned by dtype().
-    // need not be the root structure
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) =0;
+    // must be the root structure
+    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root, const FieldName& fld) =0;
 
     static PVIFBuilder* create(const std::string& name);
 protected:
-    PVIFBuilder(bool buildsType);
+    PVIFBuilder() {}
 private:
     PVIFBuilder(const PVIFBuilder&);
     PVIFBuilder& operator=(const PVIFBuilder&);
@@ -299,12 +336,10 @@ private:
 
 struct epicsShareClass ScalarBuilder : public PVIFBuilder
 {
-    ScalarBuilder() :PVIFBuilder(true) {}
-
     virtual ~ScalarBuilder() {}
 
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL;
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) OVERRIDE FINAL;
+    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root, const FieldName& fld) OVERRIDE FINAL;
 };
 
 

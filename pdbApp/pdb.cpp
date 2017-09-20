@@ -55,7 +55,14 @@ struct GroupMemberInfo {
     size_t index; // index in GroupInfo::members
     p2p::auto_ptr<PVIFBuilder> builder;
 
-    bool operator<(const GroupMemberInfo& o) const { return pvfldname<o.pvfldname; }
+    bool operator<(const GroupMemberInfo& o) const {
+        bool LT = pvfldname==".",
+             RT = o.pvfldname==".";
+        if(LT && RT) return false;
+        else if(LT && !RT) return true;
+        else if(!LT && RT) return false;
+        else return pvfldname<o.pvfldname;
+    }
 };
 
 struct GroupInfo {
@@ -327,27 +334,24 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 info.builder = PTRMOVE(mem.builder);
                 assert(info.builder.get());
 
-                if(info.builder->buildsType) {
 
-                    std::vector<std::string> parts;
-                    {
-                        Splitter S(mem.pvfldname.c_str(), '.');
-                        std::string part;
-                        while(S.snip(part))
-                            parts.push_back(part);
-                    }
-                    assert(!parts.empty());
+                // parse down attachment point to build/traverse structure
+                FieldName parts(mem.pvfldname);
+                assert(!parts.empty());
 
-                    for(size_t j=0; j<parts.size()-1; j++)
-                        builder = builder->addNestedStructure(parts[j]);
-
-                    builder->add(parts.back(), info.builder->dtype(chan));
-
-                    for(size_t j=0; j<parts.size()-1; j++)
-                        builder = builder->endNested();
+                for(size_t j=0; j<parts.size()-1; j++) {
+                    if(parts[j].isArray())
+                        builder = builder->addNestedStructureArray(parts[j].name);
+                    else
+                        builder = builder->addNestedStructure(parts[j].name);
                 }
 
-                info.attachment = mem.pvfldname;
+                builder->add(parts.back().name, info.builder->dtype(chan));
+
+                for(size_t j=0; j<parts.size()-1; j++)
+                    builder = builder->endNested();
+
+                info.attachment.swap(parts);
                 info.chan.swap(chan);
 
                 info.triggers.reserve(mem.triggers.size());
@@ -404,7 +408,10 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
     // setup group monitors
 #ifdef USE_MULTILOCK
-    FOREACH(it, end, persist_pv_map)
+    for(persist_pv_map_t::iterator next = persist_pv_map.begin(),
+                                    end = persist_pv_map.end(),
+                                     it = next!=end ? next++ : end;
+        it != end; it = next==end ? end : next++)
     {
         const PDBPV::shared_pointer& ppv = it->second;
         PDBGroupPV *pv = dynamic_cast<PDBGroupPV*>(ppv.get());
@@ -415,15 +422,15 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             // prepare for monitor
 
             size_t i=0;
-            FOREACH(it, end, pv->members)
+            FOREACH(it2, end2, pv->members)
             {
-                PDBGroupPV::Info& info = *it;
+                PDBGroupPV::Info& info = *it2;
                 info.evt_VALUE.index = info.evt_PROPERTY.index = i++;
                 info.evt_VALUE.self = info.evt_PROPERTY.self = pv;
 
-                info.pvif.reset(info.builder->attach(info.chan,
-                                             pv->complete->getSubFieldT(info.attachment)));
+                info.pvif.reset(info.builder->attach(info.chan, pv->complete, info.attachment));
 
+                // TODO: don't need evt_PROPERTY for PVIF plain
                 info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);
 
                 if(!info.triggers.empty()) {
@@ -431,7 +438,8 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 }
             }
         }catch(std::exception& e){
-            fprintf(stderr, "%s: Error initializing dbEvent\n", pv->name.c_str());
+            fprintf(stderr, "%s: Error during dbEvent setup : %s\n", pv->name.c_str(), e.what());
+            persist_pv_map.erase(it);
         }
     }
 #endif // USE_MULTILOCK
@@ -545,5 +553,86 @@ PDBProvider::createChannel(std::string const & channelName,
         status = pvd::Status(pvd::Status::STATUSTYPE_ERROR, "not found");
     }
     requester->channelCreated(status, ret);
+    return ret;
+}
+
+FieldName::FieldName(const std::string& pv)
+    :has_sarr(false)
+{
+    Splitter S(pv.c_str(), '.');
+    std::string part;
+    while(S.snip(part)) {
+        if(part.empty())
+            throw std::runtime_error("Empty field component in: "+pv);
+
+        if(part.back()==']') {
+            const size_t open = part.find_last_of('['),
+                         N = part.size();
+            bool ok = open!=part.npos;
+            epicsUInt32 index = 0;
+            for(size_t i=open+1; ok && i<(N-1); i++) {
+                ok &= part[i]>='0' && part[i]<='9';
+                index = 10*index + part[i] - '0';
+            }
+            if(!ok)
+                throw std::runtime_error("Invalid field array sub-script in : "+pv);
+
+            parts.push_back(Component(part.substr(0, open), index));
+            has_sarr = true;
+
+        } else {
+            parts.push_back(Component(part));
+        }
+    }
+    if(parts.empty())
+        throw std::runtime_error("Empty field name");
+    if(parts.back().isArray())
+        throw std::runtime_error("leaf field may not have sub-script : "+pv);
+}
+
+epics::pvData::PVFieldPtr
+FieldName::lookup(const epics::pvData::PVStructurePtr& S, epics::pvData::PVField **ppsar) const
+{
+    if(ppsar)
+        *ppsar = 0;
+
+    pvd::PVFieldPtr ret = S;
+    for(size_t i=0, N=parts.size(); i<N; i++) {
+        pvd::PVStructure* parent = dynamic_cast<pvd::PVStructure*>(ret.get());
+        if(!parent)
+            throw std::runtime_error("mid-field is not structure");
+
+        ret = parent->getSubFieldT(parts[i].name);
+
+        if(parts[i].isArray()) {
+            pvd::PVStructureArray* sarr = dynamic_cast<pvd::PVStructureArray*>(ret.get());
+            if(!sarr)
+                throw std::runtime_error("indexed field is not structure array");
+
+            if(ppsar && !*ppsar)
+                *ppsar = sarr;
+
+            pvd::PVStructureArray::const_svector V(sarr->view());
+
+            if(V.size()<=parts[i].index || !V[parts[i].index]) {
+                // automatic re-size and ensure non-null
+                V.clear(); // drop our extra ref so that reuse() might avoid a copy
+                pvd::PVStructureArray::svector E(sarr->reuse());
+
+                if(E.size()<=parts[i].index)
+                    E.resize(parts[i].index+1);
+
+                if(!E[parts[i].index])
+                    E[parts[i].index] = pvd::getPVDataCreate()->createPVStructure(sarr->getStructureArray()->getStructure());
+
+                ret = E[parts[i].index];
+
+                sarr->replace(pvd::freeze(E));
+
+            } else {
+                ret = V[parts[i].index];
+            }
+        }
+    }
     return ret;
 }

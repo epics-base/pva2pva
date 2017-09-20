@@ -173,9 +173,7 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
     {
         PDBGroupPV::Info& info = channel->pv->members[i];
 
-        pvif[i].reset(info.builder->attach(info.chan,
-                               pvf->getSubFieldT(info.attachment)
-                               ));
+        pvif[i].reset(info.builder->attach(info.chan, pvf, info.attachment));
     }
 }
 
@@ -195,9 +193,7 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     {
         PDBGroupPV::Info& info = channel->pv->members[i];
 
-        putpvif[i].reset(info.builder->attach(info.chan,
-                               value->getSubFieldT(info.attachment)
-                               ));
+        putpvif[i].reset(info.builder->attach(info.chan, value, info.attachment));
     }
 
     if(atomic) {
@@ -293,6 +289,7 @@ void PDBGroupMonitor::onStart()
             } else {
                 info.had_initial_VALUE = true;
             }
+            assert(info.evt_PROPERTY.subscript);
             db_event_enable(info.evt_PROPERTY.subscript);
             db_post_single_event(info.evt_PROPERTY.subscript);
             ievts++;

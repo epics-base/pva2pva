@@ -394,7 +394,7 @@ struct PVIFScalarNumeric : public PVIF
     PVM pvmeta;
     const epics::pvData::PVStructurePtr pvalue;
 
-    PVIFScalarNumeric(dbChannel *ch, const epics::pvData::PVFieldPtr& p)
+    PVIFScalarNumeric(dbChannel *ch, const epics::pvData::PVFieldPtr& p, pvd::PVField *enclosing)
         :PVIF(ch)
         ,pvalue(std::tr1::dynamic_pointer_cast<pvd::PVStructure>(p))
     {
@@ -404,6 +404,20 @@ struct PVIFScalarNumeric : public PVIF
 
         pvmeta.chan = ch;
         attachAll(pvmeta, pvalue);
+        if(enclosing) {
+            size_t bit = enclosing->getFieldOffset();
+            // we are inside a structure array or similar with only one bit for all ours fields
+            pvmeta.maskALWAYS.clear();
+            pvmeta.maskALWAYS.set(bit);
+            pvmeta.maskVALUE.clear();
+            pvmeta.maskVALUE.set(bit);
+            pvmeta.maskALARM.clear();
+            pvmeta.maskALARM.set(bit);
+            pvmeta.maskPROPERTY.clear();
+            pvmeta.maskPROPERTY.set(bit);
+            pvmeta.maskVALUEPut.clear();
+            pvmeta.maskVALUEPut.set(bit);
+        }
         const char *UT = info.info("pdbUserTag");
         if(UT && strncmp(UT, "nslsb", 5)==0) {
             try{
@@ -521,8 +535,11 @@ ScalarBuilder::dtype(dbChannel *channel)
 }
 
 PVIF*
-ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root)
+ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root, const FieldName& fldname)
 {
+    pvd::PVField *enclosing = 0;
+    pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
+
     const short dbr = dbChannelFinalFieldType(channel);
     const long maxelem = dbChannelFinalElements(channel);
     //const pvd::ScalarType pvt = DBR2PVD(dbr);
@@ -535,14 +552,14 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root)
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvScalar, metaLONG>(channel, root);
+            return new PVIFScalarNumeric<pvScalar, metaLONG>(channel, fld, enclosing);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, root);
+            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, fld, enclosing);
         case DBR_ENUM:
-            return new PVIFScalarNumeric<pvScalar, metaENUM>(channel, root);
+            return new PVIFScalarNumeric<pvScalar, metaENUM>(channel, fld, enclosing);
         case DBR_STRING:
-            return new PVIFScalarNumeric<pvScalar, metaSTRING>(channel, root);
+            return new PVIFScalarNumeric<pvScalar, metaSTRING>(channel, fld, enclosing);
         }
     } else {
         switch(dbr) {
@@ -552,10 +569,10 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root)
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvArray, metaLONG>(channel, root);
+            return new PVIFScalarNumeric<pvArray, metaLONG>(channel, fld, enclosing);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, root);
+            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
         }
     }
 
@@ -566,16 +583,21 @@ namespace {
 template<class PVD>
 struct PVIFPlain : public PVIF
 {
-    typename PVD::shared_pointer field;
-    dbChannel *channel;
+    const typename PVD::shared_pointer field;
+    size_t fieldOffset;
+    dbChannel * const channel;
 
-    PVIFPlain(dbChannel *channel, const epics::pvData::PVFieldPtr& fld)
+    PVIFPlain(dbChannel *channel, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
         :PVIF(channel)
         ,field(std::tr1::static_pointer_cast<PVD>(fld))
         ,channel(channel)
     {
         if(!field)
             throw std::logic_error("PVIFPlain attached type mis-match");
+        if(enclosing)
+            fieldOffset = enclosing->getFieldOffset();
+        else
+            fieldOffset = field->getFieldOffset();
     }
 
     virtual ~PVIFPlain() {}
@@ -584,19 +606,19 @@ struct PVIFPlain : public PVIF
     {
         if(dbe&DBE_VALUE) {
             putValue(channel, field.get(), pfl);
-            mask.set(field->getFieldOffset());
+            mask.set(fieldOffset);
         }
     }
 
     virtual void get(const epics::pvData::BitSet& mask)
     {
-        if(mask.get(field->getFieldOffset()))
+        if(mask.get(fieldOffset))
             getValue(channel, field.get());
     }
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask)
     {
-        if(mask.get(field->getFieldOffset()))
+        if(mask.get(fieldOffset))
             return DBE_VALUE;
         return 0;
     }
@@ -604,7 +626,6 @@ struct PVIFPlain : public PVIF
 
 struct PlainBuilder : public PVIFBuilder
 {
-    PlainBuilder() :PVIFBuilder(true) {}
     virtual ~PlainBuilder() {}
 
     // fetch the structure description
@@ -625,92 +646,49 @@ struct PlainBuilder : public PVIFBuilder
     // Attach to a structure instance.
     // must be of the type returned by dtype().
     // need not be the root structure
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) OVERRIDE FINAL
+    virtual PVIF* attach(dbChannel *channel,
+                         const epics::pvData::PVStructurePtr& root,
+                         const FieldName& fldname) OVERRIDE FINAL
     {
         const long maxelem = dbChannelFinalElements(channel);
 
-        if(maxelem==1)
-            return new PVIFPlain<pvd::PVScalar>(channel, root);
-        else
-            return new PVIFPlain<pvd::PVScalarArray>(channel, root);
-    }
-};
-
-struct ExistingBuilder : public PVIFBuilder
-{
-    ExistingBuilder() :PVIFBuilder(false) {}
-    virtual ~ExistingBuilder() {}
-
-    // fetch the structure description
-    virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL {
-        throw std::logic_error("Don't call me");
-    }
-
-    // Attach to a structure instance.
-    // must be of the type returned by dtype().
-    // need not be the root structure
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) OVERRIDE FINAL
-    {
-        const long maxelem = dbChannelFinalElements(channel);
+        pvd::PVField *enclosing = 0;
+        pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
 
         if(maxelem==1)
-            return new PVIFPlain<pvd::PVScalar>(channel, root);
+            return new PVIFPlain<pvd::PVScalar>(channel, fld, enclosing);
         else
-            return new PVIFPlain<pvd::PVScalarArray>(channel, root);
+            return new PVIFPlain<pvd::PVScalarArray>(channel, fld, enclosing);
     }
 };
-
-pvd::StructureConstPtr NTNDArray(pvd::getFieldCreate()->createFieldBuilder()
-                                 ->setId("epics:nt/NTNDArray:1.0")
-                                 ->add("value", pvd::getFieldCreate()->createVariantUnion())
-                                 ->addNestedStructureArray("dimension")
-                                    ->add("size", pvd::pvInt)
-                                 ->endNested()
-                                 ->createStructure());
-
 
 struct NTNDArrayBuilder : public PVIFBuilder
 {
-    NTNDArrayBuilder() :PVIFBuilder(true) {}
     virtual ~NTNDArrayBuilder() {}
 
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL {
         (void)channel; //ignored
-        return NTNDArray;
+        return pvd::getFieldCreate()->createVariantUnion();
     }
 
     // Attach to a structure instance.
     // must be of the type returned by dtype().
     // need not be the root structure
-    virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVFieldPtr& root) OVERRIDE FINAL
+    virtual PVIF* attach(dbChannel *channel,
+                         const epics::pvData::PVStructurePtr& root,
+                         const FieldName& fldname) OVERRIDE FINAL
     {
         pvd::PVDataCreatePtr create(pvd::getPVDataCreate());
         const short dbr = dbChannelFinalFieldType(channel);
         const pvd::ScalarType pvt = DBR2PVD(dbr);
 
-        pvd::PVStructure *base = dynamic_cast<pvd::PVStructure*>(root.get());
-        if(!base)
+        pvd::PVField *enclosing = 0;
+        pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
+
+        pvd::PVUnion *value = dynamic_cast<pvd::PVUnion*>(fld.get());
+        if(!value)
             throw std::logic_error("Mis-matched attachment point");
-
-        // auto-magically ensure that dimension array has at least 2 elements
-        // TODO: bit of a hack, should be able to do this as needed from builder for size field(s)
-        {
-            pvd::PVStructureArrayPtr dims(base->getSubFieldT<pvd::PVStructureArray>("dimension"));
-            pvd::PVStructureArray::const_svector cur(dims->view());
-            if(cur.size()<2 || !cur[0] || !cur[1]) {
-                pvd::PVStructureArray::svector D(dims->reuse());
-                pvd::StructureConstPtr dtype(dims->getStructureArray()->getStructure());
-                if(D.size()<2) D.resize(2);
-                if(!D[0])
-                    D[0] = create->createPVStructure(dtype);
-                if(!D[1])
-                    D[1] = create->createPVStructure(dtype);
-                dims->replace(pvd::freeze(D));
-            }
-        }
-
-        pvd::PVUnionPtr value(base->getSubFieldT<pvd::PVUnion>("value"));
 
         pvd::PVFieldPtr arr(value->get());
         if(!arr) {
@@ -718,18 +696,13 @@ struct NTNDArrayBuilder : public PVIFBuilder
             value->set(arr);
         }
 
-        return new PVIFPlain<pvd::PVScalarArray>(channel, arr);
+        return new PVIFPlain<pvd::PVScalarArray>(channel, arr, enclosing ? enclosing : arr.get());
     }
 
 };
 
+
 }//namespace
-
-PVIFBuilder::PVIFBuilder(bool buildsType)
-    :buildsType(buildsType)
-{}
-
-PVIFBuilder::~PVIFBuilder() {}
 
 
 PVIFBuilder* PVIFBuilder::create(const std::string& type)
@@ -738,8 +711,6 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
         return new ScalarBuilder;
     else if(type=="plain")
         return new PlainBuilder;
-    else if(type=="existing")
-        return new ExistingBuilder;
     else if(type=="NTNDArray" || type=="NTNDArray:1.0")
         return new NTNDArrayBuilder;
     else

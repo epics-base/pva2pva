@@ -3,7 +3,7 @@
 record(longout, "$(N):ArraySize0_RBV") {
     info(Q:group, {
         "$(N):Array":{
-            "foo.dimension[0].size":{+channel:"VAL", +type:"existing"}
+            "dimension[0].size":{+channel:"VAL", +type:"plain"}
         }
     })
     field(FLNK, "$(N):ArraySize1_RBV")
@@ -12,7 +12,7 @@ record(longout, "$(N):ArraySize0_RBV") {
 record(longout, "$(N):ArraySize1_RBV") {
     info(Q:group, {
         "$(N):Array":{
-            "foo.dimension[1].size":{+channel:"VAL", +type:"existing"}
+            "dimension[1].size":{+channel:"VAL", +type:"plain"}
         }
     })
     field(FLNK, "$(N):ArrayData_")
@@ -30,11 +30,11 @@ record(aSub, "$(N):ArrayData_") {
 }
 
 record(waveform, "$(N):ArrayData") {
-    field(FTVL, "UCHAR")
+    field(FTVL, "USHORT")
     field(NELM, "256")
     info(Q:group, {
         "$(N):Array":{
-            "foo":{+type:"NTNDArray", +channel:"VAL", +trigger:"*"}
+            "value":{+type:"NTNDArray", +channel:"VAL", +trigger:"*"}
         }
     })
 }
