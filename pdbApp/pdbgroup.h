@@ -85,7 +85,7 @@ struct epicsShareClass PDBGroupPV : public PDBPV
 
     struct Info {
         DBCH chan;
-        p2p::auto_ptr<PVIFBuilder> builder;
+        std::tr1::shared_ptr<PVIFBuilder> builder;
         FieldName attachment;
         std::vector<size_t> triggers; // index in PDBGroupPV::members
         DBManyLock locker; // lock only those channels being triggered

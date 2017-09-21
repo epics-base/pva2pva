@@ -53,15 +53,10 @@ struct GroupMemberInfo {
                 pvfldname; // PVStructure sub-field
     std::string structID; // ID to assign to sub-field
     std::set<std::string> triggers; // names in GroupInfo::members_names which are post()d on events from pvfldname
-    p2p::auto_ptr<PVIFBuilder> builder;
+    std::tr1::shared_ptr<PVIFBuilder> builder; // not actually shared, but allows us to be copyable
 
     bool operator<(const GroupMemberInfo& o) const {
-        bool LT = pvfldname==".",
-             RT = o.pvfldname==".";
-        if(LT && RT) return false;
-        else if(LT && !RT) return true;
-        else if(!LT && RT) return false;
-        else return pvfldname<o.pvfldname;
+        return pvfldname<o.pvfldname;
     }
 };
 
@@ -615,7 +610,7 @@ FieldName::FieldName(const std::string& pv)
         if(part.empty())
             throw std::runtime_error("Empty field component in: "+pv);
 
-        if(part.back()==']') {
+        if(part[part.size()-1]==']') {
             const size_t open = part.find_last_of('['),
                          N = part.size();
             bool ok = open!=part.npos;
