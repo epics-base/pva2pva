@@ -51,8 +51,8 @@ struct GroupMemberInfo {
 
     std::string pvname, // aka. name passed to dbChannelOpen()
                 pvfldname; // PVStructure sub-field
-    std::set<size_t> triggers; // indices in GroupInfo::members which are post()d on events from pvfldname
-    size_t index; // index in GroupInfo::members
+    std::string structID; // ID to assign to sub-field
+    std::set<std::string> triggers; // names in GroupInfo::members_names which are post()d on events from pvfldname
     p2p::auto_ptr<PVIFBuilder> builder;
 
     bool operator<(const GroupMemberInfo& o) const {
@@ -67,7 +67,7 @@ struct GroupMemberInfo {
 
 struct GroupInfo {
     GroupInfo(const std::string& name) : name(name),atomic(Unset),hastriggers(false) {}
-    std::string name;
+    std::string name, structID;
 
     typedef std::vector<GroupMemberInfo> members_t;
     members_t members;
@@ -120,7 +120,9 @@ struct PDBProcessor
 
                         if(target=="*") {
                             for(size_t i=0; i<info.members.size(); i++) {
-                                srcmem.triggers.insert(i);
+                                if(info.members[i].pvname.empty())
+                                    continue;
+                                srcmem.triggers.insert(info.members[i].pvfldname);
                                 if(PDBProviderDebug>2)
                                     fprintf(stderr, "%s, ", info.members[i].pvfldname.c_str());
                             }
@@ -135,10 +137,16 @@ struct PDBProcessor
                             }
                             const GroupMemberInfo& targetmem = info.members[it3x->second];
 
-                            // and finally, update source BitSet
-                            srcmem.triggers.insert(targetmem.index);
-                            if(PDBProviderDebug>2)
-                                fprintf(stderr, "%s, ", info.members[targetmem.index].pvfldname.c_str());
+                            if(targetmem.pvname.empty()) {
+                                if(PDBProviderDebug>2)
+                                    fprintf(stderr, "<ignore: %s>, ", targetmem.pvfldname.c_str());
+
+                            } else {
+                                // and finally, update source BitSet
+                                srcmem.triggers.insert(targetmem.pvfldname);
+                                if(PDBProviderDebug>2)
+                                    fprintf(stderr, "%s, ", targetmem.pvfldname.c_str());
+                            }
                         }
                     }
 
@@ -149,8 +157,10 @@ struct PDBProcessor
 
                 FOREACH(it2, end2, info.members) {
                     GroupMemberInfo& mem = *it2;
+                    if(mem.pvname.empty())
+                        continue;
 
-                    mem.triggers.insert(mem.index); // default is self trigger
+                    mem.triggers.insert(mem.pvfldname); // default is self trigger
                 }
             }
         }
@@ -162,6 +172,9 @@ struct PDBProcessor
         {
             const char *json = rec.info("Q:group");
             if(!json) continue;
+            if(PDBProviderDebug>2) {
+                fprintf(stderr, "%s: info(Q:Group, ...\n", rec.name());
+            }
 
             try {
                 GroupConfig conf;
@@ -190,6 +203,8 @@ struct PDBProcessor
                         it = ins.first;
                     }
                     curgroup = &it->second;
+                    if(!grp.id.empty())
+                        curgroup->structID = grp.id;
 
                     for(GroupConfig::Group::fields_t::const_iterator fit=grp.fields.begin(), fend=grp.fields.end();
                         fit!=fend; ++fit)
@@ -197,10 +212,7 @@ struct PDBProcessor
                         const std::string& fldname = fit->first;
                         const GroupConfig::Field& fld = fit->second;
 
-                        if(fld.channel.empty())
-                            throw std::runtime_error("Missing required +channel");
-
-                        GroupInfo::members_map_t::const_iterator oldgrp = curgroup->members_map.find(fldname);
+                        GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
                         if(oldgrp!=curgroup->members_map.end()) {
                             const GroupMemberInfo& other = curgroup->members[oldgrp->second];
                             fprintf(stderr, "%s.%s ignoring duplicate mapping %s%s and %s\n",
@@ -212,7 +224,8 @@ struct PDBProcessor
 
                         p2p::auto_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
 
-                        curgroup->members.push_back(GroupMemberInfo(recbase + fld.channel, fldname, builder));
+                        curgroup->members.push_back(GroupMemberInfo(fld.channel.empty() ? fld.channel : recbase + fld.channel, fldname, builder));
+                        curgroup->members.back().structID = fld.id;
                         curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below
 
                         if(PDBProviderDebug>2) {
@@ -273,7 +286,6 @@ struct PDBProcessor
 
             for(size_t i=0, N=info.members.size(); i<N; i++)
             {
-                info.members[i].index = i;
                 info.members_map[info.members[i].pvfldname] = i;
             }
         }
@@ -288,6 +300,12 @@ size_t PDBProvider::num_instances;
 
 PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 {
+    /* Long view
+     * 1. PDBProcessor collects info() tags and builds config of groups and group fields
+     *    (including those w/o a dbChannel)
+     * 2. Build pvd::Structure and discard those w/o dbChannel
+     * 3. Build the lockers for the triggers of each group field
+     */
     PDBProcessor proc;
     pvd::FieldCreatePtr fcreate(pvd::getFieldCreate());
     pvd::PVDataCreatePtr pvbuilder(pvd::getPVDataCreate());
@@ -308,8 +326,6 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             if(persist_pv_map.find(info.name)!=persist_pv_map.end())
                 throw std::runtime_error("name already in used");
 
-            const size_t nchans = info.members.size();
-
             PDBGroupPV::shared_pointer pv(new PDBGroupPV());
             pv->weakself = pv;
             pv->name = info.name;
@@ -317,23 +333,30 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             pv->pgatomic = info.atomic!=GroupInfo::False; // default true if Unset
             pv->monatomic = info.hastriggers;
 
-            pvd::shared_vector<PDBGroupPV::Info> members(nchans);
+            // some gymnastics because Info isn't copyable
+            pvd::shared_vector<PDBGroupPV::Info> members;
+            typedef std::map<std::string, size_t> members_map_t;
+            members_map_t members_map;
+            {
+                size_t nchans = 0;
+                for(size_t i=0, N=info.members.size(); i<N; i++)
+                    if(!info.members[i].pvname.empty())
+                        nchans++;
+                pvd::shared_vector<PDBGroupPV::Info> temp(nchans);
+                members.swap(temp);
+            }
 
-            std::vector<dbCommon*> records(nchans);
+            std::vector<dbCommon*> records(members.size());
 
             pvd::FieldBuilderPtr builder(fcreate->createFieldBuilder());
-            builder->add("record", _options);
+            builder = builder->add("record", _options);
 
-            for(size_t i=0; i<nchans; i++)
+            if(!info.structID.empty())
+                builder = builder->setId(info.structID);
+
+            for(size_t i=0, J=0, N=info.members.size(); i<N; i++)
             {
                 GroupMemberInfo &mem = info.members[i];
-                PDBGroupPV::Info& info = members[i];
-
-                DBCH chan(mem.pvname);
-
-                info.builder = PTRMOVE(mem.builder);
-                assert(info.builder.get());
-
 
                 // parse down attachment point to build/traverse structure
                 FieldName parts(mem.pvfldname);
@@ -346,21 +369,37 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                         builder = builder->addNestedStructure(parts[j].name);
                 }
 
-                builder->add(parts.back().name, info.builder->dtype(chan));
+                if(!mem.structID.empty())
+                    builder = builder->setId(mem.structID);
+
+                DBCH chan;
+                if(!mem.pvname.empty()) {
+                    DBCH temp(mem.pvname);
+                    chan.swap(temp);
+                }
+
+                builder->add(parts.back().name, mem.builder->dtype(chan));
 
                 for(size_t j=0; j<parts.size()-1; j++)
                     builder = builder->endNested();
 
-                info.attachment.swap(parts);
-                info.chan.swap(chan);
+                if(!mem.pvname.empty()) {
+                    members_map[mem.pvfldname] = J;
+                    PDBGroupPV::Info& info = members[J];
 
-                info.triggers.reserve(mem.triggers.size());
-                FOREACH(idx, endidx, mem.triggers) {
-                    info.triggers.push_back(*idx);
+                    info.builder = PTRMOVE(mem.builder);
+                    assert(info.builder.get());
+
+                    info.attachment.swap(parts);
+                    info.chan.swap(chan);
+
+                    // info.triggers populated below
+
+                    assert(info.chan);
+                    records[J] = dbChannelRecord(info.chan);
+
+                    J++;
                 }
-
-                assert(info.chan);
-                records[i] = dbChannelRecord(info.chan);
             }
             pv->members.swap(members);
 
@@ -372,15 +411,25 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             DBManyLock L(&records[0], records.size(), 0);
             pv->locker.swap(L);
 
-            for(size_t i=0; i<nchans; i++)
+            // construct locker for records triggered by each member
+            for(size_t i=0, J=0, N=info.members.size(); i<N; i++)
             {
-                PDBGroupPV::Info& info = pv->members[i];
+                GroupMemberInfo &mem = info.members[i];
+                if(mem.pvname.empty()) continue;
+                PDBGroupPV::Info& info = pv->members[J++];
 
-                if(info.triggers.empty()) continue;
+                if(mem.triggers.empty()) continue;
 
-                std::vector<dbCommon*> trig_records(info.triggers.size());
-                for(size_t idx=0; idx<trig_records.size(); idx++) {
-                    trig_records[idx] = records[info.triggers[idx]];
+                std::vector<dbCommon*> trig_records;
+                trig_records.reserve(mem.triggers.size());
+
+                FOREACH(it, end, mem.triggers) {
+                    members_map_t::const_iterator imap(members_map.find(*it));
+                    if(imap==members_map.end())
+                        throw std::logic_error("trigger resolution missed map to non-dbChannel");
+
+                    info.triggers.push_back(imap->second);
+                    trig_records.push_back(records[imap->second]);
                 }
 
                 DBManyLock L(&trig_records[0], trig_records.size(), 0);
@@ -427,6 +476,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 PDBGroupPV::Info& info = *it2;
                 info.evt_VALUE.index = info.evt_PROPERTY.index = i++;
                 info.evt_VALUE.self = info.evt_PROPERTY.self = pv;
+                assert(info.chan);
 
                 info.pvif.reset(info.builder->attach(info.chan, pv->complete, info.attachment));
 

@@ -48,6 +48,7 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                 self->members[idx].pvif->put(self->scratch, evt->dbe_mask, pfl);
 
             } else {
+                // we ignore 'pfl' (and the dbEvent queue) when collecting an atomic snapshot
 
                 DBManyLocker L(info.locker); // lock only those records in the triggers list
                 FOREACH(it, end, info.triggers)

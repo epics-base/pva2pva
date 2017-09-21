@@ -537,6 +537,8 @@ ScalarBuilder::dtype(dbChannel *channel)
 PVIF*
 ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root, const FieldName& fldname)
 {
+    if(!channel)
+        throw std::runtime_error("+type:\"scalar\" requires +channel:");
     pvd::PVField *enclosing = 0;
     pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
 
@@ -650,6 +652,8 @@ struct PlainBuilder : public PVIFBuilder
                          const epics::pvData::PVStructurePtr& root,
                          const FieldName& fldname) OVERRIDE FINAL
     {
+        if(!channel)
+            throw std::runtime_error("+type:\"plain\" requires +channel:");
         const long maxelem = dbChannelFinalElements(channel);
 
         pvd::PVField *enclosing = 0;
@@ -662,9 +666,9 @@ struct PlainBuilder : public PVIFBuilder
     }
 };
 
-struct NTNDArrayBuilder : public PVIFBuilder
+struct AnyScalarBuilder : public PVIFBuilder
 {
-    virtual ~NTNDArrayBuilder() {}
+    virtual ~AnyScalarBuilder() {}
 
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL {
@@ -679,8 +683,11 @@ struct NTNDArrayBuilder : public PVIFBuilder
                          const epics::pvData::PVStructurePtr& root,
                          const FieldName& fldname) OVERRIDE FINAL
     {
+        if(!channel)
+            throw std::runtime_error("+type:\"any\" requires +channel:");
         pvd::PVDataCreatePtr create(pvd::getPVDataCreate());
         const short dbr = dbChannelFinalFieldType(channel);
+        const long maxelem = dbChannelFinalElements(channel);
         const pvd::ScalarType pvt = DBR2PVD(dbr);
 
         pvd::PVField *enclosing = 0;
@@ -692,15 +699,20 @@ struct NTNDArrayBuilder : public PVIFBuilder
 
         pvd::PVFieldPtr arr(value->get());
         if(!arr) {
-            arr = create->createPVScalarArray(pvt);
+            if(maxelem==1)
+                arr = create->createPVScalar(pvt);
+            else
+                arr = create->createPVScalarArray(pvt);
             value->set(arr);
         }
 
-        return new PVIFPlain<pvd::PVScalarArray>(channel, arr, enclosing ? enclosing : arr.get());
+        if(maxelem==1)
+            return new PVIFPlain<pvd::PVScalar>(channel, arr, enclosing ? enclosing : arr.get());
+        else
+            return new PVIFPlain<pvd::PVScalarArray>(channel, arr, enclosing ? enclosing : arr.get());
     }
 
 };
-
 
 }//namespace
 
@@ -711,8 +723,8 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
         return new ScalarBuilder;
     else if(type=="plain")
         return new PlainBuilder;
-    else if(type=="NTNDArray" || type=="NTNDArray:1.0")
-        return new NTNDArrayBuilder;
+    else if(type=="any")
+        return new AnyScalarBuilder;
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
 }

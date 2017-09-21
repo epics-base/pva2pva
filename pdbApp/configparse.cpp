@@ -39,6 +39,9 @@ struct context {
                 grp.atomic = value.as<pvd::boolean>();
                 grp.atomic_set = true;
 
+            } else if(field=="+id") {
+                grp.id = value.as<std::string>();
+
             } else {
                 conf.warning += "Unknown group option ";
                 conf.warning += field;
@@ -53,8 +56,9 @@ struct context {
 
             } else if(key=="+channel") {
                 fld.channel = value.ref<std::string>();
-                if(fld.channel.empty())
-                    throw std::runtime_error("+channel can't be empty string");
+
+            } else if(key=="+id") {
+                fld.id = value.ref<std::string>();
 
             } else if(key=="+trigger") {
                 fld.trigger = value.ref<std::string>();

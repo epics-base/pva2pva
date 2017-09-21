@@ -31,10 +31,42 @@ record(aSub, "$(N):ArrayData_") {
 
 record(waveform, "$(N):ArrayData") {
     field(FTVL, "USHORT")
-    field(NELM, "256")
+    field(NELM, "262144")
     info(Q:group, {
         "$(N):Array":{
-            "value":{+type:"NTNDArray", +channel:"VAL", +trigger:"*"}
+            +id:"epics:nt/NTNDArray:1.0",
+            "value":{+type:"any", +channel:"VAL", +trigger:"*"},
+            "alarm.severity":{+type:"plain", +channel:"SEVR"},
+            "alarm.status":{+type:"plain", +channel:"STAT"}
+        }
+    })
+}
+
+
+record(stringin, "$(N):ColorMode_") {
+    field(VAL, "ColorMode")
+    field(PINI, "YES")
+    info(Q:group, {
+        "$(N):Array":{
+            "attribute[0].name":{+type:"plain", +channel:"VAL"}
+        }
+    })
+}
+
+record(mbbi, "$(N):ColorMode") {
+    field(ZRST, "Mono")
+    field(ONST, "Bayer")
+    field(TWST, "RGB1")
+    field(THST, "RGB2")
+    field(FRST, "RGB3")
+    field(FVST, "YUV444")
+    field(SXST, "YUV422")
+    field(SVST, "YUV411")
+    field(VAL, "0") # Gray
+    field(PINI, "YES")
+    info(Q:group, {
+        "$(N):Array":{
+            "attribute[0].value":{+type:"any", +channel:"VAL"}
         }
     })
 }

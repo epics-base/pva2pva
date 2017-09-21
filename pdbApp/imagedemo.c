@@ -21,11 +21,10 @@
 static
 long QSRV_image_demo(aSubRecord *prec)
 {
-    epicsUInt32 W = *(epicsUInt32*)prec->a,
-                H = *(epicsUInt32*)prec->b;
+    epicsUInt32 H = *(epicsUInt32*)prec->a,
+                W = *(epicsUInt32*)prec->b;
     epicsUInt16 *I = (epicsUInt16*)prec->vala;
     epicsUInt32 i, j;
-    epicsUInt16 phase;
 
     if(W*H>prec->nova) {
         (void)recGblSetSevr(prec, READ_ALARM, INVALID_ALARM);
@@ -33,13 +32,11 @@ long QSRV_image_demo(aSubRecord *prec)
     }
 
     for(i=0; i<W; i++) {
-        phase = 0;
         for(j=0; j<H; j++) {
             if(i%50==49 || j%50==49)
                 I[i*H+j] = 65535;
             else
-                I[i*H+j] = phase;
-            phase += 65535/W;
+                I[i*H+j] = ((epicsUInt32)j)*65535/H;
         }
     }
 

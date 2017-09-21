@@ -22,7 +22,7 @@
 struct epicsShareClass GroupConfig
 {
     struct epicsShareClass Field {
-        std::string type, channel, trigger;
+        std::string type, channel, trigger, id;
         int putorder;
 
         Field() :putorder(std::numeric_limits<int>::min()) {}
@@ -32,6 +32,7 @@ struct epicsShareClass GroupConfig
             std::swap(channel, o.channel);
             std::swap(trigger, o.trigger);
             std::swap(putorder, o.putorder);
+            std::swap(id, o.id);
         }
     };
 
@@ -39,6 +40,7 @@ struct epicsShareClass GroupConfig
         typedef std::map<std::string, Field> fields_t;
         fields_t fields;
         bool atomic, atomic_set;
+        std::string id;
 
         Group() :atomic(true), atomic_set(false) {}
 
@@ -46,6 +48,7 @@ struct epicsShareClass GroupConfig
             std::swap(fields, o.fields);
             std::swap(atomic, o.atomic);
             std::swap(atomic_set, o.atomic_set);
+            std::swap(id, o.id);
         }
     };
 
@@ -84,7 +87,7 @@ struct epicsShareClass PDBGroupPV : public PDBPV
         DBCH chan;
         p2p::auto_ptr<PVIFBuilder> builder;
         FieldName attachment;
-        std::vector<size_t> triggers;
+        std::vector<size_t> triggers; // index in PDBGroupPV::members
         DBManyLock locker; // lock only those channels being triggered
         p2p::auto_ptr<PVIF> pvif;
         DBEvent evt_VALUE, evt_PROPERTY;
