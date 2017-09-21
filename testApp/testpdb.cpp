@@ -435,6 +435,9 @@ MAIN(testpdb)
         testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
         p2pTestIoc_registerRecordDeviceDriver(pdbbase);
         testdbReadDatabase("testpdb.db", NULL, NULL);
+#ifdef USE_MULTILOCK
+        testdbReadDatabase("testpdb-groups.db", NULL, NULL);
+#endif
 
         IOC.init();
 

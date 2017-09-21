@@ -13,42 +13,17 @@ record(ai, "rec3") {
   field(RVAL, "30")
   field(HOPR, "200")
   field(LOPR, "-200")
-  info(Q:group, {
-    "grp1":{
-        "fld1":{+channel:"VAL"},
-        "fld2":{+channel:"RVAL"}
-    }
-  })
 }
 record(ai, "rec4") {
   field(VAL, "4.0")
   field(RVAL, "40")
-  info(Q:group, {
-    "grp1":{
-        "fld3":{+channel:"VAL"},
-        "fld4":{+channel:"RVAL"}
-    }
-  })
 }
 
 record(ai, "rec5") {
   field(VAL, "5.0")
   field(RVAL, "50")
-  info(Q:group, {
-    "grp2":{
-        "fld1":{+channel:"VAL"},
-        "fld3":{+channel:"RVAL"}
-    }
-  })
 }
 record(ai, "rec6") {
   field(VAL, "6.0")
   field(RVAL, "60")
-  info(Q:group, {
-    "grp2":{
-        "fld2":{+channel:"VAL", +trigger:"fld1,fld2"}
-    }
-  })
-  info(pdbGroup, "grp2|fld2=VAL")
-  info(pdbTrigger, "grp2|fld2>fld1,fld2")
 }
