@@ -25,7 +25,7 @@ record(mbbi, "test:mbbi") {
   field(ZRVL, "1")
   field(ONVL, "0")
   field(TWVL, "3")
-  info(pdbUserTag, "nslsb4")
+  info(Q:time:tag, "nsec:lsb:4")
 }
 record(stringin, "test:si") {
   field(VAL, "hello")

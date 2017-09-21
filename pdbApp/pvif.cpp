@@ -388,6 +388,30 @@ void putAll(const PVC &pv, unsigned dbe, db_field_log *pfl)
     }
 }
 
+void findNSMask(pvCommon& pvmeta, dbChannel *chan, const epics::pvData::PVStructurePtr& pvalue)
+{
+    pdbRecordIterator info(chan);
+    const char *UT = info.info("Q:time:tag");
+    if(UT && strncmp(UT, "nsec:lsb:", 9)==0) {
+        try{
+            pvmeta.nsecMask = epics::pvData::castUnsafe<unsigned>(std::string(&UT[9]));
+        }catch(std::exception& e){
+            std::cerr<<dbChannelRecord(chan)->name<<" : Q:time:tag nsec:lsb: requires a number not '"<<UT[9]<<"'\n";
+        }
+    }
+    if(pvmeta.nsecMask>0 && pvmeta.nsecMask<=32) {
+        pvmeta.userTag = pvalue->getSubField<pvd::PVInt>("timeStamp.userTag");
+        if(!pvmeta.userTag) {
+            pvmeta.nsecMask = 0; // struct doesn't have userTag
+        } else {
+            pvd::uint64 mask = (1<<pvmeta.nsecMask)-1;
+            pvmeta.nsecMask = mask;
+            pvmeta.maskALWAYS.set(pvmeta.userTag->getFieldOffset());
+        }
+    } else
+        pvmeta.nsecMask = 0;
+}
+
 template<class PVM, typename META>
 struct PVIFScalarNumeric : public PVIF
 {
@@ -400,7 +424,6 @@ struct PVIFScalarNumeric : public PVIF
     {
         if(!pvalue)
             throw std::runtime_error("Must attach to structure");
-        pdbRecordIterator info(chan);
 
         pvmeta.chan = ch;
         attachAll(pvmeta, pvalue);
@@ -418,25 +441,7 @@ struct PVIFScalarNumeric : public PVIF
             pvmeta.maskVALUEPut.clear();
             pvmeta.maskVALUEPut.set(bit);
         }
-        const char *UT = info.info("pdbUserTag");
-        if(UT && strncmp(UT, "nslsb", 5)==0) {
-            try{
-                pvmeta.nsecMask = epics::pvData::castUnsafe<unsigned>(std::string(&UT[5]));
-            }catch(std::exception& e){
-                std::cerr<<dbChannelRecord(ch)->name<<" : pdbUserTag nslsb requires a number not '"<<UT[5]<<"'\n";
-            }
-        }
-        if(pvmeta.nsecMask>0 && pvmeta.nsecMask<=32) {
-            pvmeta.userTag = pvalue->getSubField<pvd::PVInt>("timeStamp.userTag");
-            if(!pvmeta.userTag) {
-                pvmeta.nsecMask = 0; // struct doesn't have userTag
-            } else {
-                pvd::uint64 mask = (1<<pvmeta.nsecMask)-1;
-                pvmeta.nsecMask = mask;
-                pvmeta.maskALWAYS.set(pvmeta.userTag->getFieldOffset());
-            }
-        } else
-            pvmeta.nsecMask = 0;
+        findNSMask(pvmeta, chan, pvalue);
     }
     virtual ~PVIFScalarNumeric() {}
 
