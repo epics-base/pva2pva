@@ -167,6 +167,13 @@ struct PDBProcessor
         {
             const char *json = rec.info("Q:group");
             if(!json) continue;
+#ifndef USE_MULTILOCK
+            static bool warned;
+            if(!warned) {
+                warned = true;
+                fprintf(stderr, "%s: ignoring info(Q:Group, ...\n", rec.name());
+            }
+#else
             if(PDBProviderDebug>2) {
                 fprintf(stderr, "%s: info(Q:Group, ...\n", rec.name());
             }
@@ -267,6 +274,7 @@ struct PDBProcessor
                 fprintf(stderr, "%s: Error parsing info(\"Q:group\", ... : %s\n",
                         rec.record()->name, e.what());
             }
+#endif // USE_MULTILOCK
         }
 
         // re-sort GroupInfo::members to ensure the shorter names appear first
