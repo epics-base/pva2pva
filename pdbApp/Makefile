@@ -22,7 +22,8 @@ qsrv_SRCS += pdbgroup.cpp
 qsrv_SRCS += configparse.cpp
 endif
 
-qsrv_LIBS += pvAccess pvData Com
+qsrv_LIBS += pvAccessIOC pvAccess pvData $(MBLIB)
+qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 FINAL_LOCATION ?= $(shell $(PERL) $(TOOLS)/fullPathName.pl $(INSTALL_LOCATION))
 
