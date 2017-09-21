@@ -393,9 +393,22 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
 
     testOk1(!!e.next());
 
-    testOk1(!!e && e->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
-    testOk1(!!e && e->pvStructurePtr->getSubFieldT("fld2.value")->getFieldOffset()==46);
-    if(!!e) testEqual(toString(*e->changedBitSet), "{6, 8, 9, 12, 13, 46, 48, 49, 52, 53}");
+    testShow()<<e->pvStructurePtr;
+#define OFF(NAME) e->pvStructurePtr->getSubFieldT(NAME)->getFieldOffset()
+    if(!!e) testEqual(*e->changedBitSet, pvd::BitSet()
+                      .set(OFF("fld1.value"))
+                      .set(OFF("fld1.alarm.severity"))
+                      .set(OFF("fld1.alarm.status"))
+                      .set(OFF("fld1.timeStamp.secondsPastEpoch"))
+                      .set(OFF("fld1.timeStamp.nanoseconds"))
+                      .set(OFF("fld2.value"))
+                      .set(OFF("fld2.alarm.severity"))
+                      .set(OFF("fld2.alarm.status"))
+                      .set(OFF("fld2.timeStamp.secondsPastEpoch"))
+                      .set(OFF("fld2.timeStamp.nanoseconds"))
+                      );
+#undef OFF
+//                      "{6, 8, 9, 12, 13, 46, 48, 49, 52, 53}");
     else testFail("oops");
 
     testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 15.0);
@@ -404,7 +417,7 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
 
     testOk1(!e.next());
 #else
-    testSkip(23, "No multilock");
+    testSkip(21, "No multilock");
 #endif
 }
 
@@ -415,7 +428,7 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(140);
+    testPlan(138);
     try{
         TestIOC IOC;
 
