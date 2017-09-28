@@ -400,7 +400,7 @@ void putAll(const PVC &pv, unsigned dbe, db_field_log *pfl)
     }
 }
 
-void findNSMask(pvCommon& pvmeta, dbChannel *chan, const epics::pvData::PVStructurePtr& pvalue)
+void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStructurePtr& pvalue)
 {
     pdbRecordIterator info(chan);
     const char *UT = info.info("Q:time:tag");
@@ -741,7 +741,9 @@ struct PVIFMeta : public PVIF
         pvd::PVStructurePtr field(std::dynamic_pointer_cast<pvd::PVStructure>(fld));
         if(!field)
             throw std::logic_error("PVIFMeta attached type mis-match");
+        meta.chan = channel;
         attachTime(meta, field);
+        findNSMask(meta, channel, field);
         if(enclosing) {
             meta.maskALWAYS.clear();
             meta.maskALWAYS.set(enclosing->getFieldOffset());
@@ -788,8 +790,15 @@ struct MetaBuilder : public PVIFBuilder
                                                  dbChannel *channel)
     {
         pvd::StandardFieldPtr std(pvd::getStandardField());
-        return builder->add("alarm", std->alarm())
-                      ->add("timeStamp", std->timeStamp());
+        if(fld.empty()) {
+            return builder->add("alarm", std->alarm())
+                          ->add("timeStamp", std->timeStamp());
+        } else {
+            return builder->addNestedStructure(fld)
+                                ->add("alarm", std->alarm())
+                                ->add("timeStamp", std->timeStamp())
+                           ->endNested();
+        }
     }
 
     // Attach to a structure instance.
@@ -800,7 +809,7 @@ struct MetaBuilder : public PVIFBuilder
                          const FieldName& fldname) OVERRIDE FINAL
     {
         if(!channel)
-            throw std::runtime_error("+type:\"any\" requires +channel:");
+            throw std::runtime_error("+type:\"meta\" requires +channel:");
 
         pvd::PVField *enclosing = 0;
         pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));

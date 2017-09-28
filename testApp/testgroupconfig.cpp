@@ -19,9 +19,12 @@ void test_parse()
     "  \"fld\":{\n"
     "    \"+type\": \"simple\","
     "    \"+putorder\": -4"
+    "  },\n"
+    "  \"\":{\n"
+    "    \"+type\": \"top\""
     "  }\n"
     " },\n"
-    " \"fld2\":{\n"
+    " \"grpb\":{\n"
     " }\n"
     "}";
 
@@ -36,12 +39,18 @@ void test_parse()
     testEqual(conf.groups["grpa"].fields["fld"].type, "simple");
     testEqual(conf.groups["grpa"].fields["fld"].channel, "");
     testEqual(conf.groups["grpa"].fields["fld"].putorder, -4);
+
+    testEqual(conf.groups["grpa"].fields[""].type, "top");
 }
 
 void test_fail()
 {
     testDiag("test_fail()");
 
+    {
+        GroupConfig conf;
+        testThrows(std::runtime_error, GroupConfig::parse("{", conf));
+    }
     {
         GroupConfig conf;
         testThrows(std::runtime_error, GroupConfig::parse("{\"G\":{\"F\":{\"K\":{}}}}", conf));
@@ -56,7 +65,7 @@ void test_fail()
 
 MAIN(testanyscalar)
 {
-    testPlan(8);
+    testPlan(10);
     try {
         test_parse();
         test_fail();

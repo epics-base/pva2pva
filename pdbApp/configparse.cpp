@@ -21,12 +21,19 @@ typedef std::map<std::string, options_t> config_t;
 struct context {
     std::string msg;
     std::string group, field, key;
+    unsigned depth; // number of '{'s
+    // depth 0 - invalid
+    // depth 1 - top Object
+    // depth 2 - Group
+    // depth 3 - field
+
+    context() :depth(0u) {}
 
     GroupConfig conf;
 
     void can_assign()
     {
-        if(group.empty() || field.empty())
+        if(depth<2 || depth>3)
             throw std::runtime_error("Can't assign value in this context");
     }
 
@@ -34,7 +41,7 @@ struct context {
         can_assign();
         GroupConfig::Group& grp = conf.groups[group];
 
-        if(key.empty()) {
+        if(depth==2) {
             if(field=="+atomic") {
                 grp.atomic = value.as<pvd::boolean>();
                 grp.atomic_set = true;
@@ -48,7 +55,7 @@ struct context {
             }
             field.clear();
 
-        } else {
+        } else if(depth==3) {
             GroupConfig::Field& fld = grp.fields[field];
 
             if(key=="+type") {
@@ -125,8 +132,9 @@ int conf_string(void * ctx, const unsigned char * stringVal,
 int conf_start_map(void * ctx)
 {
     TRY {
-        if(!self->group.empty() && !self->field.empty() && !self->key.empty())
-            throw std::runtime_error("Too deep");
+        self->depth++;
+        if(self->depth>3)
+            throw std::runtime_error("Group field def. can't contain Object (too deep)");
         return 1;
     }CATCH()
 }
@@ -135,16 +143,16 @@ int conf_map_key(void * ctx, const unsigned char * key,
                      unsigned int stringLen)
 {
     TRY {
-        if(stringLen==0)
-            throw std::runtime_error("empty key");
+        if(stringLen==0 && self->depth!=2)
+            throw std::runtime_error("empty group or key name not allowed");
 
         std::string name((const char*)key, stringLen);
 
-        if(self->group.empty())
+        if(self->depth==1)
             self->group.swap(name);
-        else if(self->field.empty())
+        else if(self->depth==2)
             self->field.swap(name);
-        else if(self->key.empty())
+        else if(self->depth==3)
             self->key.swap(name);
         else
             throw std::logic_error("Too deep!!");
@@ -158,10 +166,15 @@ int conf_end_map(void * ctx)
     TRY {
         assert(self->key.empty()); // cleared in assign()
 
-        if(!self->field.empty())
+        if(self->depth==3)
+            self->key.clear();
+        else if(self->depth==2)
             self->field.clear();
-        else if(!self->group.empty())
+        else if(self->depth==1)
             self->group.clear();
+        else
+            throw std::logic_error("Invalid depth");
+        self->depth--;
 
         return 1;
     }CATCH()

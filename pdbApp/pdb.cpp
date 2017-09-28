@@ -363,13 +363,14 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
                 // parse down attachment point to build/traverse structure
                 FieldName parts(mem.pvfldname);
-                assert(!parts.empty());
 
-                for(size_t j=0; j<parts.size()-1; j++) {
-                    if(parts[j].isArray())
-                        builder = builder->addNestedStructureArray(parts[j].name);
-                    else
-                        builder = builder->addNestedStructure(parts[j].name);
+                if(!parts.empty()) {
+                    for(size_t j=0; j<parts.size()-1; j++) {
+                        if(parts[j].isArray())
+                            builder = builder->addNestedStructureArray(parts[j].name);
+                        else
+                            builder = builder->addNestedStructure(parts[j].name);
+                    }
                 }
 
                 if(!mem.structID.empty())
@@ -381,10 +382,15 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                     chan.swap(temp);
                 }
 
-                builder = mem.builder->dtype(builder, parts.back().name, chan);
+                if(!parts.empty())
+                    builder = mem.builder->dtype(builder, parts.back().name, chan);
+                else
+                    builder = mem.builder->dtype(builder, "", chan);
 
-                for(size_t j=0; j<parts.size()-1; j++)
-                    builder = builder->endNested();
+                if(!parts.empty()) {
+                    for(size_t j=0; j<parts.size()-1; j++)
+                        builder = builder->endNested();
+                }
 
                 if(!mem.pvname.empty()) {
                     members_map[mem.pvfldname] = J;
@@ -611,6 +617,8 @@ PDBProvider::createChannel(std::string const & channelName,
 
 FieldName::FieldName(const std::string& pv)
 {
+    if(pv.empty())
+        return;
     Splitter S(pv.c_str(), '.');
     std::string part;
     while(S.snip(part)) {
