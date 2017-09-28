@@ -5,7 +5,7 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
-LIBRARY_HOST += qsrv
+LIBRARY += qsrv
 
 USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 
