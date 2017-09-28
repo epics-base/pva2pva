@@ -20,7 +20,8 @@ ifdef BASE_3_16
 qsrv_SRCS += pdbgroup.cpp
 endif
 
-qsrv_LIBS += pvAccess pvData Com
+qsrv_LIBS += pvAccess pvData
+qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 FINAL_LOCATION ?= $(shell $(PERL) $(TOOLS)/fullPathName.pl $(INSTALL_LOCATION))
 
