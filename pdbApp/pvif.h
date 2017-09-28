@@ -268,14 +268,12 @@ struct epicsShareClass FieldName
     };
     typedef std::vector<Component> parts_t;
     parts_t parts;
-    bool has_sarr;
 
-    FieldName() :has_sarr(false) {}
+    FieldName() {}
     explicit FieldName(const std::string&);
 
     void swap(FieldName& o) {
         parts.swap(o.parts);
-        std::swap(has_sarr, o.has_sarr);
     }
 
     bool empty() const { return parts.empty(); }
@@ -320,6 +318,10 @@ struct epicsShareClass PVIFBuilder {
 
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) =0;
+
+    virtual epics::pvData::FieldBuilderPtr dtype(epics::pvData::FieldBuilderPtr& builder,
+                                                 const std::string& fld,
+                                                 dbChannel *channel);
 
     // Attach to a structure instance.
     // must be of the type returned by dtype().

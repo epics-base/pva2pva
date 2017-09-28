@@ -66,16 +66,22 @@ PVIF::PVIF(dbChannel *ch)
 
 namespace {
 
-struct pvCommon {
+struct pvTimeAlarm {
     dbChannel *chan;
 
     pvd::uint32 nsecMask;
 
-    pvd::BitSet maskALWAYS, maskVALUE, maskALARM, maskPROPERTY,
-                maskVALUEPut;
+    pvd::BitSet maskALWAYS, maskALARM;
 
     pvd::PVLongPtr sec;
     pvd::PVIntPtr status, severity, nsec, userTag;
+
+    pvTimeAlarm() :chan(NULL), nsecMask(0) {}
+};
+
+struct pvCommon : public pvTimeAlarm {
+
+    pvd::BitSet maskVALUE, maskPROPERTY, maskVALUEPut;
 
     pvd::PVDoublePtr displayLow, displayHigh, controlLow, controlHigh;
     pvd::PVStringPtr egu;
@@ -85,8 +91,6 @@ struct pvCommon {
     pvd::PVScalarPtr prec;
 
     pvd::PVStringArrayPtr enumopts;
-
-    pvCommon() :chan(NULL), nsecMask(0) {}
 };
 
 struct pvScalar : public pvCommon {
@@ -167,8 +171,7 @@ struct metaSTRING {
     enum {mask = DBR_STATUS | DBR_TIME};
 };
 
-// lookup fields and populate pvCommon.  Non-existant fields will be NULL.
-void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
+void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
 {
 #define FMAP(MNAME, PVT, FNAME, DBE) pvm.MNAME = pv->getSubField<pvd::PVT>(FNAME); \
         if(pvm.MNAME) pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
@@ -176,6 +179,16 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
     FMAP(severity, PVInt, "alarm.severity", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
+#undef FMAP
+    assert(pvm.status && pvm.severity && pvm.sec && pvm.nsec);
+}
+
+// lookup fields and populate pvCommon.  Non-existant fields will be NULL.
+void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
+{
+    attachTime(pvm, pv);
+#define FMAP(MNAME, PVT, FNAME, DBE) pvm.MNAME = pv->getSubField<pvd::PVT>(FNAME); \
+        if(pvm.MNAME) pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
     FMAP(displayHigh, PVDouble, "display.limitHigh", PROPERTY);
     FMAP(displayLow, PVDouble, "display.limitLow", PROPERTY);
     FMAP(controlHigh, PVDouble, "control.limitHigh", PROPERTY);
@@ -188,7 +201,6 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
     FMAP(alarmLow,  PVScalar, "alarm.lowAlarmLimit", PROPERTY);
     FMAP(enumopts,  PVStringArray, "value.choices", PROPERTY);
 #undef FMAP
-    assert(pvm.status && pvm.severity && pvm.sec && pvm.nsec);
 }
 
 template<typename PVM>
@@ -206,7 +218,7 @@ void attachAll(PVM& pvm, const pvd::PVStructurePtr& pv)
     attachMeta(pvm, pv);
 }
 
-void putTime(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
+void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
 {
     metaTIME meta;
     long options = (int)metaTIME::mask, nReq = 0;
@@ -719,8 +731,102 @@ struct AnyScalarBuilder : public PVIFBuilder
 
 };
 
+struct PVIFMeta : public PVIF
+{
+    pvTimeAlarm meta;
+
+    PVIFMeta(dbChannel *channel, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
+        :PVIF(channel)
+    {
+        pvd::PVStructurePtr field(std::dynamic_pointer_cast<pvd::PVStructure>(fld));
+        if(!field)
+            throw std::logic_error("PVIFMeta attached type mis-match");
+        attachTime(meta, field);
+        if(enclosing) {
+            meta.maskALWAYS.clear();
+            meta.maskALWAYS.set(enclosing->getFieldOffset());
+            meta.maskALARM.clear();
+            meta.maskALARM.set(enclosing->getFieldOffset());
+        }
+    }
+
+    virtual ~PVIFMeta() {}
+
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl)
+    {
+        mask |= meta.maskALWAYS;
+        if(dbe&DBE_ALARM)
+            mask |= meta.maskALARM;
+
+        putTime(meta, dbe, pfl);
+    }
+
+    virtual void get(const epics::pvData::BitSet& mask)
+    {
+        // can't put time/alarm
+    }
+
+    virtual unsigned dbe(const epics::pvData::BitSet& mask)
+    {
+        if(mask.logical_and(meta.maskALARM))
+            return DBE_ALARM;
+        return 0;
+    }
+};
+
+struct MetaBuilder : public PVIFBuilder
+{
+    virtual ~MetaBuilder() {}
+
+    // fetch the structure description
+    virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL {
+        throw std::logic_error("Don't call me");
+    }
+
+    virtual epics::pvData::FieldBuilderPtr dtype(epics::pvData::FieldBuilderPtr& builder,
+                                                 const std::string& fld,
+                                                 dbChannel *channel)
+    {
+        pvd::StandardFieldPtr std(pvd::getStandardField());
+        return builder->add("alarm", std->alarm())
+                      ->add("timeStamp", std->timeStamp());
+    }
+
+    // Attach to a structure instance.
+    // must be of the type returned by dtype().
+    // need not be the root structure
+    virtual PVIF* attach(dbChannel *channel,
+                         const epics::pvData::PVStructurePtr& root,
+                         const FieldName& fldname) OVERRIDE FINAL
+    {
+        if(!channel)
+            throw std::runtime_error("+type:\"any\" requires +channel:");
+
+        pvd::PVField *enclosing = 0;
+        pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
+
+        return new PVIFMeta(channel, fld, enclosing);
+    }
+
+};
+
 }//namespace
 
+
+epics::pvData::FieldBuilderPtr
+PVIFBuilder::dtype(epics::pvData::FieldBuilderPtr& builder,
+                   const std::string &fld,
+                   dbChannel *channel)
+{
+    if(fld.empty())
+        throw std::runtime_error("Can't attach this +type to root");
+
+    epics::pvData::FieldConstPtr ftype(this->dtype(channel));
+    if(ftype)
+        builder = builder->add(fld, ftype);
+
+    return builder;
+}
 
 PVIFBuilder* PVIFBuilder::create(const std::string& type)
 {
@@ -730,6 +836,8 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
         return new PlainBuilder;
     else if(type=="any")
         return new AnyScalarBuilder;
+    else if(type=="meta")
+        return new MetaBuilder;
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
 }

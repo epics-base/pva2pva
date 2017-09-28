@@ -381,7 +381,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                     chan.swap(temp);
                 }
 
-                builder->add(parts.back().name, mem.builder->dtype(chan));
+                builder = mem.builder->dtype(builder, parts.back().name, chan);
 
                 for(size_t j=0; j<parts.size()-1; j++)
                     builder = builder->endNested();
@@ -610,7 +610,6 @@ PDBProvider::createChannel(std::string const & channelName,
 }
 
 FieldName::FieldName(const std::string& pv)
-    :has_sarr(false)
 {
     Splitter S(pv.c_str(), '.');
     std::string part;
@@ -631,7 +630,6 @@ FieldName::FieldName(const std::string& pv)
                 throw std::runtime_error("Invalid field array sub-script in : "+pv);
 
             parts.push_back(Component(part.substr(0, open), index));
-            has_sarr = true;
 
         } else {
             parts.push_back(Component(part));
