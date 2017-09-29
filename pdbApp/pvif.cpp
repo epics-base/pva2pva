@@ -779,7 +779,7 @@ struct PVIFMeta : public PVIF
     PVIFMeta(dbChannel *channel, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
         :PVIF(channel)
     {
-        pvd::PVStructurePtr field(std::dynamic_pointer_cast<pvd::PVStructure>(fld));
+        pvd::PVStructurePtr field(std::tr1::dynamic_pointer_cast<pvd::PVStructure>(fld));
         if(!field)
             throw std::logic_error("PVIFMeta attached type mis-match");
         meta.chan = channel;
