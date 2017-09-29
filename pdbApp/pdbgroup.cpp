@@ -147,26 +147,41 @@ PDBGroupChannel::createMonitor(
 
 
 PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
-                         const requester_type::weak_pointer& requester,
+                         const requester_type::shared_pointer& requester,
                          const epics::pvData::PVStructure::shared_pointer &pvReq)
     :channel(channel)
     ,requester(requester)
     ,atomic(channel->pv->pgatomic)
+    ,doWait(false)
+    ,doProc(PVIF::ProcPassive)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
 {
     epics::atomic::increment(num_instances);
-    pvd::PVScalarPtr atomicopt(pvReq->getSubField<pvd::PVScalar>("record._options.atomic"));
-    if(atomicopt) {
-        try {
-            atomic = atomicopt->getAs<pvd::boolean>();
-        }catch(std::exception& e){
-            requester_type::shared_pointer req(requester.lock());
-            if(req)
-                req->message("Unable to parse 'atomic' request option.  Default is false.", pvd::warningMessage);
+    try {
+        getS<pvd::boolean>(pvReq, "record._options.atomic", atomic);
+
+        getS<pvd::boolean>(pvReq, "record._options.block", doWait);
+
+        std::string proccmd;
+        if(getS<std::string>(pvReq, "record._options.process", proccmd)) {
+            if(proccmd=="true") {
+                doProc = PVIF::ProcForce;
+            } else if(proccmd=="false") {
+                doProc = PVIF::ProcInhibit;
+                doWait = false; // no point in waiting
+            } else if(proccmd=="passive") {
+                doProc = PVIF::ProcPassive;
+            } else {
+                requester->message("process= expects: true|false|passive", pva::warningMessage);
+            }
         }
+    }catch(std::exception& e){
+        requester->message(std::string("Error processing request options: ")+e.what());
     }
+
     pvf->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(atomic);
+
 
     const size_t npvs = channel->pv->members.size();
     pvif.resize(npvs);
@@ -193,27 +208,36 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     for(size_t i=0; i<npvs; i++)
     {
         PDBGroupPV::Info& info = channel->pv->members[i];
+        if(!info.allowProc) continue;
 
         putpvif[i].reset(info.builder->attach(info.chan, value, info.attachment));
     }
 
+    pvd::Status ret;
     if(atomic) {
         DBManyLocker L(channel->pv->locker);
-        for(size_t i=0; i<npvs; i++)
-            putpvif[i]->get(*changed);
+        for(size_t i=0; ret && i<npvs; i++) {
+            if(!putpvif[i].get()) continue;
+
+            ret |= putpvif[i]->get(*changed, doProc);
+        }
+
     } else {
-        for(size_t i=0; i<npvs; i++)
+        for(size_t i=0; ret && i<npvs; i++)
         {
+            if(!putpvif[i].get()) continue;
+
             PDBGroupPV::Info& info = channel->pv->members[i];
 
             DBScanLocker L(dbChannelRecord(info.chan));
-            putpvif[i]->get(*changed);
+
+            ret |= putpvif[i]->get(*changed, info.allowProc ? doProc : PVIF::ProcInhibit);
         }
     }
 
     requester_type::shared_pointer req(requester.lock());
     if(req)
-        req->putDone(pvd::Status(), shared_from_this());
+        req->putDone(ret, shared_from_this());
 }
 
 void PDBGroupPut::get()

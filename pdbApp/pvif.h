@@ -10,6 +10,7 @@
 #include <dbEvent.h>
 #include <epicsVersion.h>
 
+#include <pv/status.h>
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
 
@@ -298,12 +299,18 @@ struct epicsShareClass PVIF {
 
     dbChannel * const chan; // borrowed reference from PVIFBuilder
 
+    enum proc_t {
+        ProcPassive,
+        ProcInhibit,
+        ProcForce,
+    };
+
     //! Copy from PDB record to pvalue (call dbChannelGet())
     //! caller must lock record
     virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) =0;
     //! Copy from pvalue to PDB record (call dbChannelPut())
     //! caller must lock record
-    virtual void get(const epics::pvData::BitSet& mask) =0;
+    virtual epics::pvData::Status get(const epics::pvData::BitSet& mask, proc_t proc=ProcInhibit) =0;
     //! Calculate DBE mask from changed bitset
     virtual unsigned dbe(const epics::pvData::BitSet& mask) =0;
 

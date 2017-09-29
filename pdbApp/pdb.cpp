@@ -47,16 +47,17 @@ struct Splitter {
 struct GroupMemberInfo {
     // consumes builder
     GroupMemberInfo(const std::string& a, const std::string& b, p2p::auto_ptr<PVIFBuilder>& builder)
-        :pvname(a), pvfldname(b), builder(PTRMOVE(builder)) {}
+        :pvname(a), pvfldname(b), builder(PTRMOVE(builder)), putorder(0) {}
 
     std::string pvname, // aka. name passed to dbChannelOpen()
                 pvfldname; // PVStructure sub-field
     std::string structID; // ID to assign to sub-field
     std::set<std::string> triggers; // names in GroupInfo::members_names which are post()d on events from pvfldname
     std::tr1::shared_ptr<PVIFBuilder> builder; // not actually shared, but allows us to be copyable
+    int putorder;
 
     bool operator<(const GroupMemberInfo& o) const {
-        return pvfldname<o.pvfldname;
+        return putorder<o.putorder;
     }
 };
 
@@ -216,11 +217,9 @@ struct PDBProcessor
 
                         GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
                         if(oldgrp!=curgroup->members_map.end()) {
-                            const GroupMemberInfo& other = curgroup->members[oldgrp->second];
-                            fprintf(stderr, "%s.%s ignoring duplicate mapping %s%s and %s\n",
+                            fprintf(stderr, "%s.%s ignoring duplicate mapping %s%s\n",
                                     grpname.c_str(), fldname.c_str(),
-                                    recbase.c_str(), fld.channel.c_str(),
-                                    other.pvname.c_str());
+                                    recbase.c_str(), fld.channel.c_str());
                             continue;
                         }
 
@@ -228,6 +227,7 @@ struct PDBProcessor
 
                         curgroup->members.push_back(GroupMemberInfo(fld.channel.empty() ? fld.channel : recbase + fld.channel, fldname, builder));
                         curgroup->members.back().structID = fld.id;
+                        curgroup->members.back().putorder = fld.putorder;
                         curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below
 
                         if(PDBProviderDebug>2) {
@@ -278,7 +278,7 @@ struct PDBProcessor
         }
 
         // re-sort GroupInfo::members to ensure the shorter names appear first
-        // allows use of 'existing' PVIFBuilder on leaves
+        // allows use of 'existing' PVIFBuilder on leaves.
         for(groups_t::iterator it = groups.begin(), end = groups.end(); it!=end; ++it)
         {
             GroupInfo& info = it->second;
@@ -294,6 +294,8 @@ struct PDBProcessor
         }
 
         resolveTriggers();
+        // must not re-sort members after this point as resolveTriggers()
+        // has stored array indicies.
     }
 
 };
@@ -379,6 +381,12 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 DBCH chan;
                 if(!mem.pvname.empty()) {
                     DBCH temp(mem.pvname);
+                    unsigned ftype = dbChannelFieldType(temp);
+
+                    // can't include in multi-locking
+                    if(ftype>=DBF_INLINK && ftype<=DBF_FWDLINK)
+                        throw std::runtime_error("Can't include link fields in group");
+
                     chan.swap(temp);
                 }
 
@@ -396,6 +404,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                     members_map[mem.pvfldname] = J;
                     PDBGroupPV::Info& info = members[J];
 
+                    info.allowProc = mem.putorder != std::numeric_limits<int>::min();
                     info.builder = PTRMOVE(mem.builder);
                     assert(info.builder.get());
 

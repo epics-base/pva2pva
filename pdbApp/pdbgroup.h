@@ -91,9 +91,9 @@ struct epicsShareClass PDBGroupPV : public PDBPV
         DBManyLock locker; // lock only those channels being triggered
         p2p::auto_ptr<PVIF> pvif;
         DBEvent evt_VALUE, evt_PROPERTY;
-        bool had_initial_VALUE, had_initial_PROPERTY;
+        bool had_initial_VALUE, had_initial_PROPERTY, allowProc;
 
-        Info() :had_initial_VALUE(false), had_initial_PROPERTY(false) {}
+        Info() :had_initial_VALUE(false), had_initial_PROPERTY(false), allowProc(false) {}
     };
     epics::pvData::shared_vector<Info> members;
 
@@ -150,7 +150,10 @@ struct PDBGroupPut : public epics::pvAccess::ChannelPut,
     PDBGroupChannel::shared_pointer channel;
     requester_type::weak_pointer requester;
 
-    bool atomic;
+    // effectively const after ctor
+    bool atomic, doWait;
+    PVIF::proc_t doProc;
+
     epics::pvData::BitSetPtr changed;
     epics::pvData::PVStructurePtr pvf;
     std::vector<std::tr1::shared_ptr<PVIF> > pvif;
@@ -158,7 +161,7 @@ struct PDBGroupPut : public epics::pvAccess::ChannelPut,
     static size_t num_instances;
 
     PDBGroupPut(const PDBGroupChannel::shared_pointer &channel,
-                const requester_type::weak_pointer &requester,
+                const epics::pvAccess::ChannelPutRequester::shared_pointer &requester,
                 const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBGroupPut();
 

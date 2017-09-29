@@ -220,16 +220,14 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
             (dbChannelFldDes(chan)->process_passive &&
              precord->scan == 0);
 
-    pvd::boolean wait = doWait;
     try {
-        getS(pvReq, "record._options.block", wait);
+        getS<pvd::boolean>(pvReq, "record._options.block", doWait);
     } catch(std::runtime_error& e) {
         requester->message(std::string("block= not understood : ")+e.what(), pva::warningMessage);
     }
 
-    doWait = wait;
     std::string proccmd;
-    if(getS(pvReq, "record._options.process", proccmd)) {
+    if(getS<std::string>(pvReq, "record._options.process", proccmd)) {
         if(proccmd=="true") {
             doProc = true;
             doProcForce = true;

@@ -7,8 +7,8 @@
 
 #include <pv/pvAccess.h>
 
-template<typename T>
-bool getS(const epics::pvData::PVStructurePtr& S, const char *name, T& val)
+template<typename T, typename A>
+bool getS(const epics::pvData::PVStructurePtr& S, const char *name, A& val)
 {
     epics::pvData::PVScalarPtr F(S->getSubField<epics::pvData::PVScalar>(name));
     if(F)

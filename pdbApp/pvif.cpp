@@ -304,16 +304,34 @@ void getValue(dbChannel *chan, pvd::PVScalar* value)
 void getValue(dbChannel *chan, pvd::PVScalarArray* value)
 {
     short dbr = dbChannelFinalFieldType(chan);
-    pvd::shared_vector<const void> buf;
 
-    assert(dbr!=DBR_STRING);
+    if(dbr!=DBR_STRING) {
+        pvd::shared_vector<const void> buf;
 
-    value->getAs(buf);
-    long nReq = buf.size()/pvd::ScalarTypeFunc::elementSize(value->getScalarArray()->getElementType());
+        value->getAs(buf);
+        long nReq = buf.size()/pvd::ScalarTypeFunc::elementSize(value->getScalarArray()->getElementType());
 
-    long status = dbChannelPut(chan, dbr, buf.data(), nReq);
-    if(status)
-        throw std::runtime_error("dbChannelPut for meta fails");
+        long status = dbChannelPut(chan, dbr, buf.data(), nReq);
+        if(status)
+            throw std::runtime_error("dbChannelPut fails");
+
+    } else {
+        pvd::shared_vector<const std::string> buf;
+
+        value->getAs(buf);
+
+        std::vector<char> temp(buf.size()*MAX_STRING_SIZE);
+
+        for(size_t i=0, N=buf.size(); i<N; i++)
+        {
+            strncpy(&temp[i*MAX_STRING_SIZE], buf[i].c_str(), MAX_STRING_SIZE-1);
+            temp[i*MAX_STRING_SIZE + MAX_STRING_SIZE-1] = '\0';
+        }
+
+        long status = dbChannelPut(chan, dbr, &temp[0], buf.size());
+        if(status)
+            throw std::runtime_error("dbChannelPut fails");
+    }
 }
 
 void putValue(dbChannel *chan, pvd::PVScalarArray* value, db_field_log *pfl)
@@ -323,17 +341,33 @@ void putValue(dbChannel *chan, pvd::PVScalarArray* value, db_field_log *pfl)
     long nReq = dbChannelFinalElements(chan);
     const pvd::ScalarType etype = value->getScalarArray()->getElementType();
 
-    assert(dbr!=DBR_STRING);
+    if(dbr!=DBR_STRING) {
 
-    pvd::shared_vector<void> buf(pvd::ScalarTypeFunc::allocArray(etype, nReq)); // TODO: pool?
+        pvd::shared_vector<void> buf(pvd::ScalarTypeFunc::allocArray(etype, nReq)); // TODO: pool?
 
-    long status = dbChannelGet(chan, dbr, buf.data(), NULL, &nReq, pfl);
-    if(status)
-        throw std::runtime_error("dbChannelGet for meta fails");
+        long status = dbChannelGet(chan, dbr, buf.data(), NULL, &nReq, pfl);
+        if(status)
+            throw std::runtime_error("dbChannelGet for value fails");
 
-    buf.slice(0, nReq*pvd::ScalarTypeFunc::elementSize(etype));
+        buf.slice(0, nReq*pvd::ScalarTypeFunc::elementSize(etype));
 
-    value->putFrom(pvd::freeze(buf));
+        value->putFrom(pvd::freeze(buf));
+
+    } else {
+        std::vector<char> temp(nReq*MAX_STRING_SIZE);
+
+        long status = dbChannelGet(chan, dbr, &temp[0], NULL, &nReq, pfl);
+        if(status)
+            throw std::runtime_error("dbChannelGet for value fails");
+
+        pvd::shared_vector<std::string> buf(nReq);
+        for(long i=0; i<nReq; i++) {
+            temp[i*MAX_STRING_SIZE + MAX_STRING_SIZE-1] = '\0';
+            buf[i] = std::string(&temp[i*MAX_STRING_SIZE]);
+        }
+
+        value->putFrom(pvd::freeze(buf));
+    }
 }
 
 template<typename META>
@@ -475,10 +509,12 @@ struct PVIFScalarNumeric : public PVIF
         }
     }
 
-    virtual void get(const epics::pvData::BitSet& mask) OVERRIDE FINAL
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc) OVERRIDE FINAL
     {
         if(mask.logical_and(pvmeta.maskVALUEPut))
             getValue(pvmeta.chan, pvmeta.value.get());
+
+        return PVIF::get(mask, proc);
     }
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
@@ -629,10 +665,11 @@ struct PVIFPlain : public PVIF
         }
     }
 
-    virtual void get(const epics::pvData::BitSet& mask)
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
     {
         if(mask.get(fieldOffset))
             getValue(channel, field.get());
+        return PVIF::get(mask, proc);
     }
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask)
@@ -763,9 +800,10 @@ struct PVIFMeta : public PVIF
         putTime(meta, dbe, pfl);
     }
 
-    virtual void get(const epics::pvData::BitSet& mask)
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
     {
         // can't put time/alarm
+        return pvd::Status::Ok;
     }
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask)
@@ -821,6 +859,39 @@ struct MetaBuilder : public PVIFBuilder
 
 }//namespace
 
+pvd::Status PVIF::get(const epics::pvData::BitSet& mask, proc_t proc)
+{
+    dbCommon *precord = dbChannelRecord(chan);
+
+    bool tryproc = proc!=ProcPassive ? proc==ProcForce :
+                                       dbChannelField(chan) == &precord->proc ||
+                                         (dbChannelFldDes(chan)->process_passive &&
+                                          precord->scan == 0);
+
+    pvd::Status ret;
+
+    if (tryproc) {
+        if (precord->pact) {
+            if (precord->tpro)
+                printf("%s: Active %s\n",
+                       epicsThreadGetNameSelf(), precord->name);
+            precord->rpro = TRUE;
+        } else {
+            /* indicate that dbPutField called dbProcess */
+            precord->putf = TRUE;
+            long err = dbProcess(precord);
+            if(err) {
+                char buf[32];
+                errSymLookup(err, buf, sizeof(buf));
+                std::ostringstream msg;
+                msg<<"process error : "<<buf;
+                ret = pvd::Status::error(msg.str());
+            }
+        }
+    }
+
+    return ret;
+}
 
 epics::pvData::FieldBuilderPtr
 PVIFBuilder::dtype(epics::pvData::FieldBuilderPtr& builder,
