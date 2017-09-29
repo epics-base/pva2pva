@@ -39,7 +39,7 @@ record(bo, "$(N)Save") {
     field(TPRO, "1")
     info(Q:group, {
         "$(N)Tbl":{
-            "_save":{+type:"plain", +channel:"VAL", +putorder:2}
+            "_save":{+type:"proc", +channel:"VAL", +putorder:2}
         }
     })
 }

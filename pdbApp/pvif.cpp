@@ -173,14 +173,13 @@ struct metaSTRING {
 
 void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
 {
-#define FMAP(MNAME, PVT, FNAME, DBE) pvm.MNAME = pv->getSubField<pvd::PVT>(FNAME); \
-        if(pvm.MNAME) pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
+#define FMAP(MNAME, PVT, FNAME, DBE) pvm.MNAME = pv->getSubFieldT<pvd::PVT>(FNAME); \
+        pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
     FMAP(status, PVInt, "alarm.status", ALARM);
     FMAP(severity, PVInt, "alarm.severity", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
 #undef FMAP
-    assert(pvm.status && pvm.severity && pvm.sec && pvm.nsec);
 }
 
 // lookup fields and populate pvCommon.  Non-existant fields will be NULL.
@@ -511,10 +510,12 @@ struct PVIFScalarNumeric : public PVIF
 
     virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc) OVERRIDE FINAL
     {
-        if(mask.logical_and(pvmeta.maskVALUEPut))
+        pvd::Status ret;
+        if(mask.logical_and(pvmeta.maskVALUEPut)) {
             getValue(pvmeta.chan, pvmeta.value.get());
-
-        return PVIF::get(mask, proc);
+            ret = PVIF::get(mask, proc);
+        }
+        return ret;
     }
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
@@ -667,9 +668,12 @@ struct PVIFPlain : public PVIF
 
     virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
     {
-        if(mask.get(fieldOffset))
+        pvd::Status ret;
+        if(mask.get(fieldOffset)) {
             getValue(channel, field.get());
-        return PVIF::get(mask, proc);
+            ret = PVIF::get(mask, proc);
+        }
+        return ret;
     }
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask)
@@ -857,6 +861,52 @@ struct MetaBuilder : public PVIFBuilder
 
 };
 
+struct PVIFProc : public PVIF
+{
+    PVIFProc(dbChannel *channel) :PVIF(channel) {}
+
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl)
+    {
+        // nothing to get
+    }
+
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
+    {
+        // always process
+        return PVIF::get(mask, PVIF::ProcForce);
+    }
+
+    virtual unsigned dbe(const epics::pvData::BitSet& mask)
+    {
+        return 0;
+    }
+};
+
+struct ProcBuilder : public PVIFBuilder
+{
+    // fetch the structure description
+    virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL {
+        throw std::logic_error("Don't call me");
+    }
+
+    virtual epics::pvData::FieldBuilderPtr dtype(epics::pvData::FieldBuilderPtr& builder,
+                                                 const std::string& fld,
+                                                 dbChannel *channel)
+    {
+        // invisible
+        return builder;
+    }
+    virtual PVIF* attach(dbChannel *channel,
+                         const epics::pvData::PVStructurePtr& root,
+                         const FieldName& fldname) OVERRIDE FINAL
+    {
+        if(!channel)
+            throw std::runtime_error("+type:\"proc\" requires +channel:");
+
+        return new PVIFProc(channel);
+    }
+};
+
 }//namespace
 
 pvd::Status PVIF::get(const epics::pvData::BitSet& mask, proc_t proc)
@@ -918,6 +968,8 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
         return new AnyScalarBuilder;
     else if(type=="meta")
         return new MetaBuilder;
+    else if(type=="proc")
+        return new ProcBuilder;
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
 }
