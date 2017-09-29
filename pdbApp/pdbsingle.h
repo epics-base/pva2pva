@@ -97,7 +97,8 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
     int notifyBusy; // atomic: 0 - idle, 1 - active, 2 - being cancelled
 
     // effectively const after ctor
-    bool doProc, doProcForce, doWait;
+    PVIF::proc_t doProc;
+    bool doWait;
 
     static size_t num_instances;
 

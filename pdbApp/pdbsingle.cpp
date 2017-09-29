@@ -209,16 +209,11 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
     ,pvif(channel->pv->builder->attach(channel->pv->chan, pvf, FieldName()))
     ,notifyBusy(0)
-    ,doProc(true)
-    ,doProcForce(false)
+    ,doProc(PVIF::ProcPassive)
     ,doWait(false)
 {
     epics::atomic::increment(num_instances);
     dbChannel *chan = channel->pv->chan;
-    dbCommon *precord = dbChannelRecord(chan);
-    doProc = dbChannelField(chan) == &precord->proc ||
-            (dbChannelFldDes(chan)->process_passive &&
-             precord->scan == 0);
 
     try {
         getS<pvd::boolean>(pvReq, "record._options.block", doWait);
@@ -229,14 +224,12 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     std::string proccmd;
     if(getS<std::string>(pvReq, "record._options.process", proccmd)) {
         if(proccmd=="true") {
-            doProc = true;
-            doProcForce = true;
+            doProc = PVIF::ProcForce;
         } else if(proccmd=="false") {
-            doProc = false;
-            doProcForce = true;
+            doProc = PVIF::ProcInhibit;
             doWait = false; // no point in waiting
         } else if(proccmd=="passive") {
-            doProcForce = false;
+            doProc = PVIF::ProcPassive;
         } else {
             requester->message("process= expects: true|false|passive", pva::warningMessage);
         }
@@ -260,10 +253,9 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 {
     dbChannel *chan = channel->pv->chan;
     dbFldDes *fld = dbChannelFldDes(chan);
-    dbCommon *precord = dbChannelRecord(chan);
 
     pvd::Status ret;
-    if(fld->field_type>=DBF_INLINK && fld->field_type<=DBF_FWDLINK) {
+    if(dbChannelFieldType(chan)>=DBF_INLINK && dbChannelFieldType(chan)<=DBF_FWDLINK) {
         try{
             std::string lval(value->getSubFieldT<pvd::PVScalar>("value")->getAs<std::string>());
             long status = dbChannelPutField(chan, DBF_STRING, lval.c_str(), 1);
@@ -304,30 +296,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value, FieldName()));
         try{
             DBScanLocker L(chan);
-            putpvif->get(*changed);
-
-            bool tryproc = doProcForce ? doProc : dbChannelField(chan) == &precord->proc ||
-                                                 (dbChannelFldDes(chan)->process_passive &&
-                                                  precord->scan == 0);
-            if (tryproc) {
-                if (precord->pact) {
-                    if (precord->tpro)
-                        printf("%s: Active %s\n",
-                               epicsThreadGetNameSelf(), precord->name);
-                    precord->rpro = TRUE;
-                } else {
-                    /* indicate that dbPutField called dbProcess */
-                    precord->putf = TRUE;
-                    long err = dbProcess(precord);
-                    if(err) {
-                        char buf[32];
-                        errSymLookup(err, buf, sizeof(buf));
-                        std::ostringstream msg;
-                        msg<<"process error : "<<buf;
-                        ret = pvd::Status::error(msg.str());
-                    }
-                }
-            }
+            putpvif->get(*changed, doProc);
 
         }catch(std::runtime_error& e){
             ret = pvd::Status::error(e.what());
