@@ -13,8 +13,7 @@
 #include <pv/status.h>
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
-
-#include <anyscalar.h>
+#include <pv/anyscalar.h>
 
 #include <shareLib.h>
 

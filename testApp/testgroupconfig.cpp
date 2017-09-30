@@ -63,7 +63,7 @@ void test_fail()
 
 } // namespace
 
-MAIN(testanyscalar)
+MAIN(testgroupconfig)
 {
     testPlan(10);
     try {

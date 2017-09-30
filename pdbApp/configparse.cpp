@@ -15,7 +15,7 @@ namespace {
 
 namespace pvd = epics::pvData;
 
-typedef std::map<std::string, AnyScalar> options_t;
+typedef std::map<std::string, pvd::AnyScalar> options_t;
 typedef std::map<std::string, options_t> config_t;
 
 struct context {
@@ -37,7 +37,7 @@ struct context {
             throw std::runtime_error("Can't assign value in this context");
     }
 
-    void assign(const AnyScalar& value) {
+    void assign(const pvd::AnyScalar& value) {
         can_assign();
         GroupConfig::Group& grp = conf.groups[group];
 
@@ -89,7 +89,7 @@ struct context {
 int conf_null(void * ctx)
 {
     TRY {
-        self->assign(AnyScalar());
+        self->assign(pvd::AnyScalar());
         return 1;
     }CATCH()
 }
@@ -98,7 +98,7 @@ int conf_null(void * ctx)
 int conf_boolean(void * ctx, int boolVal)
 {
     TRY {
-        self->assign(AnyScalar(pvd::boolean(boolVal)));
+        self->assign(pvd::AnyScalar(pvd::boolean(boolVal)));
         return 1;
     }CATCH()
 }
@@ -106,7 +106,7 @@ int conf_boolean(void * ctx, int boolVal)
 int conf_integer(void * ctx, long integerVal)
 {
     TRY {
-        self->assign(AnyScalar(pvd::int64(integerVal)));
+        self->assign(pvd::AnyScalar(pvd::int64(integerVal)));
         return 1;
     }CATCH()
 }
@@ -114,7 +114,7 @@ int conf_integer(void * ctx, long integerVal)
 int conf_double(void * ctx, double doubleVal)
 {
     TRY {
-        self->assign(AnyScalar(doubleVal));
+        self->assign(pvd::AnyScalar(doubleVal));
         return 1;
     }CATCH()
 }
@@ -124,7 +124,7 @@ int conf_string(void * ctx, const unsigned char * stringVal,
 {
     TRY {
         std::string val((const char*)stringVal, stringLen);
-        self->assign(AnyScalar(val));
+        self->assign(pvd::AnyScalar(val));
         return 1;
     }CATCH()
 }
