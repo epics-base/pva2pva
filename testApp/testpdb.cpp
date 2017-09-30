@@ -68,7 +68,7 @@ void testGroupGet(pvac::ClientProvider& client)
     testFieldEqual<pvd::PVDouble>(value, "fld3.value", 4.0);
     testFieldEqual<pvd::PVInt>(value,    "fld4.value", 40);
 #else
-    testSkip(30, "No multilock");
+    testSkip(8, "No multilock");
 #endif
 }
 

@@ -356,8 +356,8 @@ pva::MonitorElementPtr TestPVMonitor::poll()
     }
     testDiag("TestPVMonitor::poll %p %p", this, ret.get());
     if(ret)
-    std::cerr<<"# XXXZ "<<*ret->changedBitSet<<" "
-            <<*ret->overrunBitSet<<"\n";
+        std::cout<<"# XXXZ "<<*ret->changedBitSet<<" "
+                <<*ret->overrunBitSet<<"\n";
     return ret;
 }
 
