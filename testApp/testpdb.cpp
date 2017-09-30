@@ -4,6 +4,7 @@
 #include <iocsh.h>
 #include <epicsAtomic.h>
 #include <dbAccess.h>
+#include <pva/client.h>
 
 #include <pv/epicsException.h>
 
@@ -33,157 +34,35 @@ pvd::PVStructurePtr makeRequest(bool atomic)
     return pvr;
 }
 
-struct PVConnect
-{
-    TestChannelRequester::shared_pointer chreq;
-    pva::Channel::shared_pointer chan;
-    TestChannelFieldRequester::shared_pointer fldreq;
-
-    PVConnect(const pva::ChannelProvider::shared_pointer& prov, const char *name)
-        :chreq(new TestChannelRequester())
-        ,chan(prov->createChannel(name, chreq))
-        ,fldreq(new TestChannelFieldRequester())
-    {
-        if(!chan || !chan->isConnected())
-            throw std::runtime_error("channel not connected");
-        chan->getField(fldreq, "");
-        if(!fldreq->done || !fldreq->fielddesc || fldreq->fielddesc->getType()!=pvd::structure)
-            throw std::runtime_error("Failed to get fielddesc");
-    }
-    virtual ~PVConnect() {
-        chan->destroy();
-    }
-    pvd::StructureConstPtr dtype() {
-        return std::tr1::static_pointer_cast<const pvd::Structure>(fldreq->fielddesc);
-    }
-};
-
-struct PVPut : public PVConnect
-{
-    pvd::PVStructurePtr putval;
-    TestChannelPutRequester::shared_pointer putreq;
-    pva::ChannelPut::shared_pointer chput;
-    pvd::BitSetPtr putchanged;
-
-    PVPut(const pva::ChannelProvider::shared_pointer& prov, const char *name, bool atomic=true)
-        :PVConnect(prov, name)
-        ,putval(pvd::getPVDataCreate()->createPVStructure(dtype()))
-        ,putreq(new TestChannelPutRequester())
-        ,chput(chan->createChannelPut(putreq, makeRequest(atomic)))
-        ,putchanged(new pvd::BitSet())
-    {
-        if(!chput || !putreq->connected)
-            throw std::runtime_error("Failed to create/connect put op");
-    }
-    virtual ~PVPut() {
-        chput->destroy();
-    }
-    void put() {
-        putreq->donePut = false;
-        chput->put(putval, putchanged);
-        if(!putreq->donePut)
-            throw std::runtime_error("Put operation fails");
-    }
-    pvd::PVStructurePtr get() {
-        putreq->doneGet = false;
-        chput->get();
-        if(!putreq->doneGet || !putreq->value)
-            throw std::runtime_error("Get operation fails");
-        return putreq->value;
-    }
-};
-
-struct PVMonitor : public PVConnect
-{
-    POINTER_DEFINITIONS(PVMonitor);
-
-    TestChannelMonitorRequester::shared_pointer monreq;
-    pva::Monitor::shared_pointer mon;
-
-    PVMonitor(const pva::ChannelProvider::shared_pointer& prov, const char *name)
-        :PVConnect(prov, name)
-        ,monreq(new TestChannelMonitorRequester())
-        ,mon(chan->createMonitor(monreq, makeRequest(false)))
-    {
-        if(!mon || !monreq->connected)
-            throw std::runtime_error("Failed to create/connect monitor");
-    }
-    virtual ~PVMonitor() {
-        mon->destroy();
-    }
-
-    pva::MonitorElementPtr poll() { return mon->poll(); }
-};
-
-pvd::PVStructurePtr pvget(const pva::ChannelProvider::shared_pointer& prov, const char *name,
-                          bool atomic)
-{
-    pvd::PVStructurePtr pvr(makeRequest(atomic));
-
-
-    TestChannelRequester::shared_pointer req(new TestChannelRequester());
-    pva::Channel::shared_pointer chan(prov->createChannel(name, req));
-
-    testOk1(!!chan);
-    testOk1(chan && chan->isConnected());
-    testOk1(req->laststate == pva::Channel::CONNECTED);
-    testOk1(req->status.isOK());
-    if(!chan || !chan->isConnected())
-        testAbort("'%s' channel not connected", name);
-
-    TestChannelGetRequester::shared_pointer greq(new TestChannelGetRequester());
-    pva::ChannelGet::shared_pointer get(chan->createChannelGet(greq, pvr));
-
-    testOk1(!!get);
-    testOk1(greq->connected);
-    testOk1(!greq->done);
-    testOk1(greq->statusDone.isOK());
-    if(!greq || !greq->connected)
-        testAbort("'%s channelGet not connected", name);
-
-    get->get();
-
-    testOk1(greq->done);
-    testOk1(greq->statusDone.isOK());
-    testOk1(!!greq->value);
-    if(!greq->value)
-        testAbort("'%s' get w/o data", name);
-
-    get->destroy();
-    chan->destroy();
-
-    return greq->value;
-}
-
-void testSingleGet(const PDBProvider::shared_pointer& prov)
+void testSingleGet(pvac::ClientProvider& client)
 {
     testDiag("test single get");
-    pvd::PVStructurePtr value;
+    pvd::PVStructure::const_shared_pointer value(client.connect("rec1").get());
 
-    value = pvget(prov, "rec1", false);
     testFieldEqual<pvd::PVDouble>(value, "value", 1.0);
     testFieldEqual<pvd::PVDouble>(value, "display.limitHigh", 100.0);
     testFieldEqual<pvd::PVDouble>(value, "display.limitLow", -100.0);
 
-    value = pvget(prov, "rec1.RVAL", false);
+    value = client.connect("rec1.RVAL").get();
     testFieldEqual<pvd::PVInt>(value, "value", 10);
 }
 
-void testGroupGet(const PDBProvider::shared_pointer& prov)
+void testGroupGet(pvac::ClientProvider& client)
 {
     testDiag("test group get");
 #ifdef USE_MULTILOCK
-    pvd::PVStructurePtr value;
+    pvd::PVStructure::const_shared_pointer value;
 
     testDiag("get non-atomic");
-    value = pvget(prov, "grp1", false);
+
+    value = client.connect("grp1").get(3.0, makeRequest(false));
     testFieldEqual<pvd::PVDouble>(value, "fld1.value", 3.0);
     testFieldEqual<pvd::PVInt>(value,    "fld2.value", 30);
     testFieldEqual<pvd::PVDouble>(value, "fld3.value", 4.0);
     testFieldEqual<pvd::PVInt>(value,    "fld4.value", 40);
 
     testDiag("get atomic");
-    value = pvget(prov, "grp1", true);
+    value = client.connect("grp1").get(3.0, makeRequest(true));
     testFieldEqual<pvd::PVDouble>(value, "fld1.value", 3.0);
     testFieldEqual<pvd::PVInt>(value,    "fld2.value", 30);
     testFieldEqual<pvd::PVDouble>(value, "fld3.value", 4.0);
@@ -193,28 +72,18 @@ void testGroupGet(const PDBProvider::shared_pointer& prov)
 #endif
 }
 
-void testSinglePut(const PDBProvider::shared_pointer& prov)
+void testSinglePut(pvac::ClientProvider& client)
 {
     testDiag("test single put");
 
     testdbPutFieldOk("rec1", DBR_DOUBLE, 1.0);
 
-    PVPut put(prov, "rec1.VAL");
-
-    pvd::PVDoublePtr val(put.putval->getSubFieldT<pvd::PVDouble>("value"));
-    val->put(2.0);
-    put.putchanged->clear();
-    put.put();
-
-    testdbGetFieldEqual("rec1", DBR_DOUBLE, 1.0);
-
-    put.putchanged->set(val->getFieldOffset());
-    put.put();
+    client.connect("rec1.VAL").put().set("value", 2.0).exec();
 
     testdbGetFieldEqual("rec1", DBR_DOUBLE, 2.0);
 }
 
-void testGroupPut(const PDBProvider::shared_pointer& prov)
+void testGroupPut(pvac::ClientProvider& client)
 {
     testDiag("test group put");
 #ifdef USE_MULTILOCK
@@ -224,25 +93,15 @@ void testGroupPut(const PDBProvider::shared_pointer& prov)
     testdbPutFieldOk("rec3.RVAL", DBR_LONG, 30);
     testdbPutFieldOk("rec4.RVAL", DBR_LONG, 40);
 
-    PVPut put(prov, "grp1");
+    // ignored for lack of +putorder
+    client.connect("grp1").put().set("fld2.value", 111).exec();
 
-    pvd::PVDoublePtr val(put.putval->getSubFieldT<pvd::PVDouble>("fld1.value"));
-    val->put(2.0);
-    put.putchanged->clear();
-    // putchanged is clear, so no change
-    put.put();
+    testdbPutFieldOk("rec3", DBR_DOUBLE, 3.0);
+    testdbPutFieldOk("rec4", DBR_DOUBLE, 4.0);
+    testdbPutFieldOk("rec3.RVAL", DBR_LONG, 30);
+    testdbPutFieldOk("rec4.RVAL", DBR_LONG, 40);
 
-    testdbGetFieldEqual("rec3", DBR_DOUBLE, 3.0);
-    testdbGetFieldEqual("rec4", DBR_DOUBLE, 4.0);
-    testdbGetFieldEqual("rec3.RVAL", DBR_LONG, 30);
-    testdbGetFieldEqual("rec4.RVAL", DBR_LONG, 40);
-
-    val = put.putval->getSubFieldT<pvd::PVDouble>("fld3.value");
-    val->put(5.0);
-    put.putchanged->clear();
-    // mark fld3, but still not fld1
-    put.putchanged->set(val->getFieldOffset());
-    put.put();
+    client.connect("grp1").put().set("fld3.value", 5.0).exec();
 
     testdbGetFieldEqual("rec3", DBR_DOUBLE, 3.0);
     testdbGetFieldEqual("rec4", DBR_DOUBLE, 5.0);
@@ -253,57 +112,66 @@ void testGroupPut(const PDBProvider::shared_pointer& prov)
 #endif
 }
 
-void testSingleMonitor(const PDBProvider::shared_pointer& prov)
+void testSingleMonitor(pvac::ClientProvider& client)
 {
     testDiag("test single monitor");
 
     testdbPutFieldOk("rec1", DBR_DOUBLE, 1.0);
 
     testDiag("subscribe to rec1.VAL");
-    PVMonitor mon(prov, "rec1");
-    mon.mon->start();
+    pvac::MonitorSync mon(client.connect("rec1").monitor());
 
-    testOk1(mon.monreq->waitForEvent());
+    testOk1(mon.wait(3.0));
     testDiag("Initial event");
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    pva::MonitorElement::Ref e(mon.mon);
+    testOk1(mon.changed.get(0));
+    testFieldEqual<pvd::PVDouble>(mon.root, "value", 1.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "display.limitHigh", 100.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "display.limitLow", -100.0);
 
-    testOk1(!!e);
-    testOk1(!!e && e->changedBitSet->get(0));
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "value", 1.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "display.limitHigh", 100.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "display.limitLow", -100.0);
-
-    testOk1(!e.next());
+    testOk1(!mon.poll());
 
     testDiag("trigger new VALUE event");
     testdbPutFieldOk("rec1", DBR_DOUBLE, 11.0);
 
     testDiag("Wait for event");
-    mon.monreq->waitForEvent();
+    testOk1(mon.wait(3.0));
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    testOk1(!!e.next());
-    if(!!e) testEqual(toString(*e->changedBitSet), "{1, 3, 4, 7, 8}");
-    else testFail("oops");
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "value", 11.0);
+    testEqual(mon.changed, pvd::BitSet()
+              .set(mon.root->getSubFieldT("value")->getFieldOffset())
+              .set(mon.root->getSubFieldT("alarm.severity")->getFieldOffset())
+              .set(mon.root->getSubFieldT("alarm.status")->getFieldOffset())
+              .set(mon.root->getSubFieldT("timeStamp.secondsPastEpoch")->getFieldOffset())
+              .set(mon.root->getSubFieldT("timeStamp.nanoseconds")->getFieldOffset()));
 
-    testOk1(!e.next());
+    testFieldEqual<pvd::PVDouble>(mon.root, "value", 11.0);
+
+    testOk1(!mon.poll());
 
     testDiag("trigger new PROPERTY event");
     testdbPutFieldOk("rec1.HOPR", DBR_DOUBLE, 50.0);
 
     testDiag("Wait for event");
-    mon.monreq->waitForEvent();
+    testOk1(mon.wait(3.0));
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    testOk1(!!e.next());
-    if(!!e) testEqual(toString(*e->changedBitSet), "{7, 8, 11, 12, 15, 17, 18}");
-    else testFail("oops");
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "display.limitHigh", 50.0);
+    testOk1(mon.changed.get(mon.root->getSubFieldT("display.limitHigh")->getFieldOffset()));
+    testOk1(mon.changed.get(mon.root->getSubFieldT("display.limitLow")->getFieldOffset()));
+    testFieldEqual<pvd::PVDouble>(mon.root, "display.limitHigh", 50.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "display.limitLow", -100.0);
 
-    testOk1(!e.next());
+    testOk1(!mon.poll());
 }
 
-void testGroupMonitor(const PDBProvider::shared_pointer& prov)
+void testGroupMonitor(pvac::ClientProvider& client)
 {
     testDiag("test group monitor");
 #ifdef USE_MULTILOCK
@@ -314,47 +182,50 @@ void testGroupMonitor(const PDBProvider::shared_pointer& prov)
     testdbPutFieldOk("rec4.RVAL", DBR_LONG, 40);
 
     testDiag("subscribe to grp1");
-    PVMonitor mon(prov, "grp1");
-    pva::MonitorElement::Ref e(mon.mon);
+    pvac::MonitorSync mon(client.connect("grp1").monitor());
 
-    testOk1(mon.mon->start().isOK());
 
     testDiag("Wait for initial event");
-    testOk1(mon.monreq->waitForEvent());
+    testOk1(mon.wait(3.0));
     testDiag("Initial event");
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    testOk1(!!e.next());
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld1.value", 3.0);
+    testFieldEqual<pvd::PVInt>(mon.root,    "fld2.value", 30);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld3.value", 4.0);
+    testFieldEqual<pvd::PVInt>(mon.root,    "fld4.value", 40);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld1.display.limitHigh", 200.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld1.display.limitLow", -200.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld2.display.limitHigh", 2147483647.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld2.display.limitLow", -2147483648.0);
 
-    testOk1(!!e && e->changedBitSet->get(0));
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 3.0);
-    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld2.value", 30);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld3.value", 4.0);
-    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld4.value", 40);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.display.limitHigh", 200.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.display.limitLow", -200.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.display.limitHigh", 2147483647.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.display.limitLow", -2147483648.0);
-
-    testOk1(!e.next());
+    testOk1(!mon.poll());
 
     testdbPutFieldOk("rec3", DBR_DOUBLE, 32.0);
 
     testDiag("Wait for event");
-    testOk1(mon.monreq->waitForEvent());
+    testOk1(mon.wait(3.0));
     testDiag("event");
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    testOk1(!!e.next());
-    testOk1(!!e && e->pvStructurePtr->getSubFieldT("fld1.value")->getFieldOffset()==6);
-    if(!!e) testEqual(toString(*e->changedBitSet), "{6, 8, 9, 12, 13}");
-    else testFail("oops");
+    testEqual(mon.changed, pvd::BitSet()
+              .set(mon.root->getSubFieldT("fld1.value")->getFieldOffset())
+              .set(mon.root->getSubFieldT("fld1.alarm.severity")->getFieldOffset())
+              .set(mon.root->getSubFieldT("fld1.alarm.status")->getFieldOffset())
+              .set(mon.root->getSubFieldT("fld1.timeStamp.secondsPastEpoch")->getFieldOffset())
+              .set(mon.root->getSubFieldT("fld1.timeStamp.nanoseconds")->getFieldOffset()));
 
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 32.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld1.value", 32.0);
 #else
-    testSkip(23, "No multilock");
+    testSkip(20, "No multilock");
 #endif
 }
 
-void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
+void testGroupMonitorTriggers(pvac::ClientProvider& client)
 {
     testDiag("test group monitor w/ triggers");
 #ifdef USE_MULTILOCK
@@ -364,60 +235,55 @@ void testGroupMonitorTriggers(const PDBProvider::shared_pointer& prov)
     testdbPutFieldOk("rec5.RVAL", DBR_LONG, 50);
 
     testDiag("subscribe to grp2");
-    PVMonitor mon(prov, "grp2");
-    pva::MonitorElement::Ref e(mon.mon);
-
-    testOk1(mon.mon->start().isOK());
+    pvac::MonitorSync mon(client.connect("grp2").monitor());
 
     testDiag("Wait for initial event");
-    testOk1(mon.monreq->waitForEvent());
+    testOk1(mon.wait(3.0));
     testDiag("Initial event");
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    testOk1(!!e.next());
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld1.value", 5.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld2.value", 6.0);
+    testFieldEqual<pvd::PVInt>(mon.root,    "fld3.value", 0); // not triggered -> no update.  only get/set
 
-    testOk1(!!e && e->changedBitSet->get(0));
-
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 5.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.value", 6.0);
-    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld3.value", 0); // not triggered -> no update.  only get/set
-
-    testOk1(!e.next());
+    testOk1(!mon.poll());
 
     testdbPutFieldOk("rec5.RVAL", DBR_LONG, 60); // no trigger -> no event
     testdbPutFieldOk("rec5", DBR_DOUBLE, 15.0); // no trigger -> no event
     testdbPutFieldOk("rec6", DBR_DOUBLE, 16.0); // event triggered
 
     testDiag("Wait for event");
-    testOk1(mon.monreq->waitForEvent());
+    testOk1(mon.wait(3.0));
     testDiag("event");
+    testOk1(mon.event.event==pvac::MonitorEvent::Data);
+    if(!mon.poll())
+        testAbort("Data event w/o data");
 
-    testOk1(!!e.next());
-
-    testShow()<<e->pvStructurePtr;
-#define OFF(NAME) e->pvStructurePtr->getSubFieldT(NAME)->getFieldOffset()
-    if(!!e) testEqual(*e->changedBitSet, pvd::BitSet()
-                      .set(OFF("fld1.value"))
-                      .set(OFF("fld1.alarm.severity"))
-                      .set(OFF("fld1.alarm.status"))
-                      .set(OFF("fld1.timeStamp.secondsPastEpoch"))
-                      .set(OFF("fld1.timeStamp.nanoseconds"))
-                      .set(OFF("fld2.value"))
-                      .set(OFF("fld2.alarm.severity"))
-                      .set(OFF("fld2.alarm.status"))
-                      .set(OFF("fld2.timeStamp.secondsPastEpoch"))
-                      .set(OFF("fld2.timeStamp.nanoseconds"))
-                      );
+    testShow()<<mon.root;
+#define OFF(NAME) mon.root->getSubFieldT(NAME)->getFieldOffset()
+    testEqual(mon.changed, pvd::BitSet()
+              .set(OFF("fld1.value"))
+              .set(OFF("fld1.alarm.severity"))
+              .set(OFF("fld1.alarm.status"))
+              .set(OFF("fld1.timeStamp.secondsPastEpoch"))
+              .set(OFF("fld1.timeStamp.nanoseconds"))
+              .set(OFF("fld2.value"))
+              .set(OFF("fld2.alarm.severity"))
+              .set(OFF("fld2.alarm.status"))
+              .set(OFF("fld2.timeStamp.secondsPastEpoch"))
+              .set(OFF("fld2.timeStamp.nanoseconds"))
+              );
 #undef OFF
-//                      "{6, 8, 9, 12, 13, 46, 48, 49, 52, 53}");
-    else testFail("oops");
 
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld1.value", 15.0);
-    testFieldEqual<pvd::PVDouble>(e->pvStructurePtr, "fld2.value", 16.0);
-    testFieldEqual<pvd::PVInt>(e->pvStructurePtr,    "fld3.value", 0); // not triggered -> no update.  only get/set
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld1.value", 15.0);
+    testFieldEqual<pvd::PVDouble>(mon.root, "fld2.value", 16.0);
+    testFieldEqual<pvd::PVInt>(mon.root,    "fld3.value", 0); // not triggered -> no update.  only get/set
 
-    testOk1(!e.next());
+    testOk1(!mon.poll());
 #else
-    testSkip(21, "No multilock");
+    testSkip(19, "No multilock");
 #endif
 }
 
@@ -428,7 +294,7 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(138);
+    testPlan(92);
     try{
         TestIOC IOC;
 
@@ -442,21 +308,19 @@ MAIN(testpdb)
         IOC.init();
 
         PDBProvider::shared_pointer prov(new PDBProvider());
-        try {
-            testSingleGet(prov);
-            testGroupGet(prov);
+        {
+            pvac::ClientProvider client(prov);
+            testSingleGet(client);
+            testGroupGet(client);
 
-            testSinglePut(prov);
-            testGroupPut(prov);
+            testSinglePut(client);
+            testGroupPut(client);
 
-            testSingleMonitor(prov);
-            testGroupMonitor(prov);
-            testGroupMonitorTriggers(prov);
-        }catch(...){
-            prov->destroy();
-            throw;
+            testSingleMonitor(client);
+            testGroupMonitor(client);
+            testGroupMonitorTriggers(client);
         }
-        prov->destroy();
+
         testOk1(prov.unique());
         prov.reset();
 

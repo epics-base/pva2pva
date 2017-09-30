@@ -1,7 +1,7 @@
 record("*", "rec3") {
   info(Q:group, {
     "grp1":{
-        "fld1":{+channel:"VAL"},
+        "fld1":{+channel:"VAL", +putorder:0},
         "fld2":{+channel:"RVAL"}
     }
   })
@@ -9,7 +9,7 @@ record("*", "rec3") {
 record("*", "rec4") {
   info(Q:group, {
     "grp1":{
-        "fld3":{+channel:"VAL"},
+        "fld3":{+channel:"VAL", +putorder:0},
         "fld4":{+channel:"RVAL"}
     }
   })
