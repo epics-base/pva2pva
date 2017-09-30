@@ -50,6 +50,57 @@ Any IOC which includes QSRV will automatically start a PV Access server
 which exposes all channels (aka. "recordname.FLD") in the same manner
 as the built-in Channel Access (protocol) server.
 
+QSRV Group Definitions
+----------------------
+
+The following .db file snippet defines a group PV "grp:name"
+to have two sub-structures "A" and "B".
+Each sub-structure encodes the value and meta data one PV.
+eg. "recname.VAL" is stored in "grp:name.A"
+and "other.VAL" is "grp:name.B".
+
+```
+record(longin, "recname") {
+    info(Q:group, {
+        "grp:name":{
+            "A":{
+                +channel:"VAL"
+            }
+        }
+    })
+}
+record(longin, "other") {
+    info(Q:group, {
+        "grp:name":{
+            "B":{
+                +channel:"VAL"
+            }
+        }
+    })
+}
+```
+
+A full list of `info(Q:group` options.
+
+```
+record(...) {
+    info(Q:group, {
+        "<group_name>":{
+            +id:"some/NT:1.0",  // top level ID
+            +meta:"FLD",        // map top level alarm/timeStamp
+            +atomic:true,       // whether monitors default to multi-locking atomicity
+            "<field.name>":{
+                +type:"scalar", // controls how map VAL mapped onto <field.name>
+                +channel:"VAL",
+                +id:"some/NT:1.0",
+                +trigger:"*",   // "*" or comma seperated list of <field.name>s
+                +putorder:0,    // set for fields where put is allowed, processing done in increasing order
+            }
+        }
+    })
+}
+```
+
 Running p2p
 -----------
 
