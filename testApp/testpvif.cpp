@@ -86,7 +86,23 @@ void testScalar()
     pvif_li->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_li);
 
-    testEqual(toString(mask), "{2, 4, 5, 8, 9, 12, 13, 16, 18, 19}");
+#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+    testEqual(mask, pvd::BitSet()
+              .set(OFF("li.value"))
+              .set(OFF("li.alarm.severity"))
+              .set(OFF("li.alarm.status"))
+              .set(OFF("li.alarm.message"))
+              .set(OFF("li.timeStamp.secondsPastEpoch"))
+              .set(OFF("li.timeStamp.nanoseconds"))
+              //.set(OFF("li.timeStamp.userTag"))
+              .set(OFF("li.display.limitHigh"))
+              .set(OFF("li.display.limitLow"))
+              //.set(OFF("li.display.description"))
+              //.set(OFF("li.display.format"))
+              .set(OFF("li.display.units"))
+              .set(OFF("li.control.limitHigh"))
+              .set(OFF("li.control.limitLow")));
+#undef OFF
     mask.clear();
 
     dbScanLock((dbCommon*)prec_si);
@@ -95,7 +111,23 @@ void testScalar()
     pvif_si->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_si);
 
-    testEqual(toString(mask), "{22, 24, 25, 28, 29, 32, 33, 36, 38, 39}");
+#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+    testEqual(mask, pvd::BitSet()
+              .set(OFF("si.value"))
+              .set(OFF("si.alarm.severity"))
+              .set(OFF("si.alarm.status"))
+              .set(OFF("si.alarm.message"))
+              .set(OFF("si.timeStamp.secondsPastEpoch"))
+              .set(OFF("si.timeStamp.nanoseconds"))
+              //.set(OFF("si.timeStamp.userTag"))
+              .set(OFF("si.display.limitHigh"))
+              .set(OFF("si.display.limitLow"))
+              //.set(OFF("si.display.description"))
+              //.set(OFF("si.display.format"))
+              .set(OFF("si.display.units"))
+              .set(OFF("si.control.limitHigh"))
+              .set(OFF("si.control.limitLow")));
+#undef OFF
     mask.clear();
 
     dbScanLock((dbCommon*)prec_ai);
@@ -105,7 +137,38 @@ void testScalar()
     pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
-    testEqual(toString(mask), "{42, 44, 45, 48, 49, 52, 53, 56, 58, 59, 62, 64, 65, 68, 69, 72, 73, 76, 78, 79}");
+#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+    testEqual(mask, pvd::BitSet()
+              .set(OFF("ai.value"))
+              .set(OFF("ai.alarm.severity"))
+              .set(OFF("ai.alarm.status"))
+              .set(OFF("ai.alarm.message"))
+              .set(OFF("ai.timeStamp.secondsPastEpoch"))
+              .set(OFF("ai.timeStamp.nanoseconds"))
+              //.set(OFF("ai.timeStamp.userTag"))
+              .set(OFF("ai.display.limitHigh"))
+              .set(OFF("ai.display.limitLow"))
+              //.set(OFF("ai.display.description"))
+              //.set(OFF("ai.display.format"))
+              .set(OFF("ai.display.units"))
+              .set(OFF("ai.control.limitHigh"))
+              .set(OFF("ai.control.limitLow"))
+              .set(OFF("ai_rval.value"))
+              .set(OFF("ai_rval.alarm.severity"))
+              .set(OFF("ai_rval.alarm.status"))
+              .set(OFF("ai_rval.alarm.message"))
+              .set(OFF("ai_rval.timeStamp.secondsPastEpoch"))
+              .set(OFF("ai_rval.timeStamp.nanoseconds"))
+              //.set(OFF("ai_rval.timeStamp.userTag"))
+              .set(OFF("ai_rval.display.limitHigh"))
+              .set(OFF("ai_rval.display.limitLow"))
+              //.set(OFF("ai_rval.display.description"))
+              //.set(OFF("ai_rval.display.format"))
+              .set(OFF("ai_rval.display.units"))
+              .set(OFF("ai_rval.control.limitHigh"))
+              .set(OFF("ai_rval.control.limitLow"))
+              );
+#undef OFF
     mask.clear();
 
     dbScanLock((dbCommon*)prec_mbbi);
@@ -114,11 +177,22 @@ void testScalar()
     pvif_mbbi->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_mbbi);
 
-    testEqual(toString(mask), "{83, 84, 86, 87, 90, 91, 92}");
+#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+    testEqual(mask, pvd::BitSet()
+              .set(OFF("mbbi.value.index"))
+              .set(OFF("mbbi.value.choices"))
+              .set(OFF("mbbi.alarm.severity"))
+              .set(OFF("mbbi.alarm.status"))
+              .set(OFF("mbbi.alarm.message"))
+              .set(OFF("mbbi.timeStamp.secondsPastEpoch"))
+              .set(OFF("mbbi.timeStamp.nanoseconds"))
+              .set(OFF("mbbi.timeStamp.userTag")));
+#undef OFF
     mask.clear();
 
     testFieldEqual<pvd::PVInt>(root, "li.value", 102042);
     testFieldEqual<pvd::PVInt>(root, "li.alarm.severity", 1);
+    testFieldEqual<pvd::PVInt>(root, "li.alarm.status", 1);
     testFieldEqual<pvd::PVLong>(root, "li.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
     testFieldEqual<pvd::PVInt>(root, "li.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitHigh", 100.0);
@@ -132,6 +206,7 @@ void testScalar()
 
     testFieldEqual<pvd::PVDouble>(root, "ai.value", 42.2);
     testFieldEqual<pvd::PVInt>(root, "ai.alarm.severity", 2);
+    testFieldEqual<pvd::PVInt>(root, "ai.alarm.status", 1);
     testFieldEqual<pvd::PVLong>(root, "ai.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
     testFieldEqual<pvd::PVInt>(root, "ai.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitHigh", 200.0);
@@ -329,7 +404,7 @@ void testPlain()
 
 MAIN(testpvif)
 {
-    testPlan(69);
+    testPlan(71);
     testScalar();
     testPlain();
     return testDone();

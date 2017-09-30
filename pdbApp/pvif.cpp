@@ -9,6 +9,7 @@
 #include <dbStaticLib.h>
 #include <dbLock.h>
 #include <dbEvent.h>
+#include <alarm.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
@@ -75,6 +76,7 @@ struct pvTimeAlarm {
 
     pvd::PVLongPtr sec;
     pvd::PVIntPtr status, severity, nsec, userTag;
+    pvd::PVStringPtr message;
 
     pvTimeAlarm() :chan(NULL), nsecMask(0) {}
 };
@@ -177,6 +179,7 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
         pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
     FMAP(status, PVInt, "alarm.status", ALARM);
     FMAP(severity, PVInt, "alarm.severity", ALARM);
+    FMAP(message, PVString, "alarm.message", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
 #undef FMAP
@@ -217,6 +220,55 @@ void attachAll(PVM& pvm, const pvd::PVStructurePtr& pv)
     attachMeta(pvm, pv);
 }
 
+void mapStatus(unsigned code, pvd::PVInt* status, pvd::PVString* message)
+{
+    if(code<ALARM_NSTATUS)
+        message->put(epicsAlarmConditionStrings[code]);
+    else
+        message->put("???");
+
+    // Arbitrary mapping from DB status codes
+    unsigned out;
+    switch(code) {
+    case NO_ALARM:
+        out = 0;
+        break;
+    case READ_ALARM:
+    case WRITE_ALARM:
+    case HIHI_ALARM:
+    case HIGH_ALARM:
+    case LOLO_ALARM:
+    case LOW_ALARM:
+    case STATE_ALARM:
+    case COS_ALARM:
+    case HW_LIMIT_ALARM:
+        out = 1; // DEVICE
+        break;
+    case COMM_ALARM:
+    case TIMEOUT_ALARM:
+    case UDF_ALARM:
+        out = 2; // DRIVER
+        break;
+    case CALC_ALARM:
+    case SCAN_ALARM:
+    case LINK_ALARM:
+    case SOFT_ALARM:
+    case BAD_SUB_ALARM:
+        out = 3; // RECORD
+        break;
+    case DISABLE_ALARM:
+    case SIMM_ALARM:
+    case READ_ACCESS_ALARM:
+    case WRITE_ACCESS_ALARM:
+        out = 4; // DB
+        break;
+    default:
+        out = 6; // UNDEFINED
+    }
+
+    status->put(out);
+}
+
 void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
 {
     metaTIME meta;
@@ -233,7 +285,7 @@ void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
     }
     pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     if(dbe&DBE_ALARM) {
-        //pv.status->put(meta.status);
+        mapStatus(meta.status, pv.status.get(), pv.message.get());
         pv.severity->put(meta.severity);
     }
 }
@@ -388,7 +440,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
     FMAP(sec, time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     if(dbe&DBE_ALARM) {
-        //FMAP(status, status);
+        mapStatus(meta.status, pv.status.get(), pv.message.get());
         FMAP(severity, severity);
     }
     if(dbe&DBE_PROPERTY) {
