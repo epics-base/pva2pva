@@ -165,7 +165,9 @@ EOF
   export PATH="$HOME/.cache/qemu/usr/bin:$PATH"
   echo -n "Using QEMU: "
   type qemu-system-i386 || echo "Missing qemu"
-  EXTRA=RTEMS_QEMU_FIXUPS=YES
+  cat <<EOF >> epics-base/configure/CONFIG_SITE
+RTEMS_QEMU_FIXUPS=YES
+EOF
 fi
 
 make -j2 -C epics-base $EXTRA
@@ -173,5 +175,5 @@ make -j2 -C epics-base $EXTRA
 if [ "$BRBASE" ]
 then
   make -j2 -C pvData $EXTRA
-  make -j2 -C pvAccess $EXTRAfi
+  make -j2 -C pvAccess $EXTRA
 fi
