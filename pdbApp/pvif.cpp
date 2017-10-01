@@ -10,6 +10,7 @@
 #include <dbLock.h>
 #include <dbEvent.h>
 #include <alarm.h>
+#include <errMdef.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
