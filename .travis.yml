@@ -9,15 +9,20 @@ addons:
     - libreadline6-dev
     - libncurses5-dev
     - perl
-env:
- - BRBASE=3.16 BRPVD=master BRPVA=master
- - BRBASE=3.16 BRPVD=master BRPVA=master CMPLR=clang
- - BRBASE=3.16 BRPVD=master BRPVA=master EXTRA="CMD_CXXFLAGS=-std=c++11"
- - BRBASE=3.16 BRPVD=master BRPVA=master EXTRA="CMD_CXXFLAGS=-std=c++11" CMPLR=clang
- - BRBASE=3.15 BRPVD=master BRPVA=master
+    - clang
+    - g++-mingw-w64-i686
 install:
- - ./build-deps.sh $EXTRA
+ - ./.ci/travis-prepare.sh
 script:
- - make -j2 $EXTRA
- - make tapfiles
- - find . -name '*.tap' -print0 | xargs -0 -n1 prove -e cat -f
+ - ./.ci/travis-build.sh
+env:
+ - BRCORE=master BRLIBCOM=master BRPVD=master BRPVA=master
+ - CMPLR=clang
+ - EXTRA="CMD_CXXFLAGS=-std=c++11"
+ - CMPLR=clang EXTRA="CMD_CXXFLAGS=-std=c++11"
+ - WINE=32 TEST=NO STATIC=YES
+ - WINE=32 TEST=NO STATIC=NO
+ - RTEMS=4.10 TEST=NO
+ - RTEMS=4.9 TEST=NO
+ - BRBASE=3.16
+ - BRBASE=3.15

@@ -1,6 +1,7 @@
 
 #include <epicsAtomic.h>
 
+#define epicsExportSharedSymbols
 #include "helper.h"
 #include "pva2pva.h"
 #include "chancache.h"

@@ -5,7 +5,7 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
-LIBRARY_HOST += qsrv
+LIBRARY += qsrv
 
 USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 
@@ -22,7 +22,7 @@ qsrv_SRCS += pdbgroup.cpp
 qsrv_SRCS += configparse.cpp
 endif
 
-qsrv_LIBS += pvAccessIOC pvAccess pvData $(MBLIB)
+qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 FINAL_LOCATION ?= $(shell $(PERL) $(TOOLS)/fullPathName.pl $(INSTALL_LOCATION))

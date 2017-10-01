@@ -37,3 +37,6 @@ CHECK_RELEASE = YES
 
 # we don't actually use 'rset' explicitly, but quiet some warnings
 USR_CPPFLAGS += -DUSE_TYPED_RSET
+
+-include $(TOP)/../CONFIG_SITE.local
+-include $(TOP)/configure/CONFIG_SITE.local

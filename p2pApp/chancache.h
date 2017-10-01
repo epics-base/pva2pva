@@ -133,7 +133,7 @@ struct epicsShareClass ChannelCacheEntry
 
     // this exists as a seperate object to prevent a reference loop
     // ChannelCacheEntry -> pva::Channel -> CRequester
-    struct CRequester : public epics::pvAccess::ChannelRequester
+    struct epicsShareClass CRequester : public epics::pvAccess::ChannelRequester
     {
         static size_t num_instances;
 

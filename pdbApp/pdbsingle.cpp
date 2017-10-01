@@ -8,6 +8,7 @@
 
 #include <pv/epicsException.h>
 
+#define epicsExportSharedSymbols
 #include "errlogstream.h"
 #include "helper.h"
 #include "pdbsingle.h"

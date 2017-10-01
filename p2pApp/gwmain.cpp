@@ -20,6 +20,7 @@
 #include <pv/configuration.h>
 #include <pv/serverContext.h>
 
+#define epicsExportSharedSymbols
 #include "server.h"
 
 namespace pvd = epics::pvData;
