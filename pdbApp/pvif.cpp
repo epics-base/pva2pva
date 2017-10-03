@@ -1,5 +1,4 @@
 
-#include <dbAccess.h>
 
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/standardField.h>
@@ -10,7 +9,7 @@
 #include <dbLock.h>
 #include <dbEvent.h>
 #include <alarm.h>
-#include <errMdef.h>
+#include <errSymTbl.h>
 
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
