@@ -112,22 +112,6 @@ struct metaTIME {
     enum {mask = DBR_STATUS | DBR_TIME};
 };
 
-struct metaLONG {
-    DBRstatus
-    DBRunits
-    DBRtime
-    DBRgrLong
-    DBRctrlLong
-    DBRalLong
-
-    // included so that field is present, not actually used
-    // TODO: split up putMeta() to avoid this..
-    DBRprecision
-    DBRenumStrs
-
-    enum {mask = DBR_STATUS | DBR_UNITS | DBR_TIME | DBR_GR_LONG | DBR_CTRL_LONG | DBR_AL_LONG};
-};
-
 struct metaDOUBLE {
     DBRstatus
     DBRunits
@@ -438,19 +422,19 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     if(dbe&DBE_PROPERTY) {
 #undef FMAP
 #define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->put(meta.FNAME)
-        FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, displayHigh, upper_disp_limit);
-        FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, displayLow, lower_disp_limit);
-        FMAP(DBR_CTRL_DOUBLE|DBR_CTRL_DOUBLE, controlHigh, upper_ctrl_limit);
-        FMAP(DBR_CTRL_DOUBLE|DBR_CTRL_DOUBLE, controlLow, lower_ctrl_limit);
-        FMAP(DBR_GR_DOUBLE|DBR_GR_LONG, egu, units);
+        FMAP(DBR_GR_DOUBLE, displayHigh, upper_disp_limit);
+        FMAP(DBR_GR_DOUBLE, displayLow, lower_disp_limit);
+        FMAP(DBR_CTRL_DOUBLE, controlHigh, upper_ctrl_limit);
+        FMAP(DBR_CTRL_DOUBLE, controlLow, lower_ctrl_limit);
+        FMAP(DBR_GR_DOUBLE, egu, units);
 #undef FMAP
 #define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->putFrom(meta.FNAME)
         // not handling precision until I get a better idea of what 'format' is supposed to be...
         //FMAP(prec,  PVScalar, "display.format", PROPERTY);
-        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, warnHigh, upper_warning_limit);
-        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, warnLow,  lower_warning_limit);
-        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, alarmHigh, upper_alarm_limit);
-        FMAP(DBR_AL_DOUBLE|DBR_AL_DOUBLE, alarmLow,  lower_alarm_limit);
+        FMAP(DBR_AL_DOUBLE, warnHigh, upper_warning_limit);
+        FMAP(DBR_AL_DOUBLE, warnLow,  lower_warning_limit);
+        FMAP(DBR_AL_DOUBLE, alarmHigh, upper_alarm_limit);
+        FMAP(DBR_AL_DOUBLE, alarmLow,  lower_alarm_limit);
 #undef FMAP
         if(pv.enumopts) {
             pvd::shared_vector<std::string> strs(meta.no_str);
@@ -483,7 +467,7 @@ void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStr
     const char *UT = info.info("Q:time:tag");
     if(UT && strncmp(UT, "nsec:lsb:", 9)==0) {
         try{
-            pvmeta.nsecMask = epics::pvData::castUnsafe<unsigned>(std::string(&UT[9]));
+            pvmeta.nsecMask = epics::pvData::castUnsafe<epicsUInt32>(std::string(&UT[9]));
         }catch(std::exception& e){
             std::cerr<<dbChannelRecord(chan)->name<<" : Q:time:tag nsec:lsb: requires a number not '"<<UT[9]<<"'\n";
         }
@@ -652,7 +636,7 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& r
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvScalar, metaLONG>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, fld, enclosing);
         case DBR_FLOAT:
         case DBR_DOUBLE:
             return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, fld, enclosing);
@@ -669,7 +653,7 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& r
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvArray, metaLONG>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
         case DBR_FLOAT:
         case DBR_DOUBLE:
             return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
