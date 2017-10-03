@@ -300,16 +300,12 @@ void putValue(dbChannel *chan, pvd::PVScalar* value, db_field_log *pfl)
         throw std::runtime_error("dbGet for meta fails");
 
     switch(dbChannelFinalFieldType(chan)) {
-#define CASE(FTYPE) case DBR_##FTYPE: value->putFrom(buf.dbf_##FTYPE); break
-    CASE(CHAR);
-    CASE(UCHAR);
-    CASE(SHORT);
-    CASE(USHORT);
-    CASE(ENUM);
-    CASE(LONG);
-    CASE(ULONG);
-    CASE(FLOAT);
-    CASE(DOUBLE);
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: value->putFrom<PVATYPE>(buf.dbf_##DBFTYPE); break;
+#define CASE_ENUM
+#define CASE_SKIP_BOOL
+#include "pv/typemap.h"
+#undef CASE_ENUM
+#undef CASE_SKIP_BOOL
 #undef CASE
     case DBR_STRING:
         buf.dbf_STRING[sizeof(buf.dbf_STRING)-1] = '\0';
@@ -325,16 +321,12 @@ void getValue(dbChannel *chan, pvd::PVScalar* value)
     dbrbuf buf;
 
     switch(dbChannelFinalFieldType(chan)) {
-#define CASE(FTYPE, PTYPE) case DBR_##FTYPE: buf.dbf_##FTYPE = value->getAs<PTYPE>(); break
-    CASE(CHAR, pvd::int8);
-    CASE(UCHAR, pvd::uint8);
-    CASE(SHORT, pvd::int16);
-    CASE(USHORT, pvd::uint16);
-    CASE(LONG, pvd::int32);
-    CASE(ULONG, pvd::uint32);
-    CASE(FLOAT, float);
-    CASE(ENUM, pvd::int16);
-    CASE(DOUBLE, double);
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: buf.dbf_##DBFTYPE = value->getAs<PVATYPE>(); break;
+#define CASE_ENUM
+#define CASE_SKIP_BOOL
+#include "pv/typemap.h"
+#undef CASE_ENUM
+#undef CASE_SKIP_BOOL
 #undef CASE
     case DBR_STRING:
     {
