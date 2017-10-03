@@ -591,7 +591,7 @@ pvd::ScalarType DBR2PVD(short dbr)
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: return pvd::pv##PVACODE;
 #define CASE_ENUM
 #define CASE_SKIP_BOOL
-#include "pvatypemap.h"
+#include "pv/typemap.h"
 #undef CASE_ENUM
 #undef CASE_SKIP_BOOL
 #undef CASE
@@ -606,7 +606,7 @@ short PVD2DBR(pvd::ScalarType pvt)
     switch(pvt) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: return DBR_##DBFTYPE;
 #define CASE_SQUEEZE_INT64
-#include "pvatypemap.h"
+#include "pv/typemap.h"
 #undef CASE_SQUEEZE_INT64
 #undef CASE
     default:

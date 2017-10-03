@@ -325,7 +325,7 @@ int pvaGetDBFtype(const DBLINK *plink)
         switch(ftype) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: return DBF_##DBFTYPE;
 #define CASE_SQUEEZE_INT64
-#include "pvatypemap.h"
+#include "pv/typemap.h"
 #undef CASE_SQUEEZE_INT64
 #undef CASE
         case pvd::pvString: return DBF_STRING; // TODO: long string?
@@ -391,7 +391,7 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: *((epics##BASETYPE*)pbuffer) = self->valueS->getAs<epics##BASETYPE>(); break;
 #define CASE_SKIP_BOOL
 #define CASE_ENUM
-#include "pvatypemap.h"
+#include "pv/typemap.h"
 #undef CASE_SKIP_BOOL
 #undef CASE_ENUM
 #undef CASE
