@@ -135,9 +135,9 @@ struct metaENUM {
     // similar junk
     DBRunits
     DBRprecision
-    DBRgrLong
-    DBRctrlLong
-    DBRalLong
+    DBRgrDouble
+    DBRctrlDouble
+    DBRalDouble
 
     enum {mask = DBR_STATUS | DBR_TIME | DBR_ENUM_STRS};
 };
@@ -150,9 +150,9 @@ struct metaSTRING {
     DBRenumStrs
     DBRunits
     DBRprecision
-    DBRgrLong
-    DBRctrlLong
-    DBRalLong
+    DBRgrDouble
+    DBRctrlDouble
+    DBRalDouble
 
     enum {mask = DBR_STATUS | DBR_TIME};
 };
@@ -467,7 +467,7 @@ void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStr
     const char *UT = info.info("Q:time:tag");
     if(UT && strncmp(UT, "nsec:lsb:", 9)==0) {
         try{
-            pvmeta.nsecMask = epics::pvData::castUnsafe<epicsUInt32>(std::string(&UT[9]));
+            pvmeta.nsecMask = epics::pvData::castUnsafe<pvd::uint32>(std::string(&UT[9]));
         }catch(std::exception& e){
             std::cerr<<dbChannelRecord(chan)->name<<" : Q:time:tag nsec:lsb: requires a number not '"<<UT[9]<<"'\n";
         }
