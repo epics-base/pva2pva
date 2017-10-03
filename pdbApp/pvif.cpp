@@ -523,7 +523,7 @@ struct PVIFScalarNumeric : public PVIF
             throw std::runtime_error("Must attach to structure");
 
         pvmeta.chan = ch;
-        attachAll(pvmeta, pvalue);
+        attachAll<PVM>(pvmeta, pvalue);
         if(enclosing) {
             size_t bit = enclosing->getFieldOffset();
             // we are inside a structure array or similar with only one bit for all ours fields
