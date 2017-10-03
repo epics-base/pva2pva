@@ -177,3 +177,6 @@ then
   make -j2 -C pvData $EXTRA
   make -j2 -C pvAccess $EXTRA
 fi
+
+find epics-base/include
+find epics-base/lib
