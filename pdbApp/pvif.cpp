@@ -189,12 +189,12 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
 #undef FMAP
 }
 
-template<typename PVM>
-void attachAll(PVM& pvm, const pvd::PVStructurePtr& pv)
+template<typename PVX>
+void attachAll(PVX& pvm, const pvd::PVStructurePtr& pv)
 {
-    pvm.value = pv->getSubField<typename PVM::pvd_type>("value.index");
+    pvm.value = pv->getSubField<typename PVX::pvd_type>("value.index");
     if(!pvm.value)
-        pvm.value = pv->getSubFieldT<typename PVM::pvd_type>("value");
+        pvm.value = pv->getSubFieldT<typename PVX::pvd_type>("value");
     const pvd::PVField *fld = pvm.value.get();
     pvm.maskVALUE.set(fld->getFieldOffset());
     for(;fld; fld = fld->getParent()) {
@@ -485,10 +485,10 @@ void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStr
         pvmeta.nsecMask = 0;
 }
 
-template<class PVM, typename META>
+template<typename PVX, typename META>
 struct PVIFScalarNumeric : public PVIF
 {
-    PVM pvmeta;
+    PVX pvmeta;
     const epics::pvData::PVStructurePtr pvalue;
 
     PVIFScalarNumeric(dbChannel *ch, const epics::pvData::PVFieldPtr& p, pvd::PVField *enclosing)
@@ -499,7 +499,7 @@ struct PVIFScalarNumeric : public PVIF
             throw std::runtime_error("Must attach to structure");
 
         pvmeta.chan = ch;
-        attachAll<PVM>(pvmeta, pvalue);
+        attachAll<PVX>(pvmeta, pvalue);
         if(enclosing) {
             size_t bit = enclosing->getFieldOffset();
             // we are inside a structure array or similar with only one bit for all ours fields
@@ -521,7 +521,7 @@ struct PVIFScalarNumeric : public PVIF
     virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
     {
         try{
-            putAll<PVM, META>(pvmeta, dbe, pfl);
+            putAll<PVX, META>(pvmeta, dbe, pfl);
             mask |= pvmeta.maskALWAYS;
             if(dbe&(DBE_VALUE|DBE_ARCHIVE))
                 mask |= pvmeta.maskVALUE;
