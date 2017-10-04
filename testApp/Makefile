@@ -24,11 +24,6 @@ testweak_SRCS = testweak.cpp
 testweak_LIBS = Com
 TESTS += testweak
 
-TESTPROD_HOST += teststream
-teststream_SRCS = teststream.cpp
-teststream_LIBS = Com
-TESTS += teststream
-
 TESTPROD_HOST += testtest
 testtest_SRCS = testtest.cpp
 testtest_LIBS = testutils p2pcore pvAccess pvData Com

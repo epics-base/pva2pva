@@ -9,7 +9,6 @@
 #include <pv/epicsException.h>
 
 #define epicsExportSharedSymbols
-#include "errlogstream.h"
 #include "helper.h"
 #include "pdbsingle.h"
 #include "pdb.h"
@@ -61,9 +60,8 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
          * Just do nothing
          */
     }catch(std::exception& e){
-        errlog_ostream strm;
-        strm<<"Unhandled exception in pdb_single_event(): "<<e.what()<<"\n"
-            <<SHOW_EXCEPTION(e)<<"\n";
+        std::cerr<<"Unhandled exception in pdb_single_event(): "<<e.what()<<"\n"
+                 <<SHOW_EXCEPTION(e)<<"\n";
     }
 }
 

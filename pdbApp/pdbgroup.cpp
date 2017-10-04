@@ -3,7 +3,6 @@
 #include <dbAccess.h>
 
 #define epicsExportSharedSymbols
-#include "errlogstream.h"
 #include "helper.h"
 #include "pdbgroup.h"
 #include "pdb.h"
@@ -76,9 +75,8 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
          * Just do nothing
          */
     }catch(std::exception& e){
-        errlog_ostream strm;
-        strm<<"Unhandled exception in pdb_group_event(): "<<e.what()<<"\n"
-            <<SHOW_EXCEPTION(e)<<"\n";
+        std::cerr<<"Unhandled exception in pdb_group_event(): "<<e.what()<<"\n"
+                 <<SHOW_EXCEPTION(e)<<"\n";
     }
 }
 
