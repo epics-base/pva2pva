@@ -133,8 +133,8 @@ void startServer()
             return;
         }
 
-        pva::ChannelProvider::shared_pointer client(pva::ChannelProviderRegistry::clients()->getProvider("pva")),
-                                             server(new GWServerChannelProvider(client));
+        pva::ChannelProvider::shared_pointer client(pva::ChannelProviderRegistry::clients()->getProvider("pva"));
+        GWServerChannelProvider::shared_pointer server(new GWServerChannelProvider(client));
 
         gblctx = pva::ServerContext::create(pva::ServerContext::Config()
                                             .provider(server)

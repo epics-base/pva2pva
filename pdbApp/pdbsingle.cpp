@@ -98,7 +98,7 @@ pva::Channel::shared_pointer
 PDBSinglePV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                      const pva::ChannelRequester::shared_pointer& req)
 {
-    pva::Channel::shared_pointer ret(new PDBSingleChannel(shared_from_this(), req));
+    PDBSingleChannel::shared_pointer ret(new PDBSingleChannel(shared_from_this(), req));
     return ret;
 }
 
@@ -126,7 +126,7 @@ PDBSingleChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & requester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    pva::ChannelPut::shared_pointer ret(new PDBSinglePut(shared_from_this(), requester, pvRequest));
+    PDBSinglePut::shared_pointer ret(new PDBSinglePut(shared_from_this(), requester, pvRequest));
     requester->channelPutConnect(pvd::Status(), ret, fielddesc);
     return ret;
 }

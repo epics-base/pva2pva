@@ -97,7 +97,7 @@ pva::Channel::shared_pointer
 PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                     const pva::ChannelRequester::shared_pointer& req)
 {
-    pva::Channel::shared_pointer ret(new PDBGroupChannel(shared_from_this(), prov, req));
+    PDBGroupChannel::shared_pointer ret(new PDBGroupChannel(shared_from_this(), prov, req));
     return ret;
 }
 
@@ -125,7 +125,7 @@ PDBGroupChannel::createChannelPut(
         pva::ChannelPutRequester::shared_pointer const & requester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    pva::ChannelPut::shared_pointer ret(new PDBGroupPut(shared_from_this(), requester, pvRequest));
+    PDBGroupPut::shared_pointer ret(new PDBGroupPut(shared_from_this(), requester, pvRequest));
     requester->channelPutConnect(pvd::Status(), ret, fielddesc);
     return ret;
 }
