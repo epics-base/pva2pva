@@ -6,7 +6,6 @@ set -e -x
 if [ -n "$RTEMS" ]
 then
   # find local qemu-system-i386
-  export PATH="$HOME/.cache/qemu/usr/bin:$PATH"
   echo -n "Using QEMU: "
   type qemu-system-i386 || echo "Missing qemu"
   EXTRA=RTEMS_QEMU_FIXUPS=YES
