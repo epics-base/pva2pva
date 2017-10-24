@@ -34,7 +34,8 @@ PROD_IOC += softIocPVA
 softIocPVA_SRCS += softMain.cpp
 softIocPVA_SRCS += softIocPVA_registerRecordDeviceDriver.cpp
 
-softIocPVA_LIBS += qsrv pvAccessIOC pvAccess pvData $(MBLIB)
+softIocPVA_LIBS += qsrv
+softIocPVA_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
 softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 DBD += softIocPVA.dbd
