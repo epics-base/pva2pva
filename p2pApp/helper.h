@@ -11,8 +11,6 @@
 # define AUTO_VAL(NAME,VAL) __typeof__(VAL) NAME(VAL)
 # define AUTO_REF(NAME,VAL) __typeof__(VAL)& NAME(VAL)
 # define FOREACH(IT,END,C) for(__typeof__((C).begin()) IT=(C).begin(), END=(C).end(); IT!=END; ++IT)
-#else
-# error Require C++11 or G++
 #endif
 
 namespace p2p {
