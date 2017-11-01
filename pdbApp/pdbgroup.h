@@ -148,6 +148,7 @@ struct epicsShareClass PDBGroupChannel : public BaseChannel,
 struct PDBGroupPut : public epics::pvAccess::ChannelPut,
         public std::tr1::enable_shared_from_this<PDBGroupPut>
 {
+    POINTER_DEFINITIONS(PDBGroupPut);
     typedef epics::pvAccess::ChannelPutRequester requester_t;
     PDBGroupChannel::shared_pointer channel;
     requester_type::weak_pointer requester;

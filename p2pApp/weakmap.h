@@ -111,10 +111,13 @@ private:
 public:
     //! Construct a new empty set
     weak_value_map() :m_data(new data) {}
+
+private:
     //! Not copyable
     weak_value_map(const weak_value_map& O);
     //! Not copyable
     weak_value_map& operator=(const weak_value_map& O);
+public:
 
     //! exchange the two sets.
     //! @warning Not thread safe (exchanges mutexes as well)

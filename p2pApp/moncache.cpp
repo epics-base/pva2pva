@@ -2,6 +2,11 @@
 #include <epicsAtomic.h>
 #include <errlog.h>
 
+#include <epicsMutex.h>
+#include <epicsTimer.h>
+
+#include <pv/pvAccess.h>
+
 #define epicsExportSharedSymbols
 #include "helper.h"
 #include "pva2pva.h"

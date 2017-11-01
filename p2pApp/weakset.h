@@ -132,10 +132,13 @@ private:
 public:
     //! Construct a new empty set
     weak_set() :m_data(new data) {}
+
+private:
     //! Not copyable
     weak_set(const weak_set& O);
     //! Not copyable
     weak_set& operator=(const weak_set& O);
+public:
 
     //! exchange the two sets.
     //! @warning Not thread safe (exchanges mutexes as well)
