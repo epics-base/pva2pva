@@ -78,7 +78,8 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
     fielddesc = std::tr1::static_pointer_cast<const pvd::Structure>(builder->dtype(this->chan));
 
     complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
-    pvif.reset(builder->attach(this->chan, complete, FieldName()));
+    FieldName temp;
+    pvif.reset(builder->attach(this->chan, complete, temp));
 
     epics::atomic::increment(num_instances);
 }

@@ -86,6 +86,8 @@ struct PDBSingleChannel : public BaseChannel,
 struct PDBSinglePut : public epics::pvAccess::ChannelPut,
         public std::tr1::enable_shared_from_this<PDBSinglePut>
 {
+    POINTER_DEFINITIONS(PDBSinglePut);
+
     typedef epics::pvAccess::ChannelPutRequester requester_t;
     PDBSingleChannel::shared_pointer channel;
     requester_t::weak_pointer requester;
