@@ -1,4 +1,6 @@
 
+#include <sstream>
+
 #include <dbAccess.h>
 
 #include <dbEvent.h>
@@ -14,6 +16,8 @@
 namespace {
 
 namespace pvd = epics::pvData;
+using pvd::yajl::integer_arg;
+using pvd::yajl::size_arg;
 
 typedef std::map<std::string, pvd::AnyScalar> options_t;
 typedef std::map<std::string, options_t> config_t;
@@ -103,7 +107,7 @@ int conf_boolean(void * ctx, int boolVal)
     }CATCH()
 }
 
-int conf_integer(void * ctx, long integerVal)
+int conf_integer(void * ctx, integer_arg integerVal)
 {
     TRY {
         self->assign(pvd::AnyScalar(pvd::int64(integerVal)));
@@ -120,7 +124,7 @@ int conf_double(void * ctx, double doubleVal)
 }
 
 int conf_string(void * ctx, const unsigned char * stringVal,
-                    unsigned int stringLen)
+                    size_arg stringLen)
 {
     TRY {
         std::string val((const char*)stringVal, stringLen);
@@ -140,7 +144,7 @@ int conf_start_map(void * ctx)
 }
 
 int conf_map_key(void * ctx, const unsigned char * key,
-                     unsigned int stringLen)
+                     size_arg stringLen)
 {
     TRY {
         if(stringLen==0 && self->depth!=2)
@@ -212,49 +216,27 @@ struct handler {
 void GroupConfig::parse(const char *txt,
                         GroupConfig& result)
 {
+#ifndef EPICS_YAJL_VERSION
     yajl_parser_config conf;
     memset(&conf, 0, sizeof(conf));
     conf.allowComments = 1;
     conf.checkUTF8 = 1;
+#endif
+
+    std::istringstream strm(txt);
 
     context ctxt;
 
+#ifndef EPICS_YAJL_VERSION
     handler handle(yajl_alloc(&conf_cbs, &conf, NULL, &ctxt));
+#else
+    handler handle(yajl_alloc(&conf_cbs, NULL, &ctxt));
 
-    yajl_status sts = yajl_parse(handle, (const unsigned char*)txt, strlen(txt));
+    yajl_config(handle, yajl_allow_comments, 1);
+#endif
 
-    if(sts==yajl_status_insufficient_data)
-        sts = yajl_parse_complete(handle);
-
-    switch(sts) {
-    case yajl_status_ok: {
-        size_t consumed = yajl_get_bytes_consumed(handle);
-        if(consumed<strlen(txt)) {
-            std::string leftovers(txt+consumed);
-            if(leftovers.find_first_not_of(" \t\n\r")!=leftovers.npos)
-                throw std::runtime_error("Trailing junk after json");
-        }
-        break;
-    }
-    case yajl_status_client_canceled:
+    if(!pvd::yajl_parse_helper(strm, handle))
         throw std::runtime_error(ctxt.msg);
-
-    case yajl_status_insufficient_data:
-        throw std::runtime_error("Unexpected end of input");
-
-    case yajl_status_error:
-    {
-        unsigned char *raw = yajl_get_error(handle, 1, (const unsigned char*)txt, strlen(txt));
-        try {
-            std::string msg((char*)raw);
-            yajl_free_error(handle, raw);
-            throw std::runtime_error(msg);
-        } catch(...){
-            yajl_free_error(handle, raw);
-            throw;
-        }
-    }
-    }
 
     ctxt.conf.swap(result);
 }
