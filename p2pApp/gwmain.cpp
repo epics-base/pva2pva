@@ -19,6 +19,7 @@
 #include <pv/clientFactory.h>
 #include <pv/configuration.h>
 #include <pv/serverContext.h>
+#include <pv/iocreftrack.h>
 
 #define epicsExportSharedSymbols
 #include "server.h"
@@ -170,6 +171,7 @@ void sigdone(int num)
 int main(int argc, char *argv[])
 {
     try {
+        pva::refTrackRegistrar();
         ServerConfig arg;
         getargs(arg, argc, argv);
 

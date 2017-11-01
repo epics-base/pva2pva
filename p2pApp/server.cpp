@@ -7,6 +7,7 @@
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
 #include <pv/logger.h>
+#include <pv/reftrack.h>
 
 #define epicsExportSharedSymbols
 #include "helper.h"
@@ -391,82 +392,6 @@ void dropChannel(const char *chan)
     }
 }
 
-void show_cnt(const char *name, const size_t& live, const size_t& reach) {
-    ptrdiff_t delta = ptrdiff_t(live)-ptrdiff_t(reach);
-    std::cout<<name<<" live: "<<live
-            <<" reachable: "<<reach
-            <<" delta: "<<delta<<"\n";
-}
-
-void refCheck(int lvl)
-{
-    try{
-        std::cout<<"GW instances reference counts.\n"
-                   "Note: small inconsistencies (positive and negative) are normal due to locking.\n"
-                   "      Actual leaks will manifest as a sustained increases.\n";
-
-        size_t chan_count = 0, mon_count = 0, mon_user_count = 0;
-        pva::ServerContext::shared_pointer ctx(gblctx);
-        if(!ctx) {
-            std::cout<<"Not running\n";
-            return;
-        }
-        if(ctx) {
-            const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
-
-            if(lvl>0) std::cout<<"Server has "<<prov.size()<<" providers\n";
-
-            for(size_t i=0; i<prov.size(); i++)
-            {
-                pva::ChannelProvider* p = prov[i].get();
-                if(!p) continue;
-                GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
-                if(!scp) continue;
-
-                ChannelCache::entries_t entries;
-                {
-                    Guard G(scp->cache.cacheLock);
-                    entries = scp->cache.entries; // Copy
-                }
-
-                if(lvl>0) std::cout<<" Cache has "<<entries.size()<<" channels\n";
-
-                chan_count += entries.size();
-
-                FOREACH(ChannelCache::entries_t::const_iterator, it, end, entries)
-                {
-                    ChannelCacheEntry::mon_entries_t::lock_vector_type M(it->second->mon_entries.lock_vector());
-
-                    if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
-                                      <<" has "<<M.size()<<" Client Monitors\n";
-
-                    mon_count += M.size();
-                    FOREACH(ChannelCacheEntry::mon_entries_t::lock_vector_type::const_iterator, it2, end2, M)
-                    {
-                        const MonitorCacheEntry::interested_t& W(it2->second->interested);
-                        if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
-                        mon_user_count += W.size();
-                    }
-                }
-            }
-        } else {
-            std::cout<<"Server Not running\n";
-        }
-
-        size_t chan_latch = epicsAtomicGetSizeT(&ChannelCacheEntry::num_instances),
-               mon_latch = epicsAtomicGetSizeT(&MonitorCacheEntry::num_instances),
-               mon_user_latch = epicsAtomicGetSizeT(&MonitorUser::num_instances);
-
-        std::cout<<"GWChannel live: "<<epicsAtomicGetSizeT(&GWChannel::num_instances)<<"\n";
-        show_cnt("ChannelCacheEntry",chan_latch,chan_count);
-        show_cnt("MonitorCacheEntry",mon_latch,mon_count);
-        show_cnt("MonitorUser",mon_user_latch,mon_user_count);
-
-    }catch(std::exception& e){
-        std::cerr<<"Error: "<<e.what()<<"\n";
-    }
-}
-
 void pvadebug(const char *lvl)
 {
     try {
@@ -506,8 +431,13 @@ void registerGWServerIocsh()
     iocshRegister<int, &infoServer>("pvasr", "level");
     iocshRegister<int, const char*, &statusServer>("gwstatus", "level", "channel name/pattern");
     iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
-    iocshRegister<int, &refCheck>("gwref", "level");
     iocshRegister<const char*, &pvadebug>("pvadebug", "level");
+
+    epics::registerRefCounter("ChannelCacheEntry", &ChannelCacheEntry::num_instances);
+    epics::registerRefCounter("ChannelCacheEntry::CRequester", &ChannelCacheEntry::CRequester::num_instances);
+    epics::registerRefCounter("GWChannel", &GWChannel::num_instances);
+    epics::registerRefCounter("MonitorCacheEntry", &MonitorCacheEntry::num_instances);
+    epics::registerRefCounter("MonitorUser", &MonitorUser::num_instances);
 }
 
 void gwServerShutdown()
