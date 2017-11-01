@@ -3,9 +3,9 @@
 
 #include <pv/pvAccess.h>
 
-#include "chancache.h"
-
 #include <shareLib.h>
+
+#include "chancache.h"
 
 struct epicsShareClass GWChannel : public epics::pvAccess::Channel
 {

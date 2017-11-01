@@ -3,8 +3,12 @@
 #include <epicsAtomic.h>
 #include <errlog.h>
 
+#include <epicsMutex.h>
+#include <epicsTimer.h>
+
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
+#include <pv/pvAccess.h>
 
 #define epicsExportSharedSymbols
 #include "pva2pva.h"
