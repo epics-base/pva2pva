@@ -50,7 +50,9 @@ struct epicsShareClass ServerConfig {
 
     ServerConfig() :debug(0), interactive(true) {}
 
-    static std::tr1::shared_ptr<ServerConfig> instance;
+    void drop(const char *client, const char *channel);
+    void status_server(int lvl, const char *server);
+    void status_client(int lvl, const char *client, const char *channel);
 };
 
 #endif // SERVER_H

@@ -1,9 +1,10 @@
 
 #include <epicsAtomic.h>
 
+#include <pv/iocshelper.h>
+
 #define epicsExportSharedSymbols
 #include "helper.h"
-#include "iocshelper.h"
 #include "pva2pva.h"
 #include "channel.h"
 
@@ -245,5 +246,5 @@ GWChannel::printInfo(std::ostream& out)
 
 void registerReadOnly()
 {
-    iocshVariable<int, &p2pReadOnly>("p2pReadOnly");
+    epics::iocshVariable<int, &p2pReadOnly>("p2pReadOnly");
 }

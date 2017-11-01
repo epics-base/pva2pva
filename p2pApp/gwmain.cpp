@@ -19,7 +19,9 @@
 #include <pv/clientFactory.h>
 #include <pv/configuration.h>
 #include <pv/serverContext.h>
+#include <pv/reftrack.h>
 #include <pv/iocreftrack.h>
+#include <pv/iocshelper.h>
 
 #define epicsExportSharedSymbols
 #include "server.h"
@@ -41,7 +43,7 @@ pvd::StructureConstPtr schema(pvd::getFieldCreate()->createFieldBuilder()
                               ->endNested()
                               ->addNestedStructureArray("servers")
                                  ->add("name", pvd::pvString)
-                                 ->add("client", pvd::pvString)
+                                 ->addArray("clients", pvd::pvString)
                                  ->add("interface", pvd::pvString)
                                  ->add("serverport", pvd::pvUShort)
                                  ->add("bcastport", pvd::pvUShort)
@@ -144,13 +146,21 @@ pva::ServerContext::shared_pointer configure_server(ServerConfig& arg, const pvd
                                          .push_map()
                                          .build());
 
-    ServerConfig::clients_t::const_iterator it(arg.clients.find(conf->getSubFieldT<pvd::PVString>("client")->get()));
-    if(it==arg.clients.end())
-        throw std::runtime_error("Server references non-existant client");
+    pvd::PVStringArray::shared_pointer clients(conf->getSubFieldT<pvd::PVStringArray>("clients"));
+    pvd::PVStringArray::const_svector names(clients->view());
+    std::vector<pva::ChannelProvider::shared_pointer> providers;
+
+    for(pvd::PVStringArray::const_svector::const_iterator it(names.begin()), end(names.end()); it!=end; ++it)
+    {
+        ServerConfig::clients_t::const_iterator it2(arg.clients.find(*it));
+        if(it2==arg.clients.end())
+            throw std::runtime_error("Server references non-existant client");
+        providers.push_back(it2->second);
+    }
 
     pva::ServerContext::shared_pointer ret(pva::ServerContext::create(pva::ServerContext::Config()
                                                                       .config(C)
-                                                                      .provider(it->second)));
+                                                                      .providers(providers)));
     return ret;
 }
 
@@ -166,13 +176,60 @@ void sigdone(int num)
 }
 #endif
 
+ServerConfig* volatile theserver;
+
+void iocsh_drop(const char *client, const char *channel)
+{
+    if(!theserver)
+        return;
+    try {
+        theserver->drop(client, channel);
+    }catch(std::exception& e){
+        std::cout<<"Error: "<<e.what()<<"\n";
+    }
+}
+
+void gwsr(int lvl, const char *server)
+{
+    if(!theserver)
+        return;
+    try {
+        theserver->status_server(lvl, server);
+    }catch(std::exception& e){
+        std::cout<<"Error: "<<e.what()<<"\n";
+    }
+}
+
+void gwcr(int lvl, const char *client, const char *channel)
+{
+    if(!theserver)
+        return;
+    try {
+        theserver->status_client(lvl, client, channel);
+    }catch(std::exception& e){
+        std::cout<<"Error: "<<e.what()<<"\n";
+    }
+}
+
 }// namespace
 
 int main(int argc, char *argv[])
 {
     try {
         pva::refTrackRegistrar();
+
+        epics::iocshRegister<const char*, const char*, &iocsh_drop>("drop", "client", "channel");
+        epics::iocshRegister<int, const char*, &gwsr>("gwsr", "level", "channel");
+        epics::iocshRegister<int, const char*, const char*, &gwcr>("gwcr", "level", "client", "channel");
+
+        epics::registerRefCounter("ChannelCacheEntry", &ChannelCacheEntry::num_instances);
+        epics::registerRefCounter("ChannelCacheEntry::CRequester", &ChannelCacheEntry::CRequester::num_instances);
+        epics::registerRefCounter("GWChannel", &GWChannel::num_instances);
+        epics::registerRefCounter("MonitorCacheEntry", &MonitorCacheEntry::num_instances);
+        epics::registerRefCounter("MonitorUser", &MonitorUser::num_instances);
+
         ServerConfig arg;
+        theserver = &arg;
         getargs(arg, argc, argv);
 
         pva::ClientFactory::start();
@@ -227,6 +284,8 @@ int main(int argc, char *argv[])
                 done.wait();
             }
         }
+
+        theserver = 0;
 
         return ret;
     }catch(std::exception& e){

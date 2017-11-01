@@ -7,11 +7,9 @@
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
 #include <pv/logger.h>
-#include <pv/reftrack.h>
 
 #define epicsExportSharedSymbols
 #include "helper.h"
-#include "iocshelper.h"
 #include "pva2pva.h"
 #include "server.h"
 
@@ -120,327 +118,218 @@ GWServerChannelProvider::~GWServerChannelProvider()
     std::cout<<"GW Server dtor\n";
 }
 
-namespace {
-
-static epicsMutex gbllock;
-static std::tr1::shared_ptr<pva::ServerContext> gblctx;
-
-void startServer()
+void ServerConfig::drop(const char *client, const char *channel)
 {
-    try {
-        Guard G(gbllock);
-        if(gblctx) {
-            printf("Already started\n");
-            return;
-        }
+    if(!client)
+        client= "";
+    if(!channel)
+        channel = "";
+    // TODO: channel glob match
 
-        pva::ChannelProvider::shared_pointer client(pva::ChannelProviderRegistry::clients()->getProvider("pva"));
-        GWServerChannelProvider::shared_pointer server(new GWServerChannelProvider(client));
+    FOREACH(clients_t::const_iterator, it, end, clients)
+    {
+        if(client[0]!='\0' && client[0]!='*' && it->first!=client)
+            continue;
 
-        gblctx = pva::ServerContext::create(pva::ServerContext::Config()
-                                            .provider(server)
-                                            .config(pva::ConfigurationBuilder()
-                                                    .push_env()
-                                                    .build()));
-    }catch(std::exception& e){
-        printf("Error: %s\n", e.what());
-    }
-}
+        const GWServerChannelProvider::shared_pointer& prov(it->second);
 
-void stopServer()
-{
-    try {
-        Guard G(gbllock);
+        ChannelCacheEntry::shared_pointer entry;
 
-        if(!gblctx) {
-            printf("Not started\n");
-            return;
-        } else {
-            gblctx->shutdown();
-            gblctx.reset();
-        }
-    }catch(std::exception& e){
-        printf("Error: %s\n", e.what());
-    }
-}
-
-void infoServer(int lvl)
-{
-    try {
-        Guard G(gbllock);
-
-        if(gblctx) {
-            gblctx->printInfo();
-        } else {
-            printf("Not running");
-        }
-    }catch(std::exception& e){
-        printf("Error: %s\n", e.what());
-    }
-}
-
-void statusServer(int lvl, const char *chanexpr)
-{
-    try{
-        pva::ServerContext::shared_pointer ctx;
+        // find the channel, if it's there
         {
-            Guard G(gbllock);
-            ctx = gblctx;
-        }
-        if(!ctx) {
-            std::cout<<"Not running\n";
-            return;
-        }
+            Guard G(prov->cache.cacheLock);
 
-        bool iswild = chanexpr ? (strchr(chanexpr, '?') || strchr(chanexpr, '*')) : false;
-        if(chanexpr && lvl<1)
-            lvl=1; // giving a channel implies at least channel level of detail
-
-        const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
-
-        std::cout<<"Server has "<<prov.size()<<" providers\n";
-        for(size_t i=0; i<prov.size(); i++)
-        {
-            pva::ChannelProvider* p = prov[i].get();
-            std::cout<<"Provider: "<<(p ? p->getProviderName() : std::string("NULL"))<<"\n";
-            if(!p) continue;
-            GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
-            if(!scp) continue;
-
-            ChannelCache::entries_t entries;
-
-            size_t ncache, ncleaned, ndust;
-            {
-                Guard G(scp->cache.cacheLock);
-
-                ncache = scp->cache.entries.size();
-                ncleaned = scp->cache.cleanerRuns;
-                ndust = scp->cache.cleanerDust;
-
-                if(lvl>0) {
-                    if(!chanexpr || iswild) { // no string or some glob pattern
-                        entries = scp->cache.entries; // copy of std::map
-                    } else if(chanexpr) { // just one channel
-                        ChannelCache::entries_t::iterator it(scp->cache.entries.find(chanexpr));
-                        if(it!=scp->cache.entries.end())
-                            entries[it->first] = it->second;
-                    }
-                }
-            }
-
-            std::cout<<"Cache has "<<ncache<<" channels.  Cleaned "
-                    <<ncleaned<<" times closing "<<ndust<<" channels\n";
-
-            if(lvl<=0)
+            ChannelCache::entries_t::iterator it = prov->cache.entries.find(channel);
+            if(it==prov->cache.entries.end())
                 continue;
 
-            FOREACH(ChannelCache::entries_t::const_iterator, it, end, entries) {
-                const std::string& channame = it->first;
-                if(iswild && !epicsStrGlobMatch(channame.c_str(), chanexpr))
-                    continue;
+            std::cout<<"Drop from "<<it->first<<" : "<<it->second->channelName<<"\n";
 
-                ChannelCacheEntry& E = *it->second;
-                ChannelCacheEntry::mon_entries_t::lock_vector_type mons;
-                size_t nsrv, nmon;
-                bool dropflag;
-                const char *chstate;
-                {
-                    Guard G(E.mutex());
-                    chstate = pva::Channel::ConnectionStateNames[E.channel->getConnectionState()];
-                    nsrv = E.interested.size();
-                    nmon = E.mon_entries.size();
-                    dropflag = E.dropPoke;
-
-                    if(lvl>1)
-                        mons = E.mon_entries.lock_vector();
-                }
-
-                std::cout<<chstate
-                         <<" Client Channel '"<<channame
-                         <<"' used by "<<nsrv<<" Server channel(s) with "
-                         <<nmon<<" unique subscription(s) "
-                         <<(dropflag?'!':'_')<<"\n";
-
-                if(lvl<=1)
-                    continue;
-
-                FOREACH(ChannelCacheEntry::mon_entries_t::lock_vector_type::const_iterator, it2, end2, mons) {
-                    MonitorCacheEntry& ME =  *it2->second;
-
-                    MonitorCacheEntry::interested_t::vector_type usrs;
-                    size_t nsrvmon;
-#ifdef USE_MSTATS
-                    pvd::Monitor::Stats mstats;
-#endif
-                    bool hastype, hasdata, isdone;
-                    {
-                        Guard G(ME.mutex());
-
-                        nsrvmon = ME.interested.size();
-                        hastype = !!ME.typedesc;
-                        hasdata = !!ME.lastelem;
-                        isdone = ME.done;
-
-#ifdef USE_MSTATS
-                        if(ME.mon)
-                            ME.mon->getStats(mstats);
-#endif
-
-                        if(lvl>2)
-                            usrs = ME.interested.lock_vector();
-                    }
-
-                    // TODO: how to describe pvRequest in a compact way...
-                    std::cout<<"  Client Monitor used by "<<nsrvmon<<" Server monitors, "
-                             <<"Has "<<(hastype?"":"not ")
-                             <<"opened, Has "<<(hasdata?"":"not ")
-                             <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n"
-                               "    "<<      epicsAtomicGetSizeT(&ME.nwakeups)<<" wakeups "
-                             <<epicsAtomicGetSizeT(&ME.nevents)<<" events\n";
-#ifdef USE_MSTATS
-                    if(mstats.nempty || mstats.nfilled || mstats.noutstanding)
-                        std::cout<<"    US monitor queue "<<mstats.nfilled
-                                 <<" filled, "<<mstats.noutstanding
-                                 <<" outstanding, "<<mstats.nempty<<" empty\n";
-#endif
-                    if(lvl<=2)
-                        continue;
-
-                    FOREACH(MonitorCacheEntry::interested_t::vector_type::const_iterator, it3, end3, usrs) {
-                        MonitorUser& MU = **it3;
-
-                        size_t nempty, nfilled, nused, total;
-                        std::string remote;
-                        bool isrunning;
-                        {
-                            Guard G(MU.mutex());
-
-                            nempty = MU.empty.size();
-                            nfilled = MU.filled.size();
-                            nused = MU.inuse.size();
-                            isrunning = MU.running;
-
-                            GWChannel::shared_pointer srvchan(MU.srvchan.lock());
-                            if(srvchan)
-                                remote = srvchan->address;
-                            else
-                                remote = "<unknown>";
-                        }
-                        total = nempty + nfilled + nused;
-
-                        std::cout<<"    Server monitor from "
-                                 <<remote
-                                 <<(isrunning?"":" Paused")
-                                 <<" buffer "<<nfilled<<"/"<<total
-                                 <<" out "<<nused<<"/"<<total
-                                 <<" "<<epicsAtomicGetSizeT(&MU.nwakeups)<<" wakeups "
-                                 <<epicsAtomicGetSizeT(&MU.nevents)<<" events "
-                                 <<epicsAtomicGetSizeT(&MU.ndropped)<<" drops\n";
-                    }
-                }
-            }
+            entry = it->second;
+            prov->cache.entries.erase(it); // drop out of cache (TODO: not required)
         }
 
-    }catch(std::exception& e){
-        std::cerr<<"Error: "<<e.what()<<"\n";
+        // trigger client side disconnect (recursively calls call CRequester::channelStateChange())
+        // TODO: shouldn't need this
+        entry->channel->destroy();
+
     }
 }
 
-void dropChannel(const char *chan)
+void ServerConfig::status_server(int lvl, const char *server)
 {
-    if(!chan) return;
-    try {
-        pva::ServerContext::shared_pointer ctx(gblctx);
-        if(!ctx) {
-            std::cout<<"Not running\n";
-            return;
-        }
-        std::cout<<"Find and force drop channel '"<<chan<<"'\n";
+    if(!server)
+        server = "";
 
-        const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
+    FOREACH(servers_t::const_iterator, it, end, servers)
+    {
+        if(server[0]!='\0' && server[0]!='*' && it->first!=server)
+            continue;
 
-        for(size_t i=0; i<prov.size(); i++)
+        const pva::ServerContext::shared_pointer& serv(it->second);
+        std::cout<<"==> Server: "<<it->first<<"\n";
+        serv->printInfo(std::cout);
+        std::cout<<"<== Server: "<<it->first<<"\n\n";
+        // TODO: print client list somehow
+    }
+}
+
+void ServerConfig::status_client(int lvl, const char *client, const char *channel)
+{
+    if(!client)
+        client= "";
+    if(!channel)
+        channel = "";
+
+    bool iswild = strchr(channel, '?') || strchr(channel, '*');
+
+    FOREACH(clients_t::const_iterator, it, end, clients)
+    {
+        if(client[0]!='\0' && client[0]!='*' && it->first!=client)
+            continue;
+
+        const GWServerChannelProvider::shared_pointer& prov(it->second);
+
+        std::cout<<"==> Client: "<<it->first<<"\n";
+
+        ChannelCache::entries_t entries;
+
+        size_t ncache, ncleaned, ndust;
         {
-            pva::ChannelProvider* p = prov[i].get();
-            if(!p) continue;
-            GWServerChannelProvider *scp = dynamic_cast<GWServerChannelProvider*>(p);
-            if(!scp) continue;
+            Guard G(prov->cache.cacheLock);
 
-            ChannelCacheEntry::shared_pointer entry;
+            ncache = prov->cache.entries.size();
+            ncleaned = prov->cache.cleanerRuns;
+            ndust = prov->cache.cleanerDust;
 
-            // find the channel, if it's there
-            {
-                Guard G(scp->cache.cacheLock);
-
-                ChannelCache::entries_t::iterator it = scp->cache.entries.find(chan);
-                if(it==scp->cache.entries.end())
-                    continue;
-
-                std::cout<<"Found in provider "<<p->getProviderName()<<"\n";
-
-                entry = it->second;
-                scp->cache.entries.erase(it); // drop out of cache (TODO: not required)
+            if(lvl>0) {
+                if(!iswild) { // no string or some glob pattern
+                    entries = prov->cache.entries; // copy of std::map
+                } else { // just one channel
+                    ChannelCache::entries_t::iterator it(prov->cache.entries.find(channel));
+                    if(it!=prov->cache.entries.end())
+                        entries[it->first] = it->second;
+                }
             }
-
-            // trigger client side disconnect (recursively calls call CRequester::channelStateChange())
-            entry->channel->destroy();
         }
 
-        std::cout<<"Done\n";
-    }catch(std::exception& e){
-        std::cerr<<"Error: "<<e.what()<<"\n";
+        std::cout<<"Cache has "<<ncache<<" channels.  Cleaned "
+                <<ncleaned<<" times closing "<<ndust<<" channels\n";
+
+        if(lvl<=0)
+            continue;
+
+        FOREACH(ChannelCache::entries_t::const_iterator, it2, end2, entries)
+        {
+            const std::string& channame = it2->first;
+            if(iswild && !epicsStrGlobMatch(channame.c_str(), channel))
+                continue;
+
+            ChannelCacheEntry& E = *it2->second;
+            ChannelCacheEntry::mon_entries_t::lock_vector_type mons;
+            size_t nsrv, nmon;
+            bool dropflag;
+            const char *chstate;
+            {
+                Guard G(E.mutex());
+                chstate = pva::Channel::ConnectionStateNames[E.channel->getConnectionState()];
+                nsrv = E.interested.size();
+                nmon = E.mon_entries.size();
+                dropflag = E.dropPoke;
+
+                if(lvl>1)
+                    mons = E.mon_entries.lock_vector();
+            }
+
+            std::cout<<chstate
+                     <<" Client Channel '"<<channame
+                     <<"' used by "<<nsrv<<" Server channel(s) with "
+                     <<nmon<<" unique subscription(s) "
+                     <<(dropflag?'!':'_')<<"\n";
+
+            if(lvl<=1)
+                continue;
+
+            FOREACH(ChannelCacheEntry::mon_entries_t::lock_vector_type::const_iterator, it2, end2, mons) {
+                MonitorCacheEntry& ME =  *it2->second;
+
+                MonitorCacheEntry::interested_t::vector_type usrs;
+                size_t nsrvmon;
+#ifdef USE_MSTATS
+                pvd::Monitor::Stats mstats;
+#endif
+                bool hastype, hasdata, isdone;
+                {
+                    Guard G(ME.mutex());
+
+                    nsrvmon = ME.interested.size();
+                    hastype = !!ME.typedesc;
+                    hasdata = !!ME.lastelem;
+                    isdone = ME.done;
+
+#ifdef USE_MSTATS
+                    if(ME.mon)
+                        ME.mon->getStats(mstats);
+#endif
+
+                    if(lvl>2)
+                        usrs = ME.interested.lock_vector();
+                }
+
+                // TODO: how to describe pvRequest in a compact way...
+                std::cout<<"  Client Monitor used by "<<nsrvmon<<" Server monitors, "
+                         <<"Has "<<(hastype?"":"not ")
+                         <<"opened, Has "<<(hasdata?"":"not ")
+                         <<"recv'd some data, Has "<<(isdone?"":"not ")<<"finalized\n"
+                           "    "<<      epicsAtomicGetSizeT(&ME.nwakeups)<<" wakeups "
+                         <<epicsAtomicGetSizeT(&ME.nevents)<<" events\n";
+#ifdef USE_MSTATS
+                if(mstats.nempty || mstats.nfilled || mstats.noutstanding)
+                    std::cout<<"    US monitor queue "<<mstats.nfilled
+                             <<" filled, "<<mstats.noutstanding
+                             <<" outstanding, "<<mstats.nempty<<" empty\n";
+#endif
+                if(lvl<=2)
+                    continue;
+
+                FOREACH(MonitorCacheEntry::interested_t::vector_type::const_iterator, it3, end3, usrs) {
+                    MonitorUser& MU = **it3;
+
+                    size_t nempty, nfilled, nused, total;
+                    std::string remote;
+                    bool isrunning;
+                    {
+                        Guard G(MU.mutex());
+
+                        nempty = MU.empty.size();
+                        nfilled = MU.filled.size();
+                        nused = MU.inuse.size();
+                        isrunning = MU.running;
+
+                        GWChannel::shared_pointer srvchan(MU.srvchan.lock());
+                        if(srvchan)
+                            remote = srvchan->address;
+                        else
+                            remote = "<unknown>";
+                    }
+                    total = nempty + nfilled + nused;
+
+                    std::cout<<"    Server monitor from "
+                             <<remote
+                             <<(isrunning?"":" Paused")
+                             <<" buffer "<<nfilled<<"/"<<total
+                             <<" out "<<nused<<"/"<<total
+                             <<" "<<epicsAtomicGetSizeT(&MU.nwakeups)<<" wakeups "
+                             <<epicsAtomicGetSizeT(&MU.nevents)<<" events "
+                             <<epicsAtomicGetSizeT(&MU.ndropped)<<" drops\n";
+                }
+            }
+
+
+
+        }
+
+
+        std::cout<<"<== Client: "<<it->first<<"\n\n";
     }
-}
-
-void pvadebug(const char *lvl)
-{
-    try {
-        std::string lname(lvl ? lvl : "warn");
-        pva::pvAccessLogLevel elvl;
-        if(lname=="off" || lname=="-2")
-            elvl = pva::logLevelOff;
-        else if(lname=="fatal" || lname=="-1")
-            elvl = pva::logLevelFatal;
-        else if(lname=="error" || lname=="0")
-            elvl = pva::logLevelError;
-        else if(lname=="warn" || lname=="1")
-            elvl = pva::logLevelWarn;
-        else if(lname=="info" || lname=="2")
-            elvl = pva::logLevelInfo;
-        else if(lname=="debug" || lname=="3")
-            elvl = pva::logLevelDebug;
-        else if(lname=="trace" || lname=="4")
-            elvl = pva::logLevelTrace;
-        else if(lname=="all" || lname=="5")
-            elvl = pva::logLevelAll;
-        else
-            throw std::invalid_argument("Unknown level name, must be one of off|fatal|error|warn|info|debug|trace|all");
-
-        pva::pvAccessSetLogLevel(elvl);
-    }catch(std::exception& e){
-        std::cout<<"Error: "<<e.what()<<"\n";
-    }
-}
-
-} // namespace
-
-void registerGWServerIocsh()
-{
-    iocshRegister<&startServer>("gwstart");
-    iocshRegister<&stopServer>("gwstop");
-    iocshRegister<int, &infoServer>("pvasr", "level");
-    iocshRegister<int, const char*, &statusServer>("gwstatus", "level", "channel name/pattern");
-    iocshRegister<const char*, &dropChannel>("gwdrop", "channel");
-    iocshRegister<const char*, &pvadebug>("pvadebug", "level");
-
-    epics::registerRefCounter("ChannelCacheEntry", &ChannelCacheEntry::num_instances);
-    epics::registerRefCounter("ChannelCacheEntry::CRequester", &ChannelCacheEntry::CRequester::num_instances);
-    epics::registerRefCounter("GWChannel", &GWChannel::num_instances);
-    epics::registerRefCounter("MonitorCacheEntry", &MonitorCacheEntry::num_instances);
-    epics::registerRefCounter("MonitorUser", &MonitorUser::num_instances);
-}
-
-void gwServerShutdown()
-{
-    stopServer();
 }

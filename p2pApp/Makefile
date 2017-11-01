@@ -13,7 +13,6 @@ p2p_LIBS += p2pcore pvAccessIOC pvAccess pvData Com
 LIBRARY_HOST += p2pcore
 
 p2pcore_SRCS += server.cpp
-p2pcore_SRCS += client.cpp
 p2pcore_SRCS += chancache.cpp
 p2pcore_SRCS += moncache.cpp
 p2pcore_SRCS += channel.cpp

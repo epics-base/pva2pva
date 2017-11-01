@@ -7,9 +7,11 @@
 #include <pv/reftrack.h>
 #include <pv/pvAccess.h>
 #include <pv/serverContext.h>
+#include <pv/iocshelper.h>
+
+#define epicsExportSharedSymbols
 
 #include "pvahelper.h"
-#include "iocshelper.h"
 #include "pvif.h"
 #include "pdb.h"
 #include "pdbsingle.h"

@@ -158,25 +158,16 @@ ChannelCache::ChannelCache(const pva::ChannelProvider::shared_pointer& prov)
 
 ChannelCache::~ChannelCache()
 {
-    Guard G(cacheLock);
-
-    cleanTimer->destroy();
-    timerQueue->release();
-    delete cleaner;
-
     entries_t E;
-    E.swap(entries);
-
-    FOREACH(entries_t::iterator, it, end, E)
     {
-        ChannelCacheEntry *ent = it->second.get();
+        Guard G(cacheLock);
 
-        if(ent->channel) {
-            epics::pvAccess::Channel::shared_pointer chan;
-            chan.swap(ent->channel);
-            UnGuard U(G);
-            chan->destroy();
-        }
+        cleanTimer->destroy();
+        timerQueue->release();
+        delete cleaner;
+
+        entries_t E;
+        E.swap(entries);
     }
 }
 

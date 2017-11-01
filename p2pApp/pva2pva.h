@@ -10,7 +10,6 @@
 typedef epicsGuard<epicsMutex> Guard;
 typedef epicsGuardRelease<epicsMutex> UnGuard;
 
-epicsShareExtern void registerGWServerIocsh();
 epicsShareExtern void registerGWClientIocsh();
 epicsShareExtern void gwServerShutdown();
 epicsShareExtern void gwClientShutdown();
