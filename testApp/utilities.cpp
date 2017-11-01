@@ -355,9 +355,6 @@ pva::MonitorElementPtr TestPVMonitor::poll()
         buffer.pop_front();
     }
     testDiag("TestPVMonitor::poll %p %p", this, ret.get());
-    if(ret)
-        std::cout<<"# XXXZ "<<*ret->changedBitSet<<" "
-                <<*ret->overrunBitSet<<"\n";
     return ret;
 }
 

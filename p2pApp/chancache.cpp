@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include <epicsAtomic.h>
+#include <errlog.h>
 
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
@@ -25,7 +26,6 @@ ChannelCacheEntry::ChannelCacheEntry(ChannelCache* c, const std::string& n)
 ChannelCacheEntry::~ChannelCacheEntry()
 {
     // Should *not* be holding cache->cacheLock
-    std::cout<<"Destroy client channel for '"<<channelName<<"'\n";
     if(channel.get())
         channel->destroy(); // calls channelStateChange() w/ DESTROY
     epicsAtomicDecrSizeT(&num_instances);
@@ -50,14 +50,6 @@ ChannelCacheEntry::CRequester::~CRequester()
     epicsAtomicDecrSizeT(&num_instances);
 }
 
-void
-ChannelCacheEntry::CRequester::message(std::string const & message, pvd::MessageType messageType)
-{
-    ChannelCacheEntry::shared_pointer chan(this->chan);
-    if(chan)
-        std::cout<<"message to client about '"<<chan->channelName<<"' : "<<message<<"\n";
-}
-
 // for ChannelRequester
 void
 ChannelCacheEntry::CRequester::channelCreated(const pvd::Status& status,
@@ -71,9 +63,6 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
     ChannelCacheEntry::shared_pointer chan(this->chan.lock());
     if(!chan)
         return;
-
-    std::cout<<"Chan change '"<<chan->channelName<<"' is "
-            <<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
 
     {
         Guard G(chan->cache->cacheLock);
@@ -102,8 +91,6 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
         pva::ChannelRequester::shared_pointer req(chan->requester.lock());
         if(req)
             req->channelStateChange(*it, connectionState);
-        else
-            std::cout<<"GWChannel w/ dead requester\n";
     }
 }
 

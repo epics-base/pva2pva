@@ -103,20 +103,13 @@ GWServerChannelProvider::createChannel(std::string const & channelName,
     return ret; // ignored by caller
 }
 
-void GWServerChannelProvider::destroy()
-{
-    std::cout<<"GWServer destory request\n";
-}
+void GWServerChannelProvider::destroy() {}
 
 GWServerChannelProvider::GWServerChannelProvider(const pva::ChannelProvider::shared_pointer& prov)
     :cache(prov)
-{
-    std::cout<<"GW Server ctor\n";
-}
-GWServerChannelProvider::~GWServerChannelProvider()
-{
-    std::cout<<"GW Server dtor\n";
-}
+{}
+
+GWServerChannelProvider::~GWServerChannelProvider() {}
 
 void ServerConfig::drop(const char *client, const char *channel)
 {

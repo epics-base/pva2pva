@@ -1,5 +1,6 @@
 
 #include <epicsAtomic.h>
+#include <errlog.h>
 
 #define epicsExportSharedSymbols
 #include "helper.h"
@@ -91,8 +92,6 @@ MonitorCacheEntry::monitorConnect(pvd::Status const & status,
         pvd::MonitorRequester::shared_pointer req((*it)->req);
         if(req) {
             req->monitorConnect(startresult, *it, structure);
-        } else {
-            std::cout<<"Dead requester in monitorConnect()\n";
         }
     }
 }
@@ -222,7 +221,6 @@ MonitorCacheEntry::unlisten(pvd::MonitorPtr const & monitor)
     }
     if(M) {
         M->destroy();
-        std::cout<<__PRETTY_FUNCTION__<<" destroy client monitor\n";
     }
     FOREACH(interested_t::vector_type::iterator, it, end, tonotify) {
         MonitorUser *usr = it->get();
@@ -236,12 +234,6 @@ std::string
 MonitorCacheEntry::getRequesterName()
 {
     return "MonitorCacheEntry";
-}
-
-void
-MonitorCacheEntry::message(std::string const & message, pvd::MessageType messageType)
-{
-    std::cout<<"message to Monitor cache entry about '"<<chan->channelName<<"' : "<<message<<"\n";
 }
 
 MonitorUser::MonitorUser(const MonitorCacheEntry::shared_pointer &e)
@@ -381,10 +373,4 @@ std::string
 MonitorUser::getRequesterName()
 {
     return "MonitorCacheEntry";
-}
-
-void
-MonitorUser::message(std::string const & message, pvd::MessageType messageType)
-{
-    std::cout<<"message to Monitor cache client : "<<message<<"\n";
 }

@@ -27,7 +27,6 @@ struct epicsShareClass GWChannel : public epics::pvAccess::Channel
 
     // for Requester
     virtual std::string getRequesterName();
-    virtual void message(std::string const & message, epics::pvData::MessageType messageType);
 
     // for Destroyable
     virtual void destroy();

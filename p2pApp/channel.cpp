@@ -39,12 +39,6 @@ GWChannel::getRequesterName()
 }
 
 void
-GWChannel::message(std::string const & message, pvd::MessageType messageType)
-{
-    std::cout<<"message to client about '"<<entry->channelName<<"' : "<<message<<"\n";
-}
-
-void
 GWChannel::destroy()
 {}
 
@@ -85,7 +79,6 @@ GWChannel::getField(pva::GetFieldRequester::shared_pointer const & requester,
                             std::string const & subField)
 {
     //TODO: cache for top level field?
-    std::cout<<"getField for "<<entry->channelName<<" '"<<subField<<"'\n";
     entry->channel->getField(requester, subField);
 }
 
@@ -159,7 +152,6 @@ GWChannel::createMonitor(
         pvd::MonitorRequester::shared_pointer const & monitorRequester,
         pvd::PVStructure::shared_pointer const & pvRequest)
 {
-    std::cout<<__PRETTY_FUNCTION__<<"\n";
     ChannelCacheEntry::pvrequest_t ser;
     // serialize request struct to string using host byte order (only used for local comparison)
     pvd::serializeToVector(pvRequest.get(), EPICS_BYTE_ORDER, ser);
@@ -193,10 +185,6 @@ GWChannel::createMonitor(
                     M = entry->channel->createMonitor(ment, pvRequest);
                 }
                 ment->mon = M;
-
-                std::cout<<"Monitor cache "<<entry->channelName<<" Miss\n";
-            } else {
-                std::cout<<"Monitor cache "<<entry->channelName<<" Hit\n";
             }
         }
 
@@ -213,7 +201,7 @@ GWChannel::createMonitor(
 
     } catch(std::exception& e) {
         mon.reset();
-        std::cerr<<"Exception in "<<__PRETTY_FUNCTION__<<"\n"
+        std::cerr<<"Exception in GWChannel::createMonitor()\n"
                    "is "<<e.what()<<"\n";
         startresult = pvd::Status(pvd::Status::STATUSTYPE_FATAL, "Error during GWChannel setup");
     }

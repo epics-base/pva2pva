@@ -62,7 +62,6 @@ struct epicsShareClass MonitorCacheEntry : public epics::pvData::MonitorRequeste
     virtual void unlisten(epics::pvData::MonitorPtr const & monitor);
 
     virtual std::string getRequesterName();
-    virtual void message(std::string const & message, epics::pvData::MessageType messageType);
 };
 
 struct epicsShareClass MonitorUser : public epics::pvData::Monitor
@@ -101,7 +100,6 @@ struct epicsShareClass MonitorUser : public epics::pvData::Monitor
     virtual void release(epics::pvData::MonitorElementPtr const & monitorElement);
 
     virtual std::string getRequesterName();
-    virtual void message(std::string const & message, epics::pvData::MessageType messageType);
 };
 
 struct epicsShareClass ChannelCacheEntry
@@ -142,7 +140,6 @@ struct epicsShareClass ChannelCacheEntry
         ChannelCacheEntry::weak_pointer chan;
         // for Requester
         virtual std::string getRequesterName();
-        virtual void message(std::string const & message, epics::pvData::MessageType messageType);
         // for ChannelRequester
         virtual void channelCreated(const epics::pvData::Status& status,
                                     epics::pvAccess::Channel::shared_pointer const & channel);
