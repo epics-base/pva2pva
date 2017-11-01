@@ -94,9 +94,9 @@ ChannelCacheEntry::CRequester::channelStateChange(pva::Channel::shared_pointer c
     }
 
     // fanout notification
-    AUTO_VAL(interested, chan->interested.lock_vector()); // Copy
+    ChannelCacheEntry::interested_t::vector_type interested(chan->interested.lock_vector()); // Copy
 
-    FOREACH(it, end, interested)
+    FOREACH(ChannelCacheEntry::interested_t::vector_type::const_iterator, it, end, interested)
     {
         GWChannel *chan = it->get();
         pva::ChannelRequester::shared_pointer req(chan->requester.lock());
@@ -167,7 +167,7 @@ ChannelCache::~ChannelCache()
     entries_t E;
     E.swap(entries);
 
-    FOREACH(it, end, E)
+    FOREACH(entries_t::iterator, it, end, E)
     {
         ChannelCacheEntry *ent = it->second.get();
 

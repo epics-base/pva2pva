@@ -86,7 +86,7 @@ void pvaLinkChannel::channelStateChange(pva::Channel::shared_pointer const & cha
     assert(chan==channel);
     if(pvaLinkDebug>2) std::cerr<<"pvaLink channelStateChange "<<name<<pva::Channel::ConnectionStateNames[connectionState]<<"\n";
     if(connectionState!=pva::Channel::CONNECTED) {
-        FOREACH(it, end, links) {
+        FOREACH(links_t::const_iterator, it, end, links) {
             pvaLink* L = *it;
             L->detach();
         }
@@ -132,7 +132,7 @@ void pvaLinkChannel::monitorConnect(pvd::Status const & status,
         return;
     }
 
-    FOREACH(it, end, links) {
+    FOREACH(links_t::const_iterator, it, end, links) {
         pvaLink* L = *it;
         L->attach();
     }
@@ -169,7 +169,7 @@ void pvaLinkChannel::triggerProc(bool atomic, bool force)
 {
     bool doscan = false;
     // check if we actually need to scan anything
-    FOREACH(it, end, links) {
+    FOREACH(links_t::const_iterator, it, end, links) {
         pvaLink* L = *it;
 
         if ((L->linkmods & pvlOptCP) ||
@@ -213,7 +213,7 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
         myscan.usecached = usecached;
         if(usecached) {
             if(pvaLinkDebug>4) std::cerr<<"populate cache\n";
-            FOREACH(it, end, links) {
+            FOREACH(links_t::const_iterator, it, end, links) {
                 pvaLink *link = *it;
                 link->get(link->atomcache);
                 if(pvaLinkDebug>4)
@@ -227,7 +227,7 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
             UnGuard U(G);
             // we may scan a record after the originating link is re-targeted
 
-            FOREACH(it, end, links) {
+            FOREACH(links_t::const_iterator, it, end, links) {
                 pvaLink *link = *it;
                 dbCommon *prec=link->plink->precord;
 
@@ -243,7 +243,7 @@ void pvaLinkChannel::scan(void* arg, epicsJobMode mode)
         // another scan may be queued by this point
 
         if(usecached) {
-            FOREACH(it, end, links) {
+            FOREACH(links_t::const_iterator, it, end, links) {
                 pvaLink *link = *it;
                 link->atomcache.clear();
             }

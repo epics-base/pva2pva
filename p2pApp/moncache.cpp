@@ -177,7 +177,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
                     if(usr->filled.empty())
                         dsnotify.push_back(pusr);
 
-                    AUTO_VAL(elem, usr->empty.front());
+                    pvd::MonitorElementPtr elem(usr->empty.front());
 
                     *elem->overrunBitSet = *lastelem->overrunBitSet;
                     *elem->changedBitSet = *lastelem->changedBitSet;
@@ -197,7 +197,7 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
     // unlock here, race w/ stop(), unlisten()?
     //TODO: notify from worker thread
 
-    FOREACH(it,end,dsnotify) {
+    FOREACH(dsnotify_t::iterator, it,end,dsnotify) {
         MonitorUser *usr = (*it).get();
         pvd::MonitorRequester::shared_pointer req(usr->req);
         epicsAtomicIncrSizeT(&usr->nwakeups);
@@ -224,7 +224,7 @@ MonitorCacheEntry::unlisten(pvd::MonitorPtr const & monitor)
         M->destroy();
         std::cout<<__PRETTY_FUNCTION__<<" destroy client monitor\n";
     }
-    FOREACH(it, end, tonotify) {
+    FOREACH(interested_t::vector_type::iterator, it, end, tonotify) {
         MonitorUser *usr = it->get();
         pvd::MonitorRequester::shared_pointer req(usr->req);
         if(usr->inuse.empty()) // TODO: what about stopped?

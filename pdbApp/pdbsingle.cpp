@@ -46,7 +46,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
             if(!self->hadevent_VALUE || !self->hadevent_PROPERTY)
                 return;
 
-            FOREACH(it, end, self->interested) {
+            FOREACH(PDBSinglePV::interested_t::const_iterator, it, end, self->interested) {
                 PDBSingleMonitor& mon = *it->get();
                 mon.post(self->scratch);
             }

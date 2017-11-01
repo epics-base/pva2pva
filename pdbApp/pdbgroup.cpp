@@ -50,7 +50,7 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                 // we ignore 'pfl' (and the dbEvent queue) when collecting an atomic snapshot
 
                 DBManyLocker L(info.locker); // lock only those records in the triggers list
-                FOREACH(it, end, info.triggers)
+                FOREACH(PDBGroupPV::Info::triggers_t::const_iterator, it, end, info.triggers)
                 {
                     size_t i = *it;
                     // go get a consistent snapshot we must ignore the db_field_log which came through the dbEvent buffer
@@ -61,7 +61,7 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
 
             if(self->initial_waits>0) return; // don't post() until all subscriptions get initial updates
 
-            FOREACH(it, end, self->interested) {
+            FOREACH(PDBGroupPV::interested_t::const_iterator, it, end, self->interested) {
                 PDBGroupMonitor& mon = *it->get();
                 mon.post(self->scratch);
             }

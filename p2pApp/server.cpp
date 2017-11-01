@@ -220,7 +220,7 @@ void statusServer(int lvl, const char *chanexpr)
                     if(!chanexpr || iswild) { // no string or some glob pattern
                         entries = scp->cache.entries; // copy of std::map
                     } else if(chanexpr) { // just one channel
-                        AUTO_VAL(it, scp->cache.entries.find(chanexpr));
+                        ChannelCache::entries_t::iterator it(scp->cache.entries.find(chanexpr));
                         if(it!=scp->cache.entries.end())
                             entries[it->first] = it->second;
                     }
@@ -233,7 +233,7 @@ void statusServer(int lvl, const char *chanexpr)
             if(lvl<=0)
                 continue;
 
-            FOREACH(it, end, entries) {
+            FOREACH(ChannelCache::entries_t::const_iterator, it, end, entries) {
                 const std::string& channame = it->first;
                 if(iswild && !epicsStrGlobMatch(channame.c_str(), chanexpr))
                     continue;
@@ -263,7 +263,7 @@ void statusServer(int lvl, const char *chanexpr)
                 if(lvl<=1)
                     continue;
 
-                FOREACH(it2, end2, mons) {
+                FOREACH(ChannelCacheEntry::mon_entries_t::lock_vector_type::const_iterator, it2, end2, mons) {
                     MonitorCacheEntry& ME =  *it2->second;
 
                     MonitorCacheEntry::interested_t::vector_type usrs;
@@ -305,7 +305,7 @@ void statusServer(int lvl, const char *chanexpr)
                     if(lvl<=2)
                         continue;
 
-                    FOREACH(it3, end3, usrs) {
+                    FOREACH(MonitorCacheEntry::interested_t::vector_type::const_iterator, it3, end3, usrs) {
                         MonitorUser& MU = **it3;
 
                         size_t nempty, nfilled, nused, total;
@@ -412,7 +412,7 @@ void refCheck(int lvl)
             return;
         }
         if(ctx) {
-            const AUTO_REF(prov, ctx->getChannelProviders());
+            const std::vector<pva::ChannelProvider::shared_pointer>& prov(ctx->getChannelProviders());
 
             if(lvl>0) std::cout<<"Server has "<<prov.size()<<" providers\n";
 
@@ -433,17 +433,17 @@ void refCheck(int lvl)
 
                 chan_count += entries.size();
 
-                FOREACH(it, end, entries)
+                FOREACH(ChannelCache::entries_t::const_iterator, it, end, entries)
                 {
-                    AUTO_VAL(M, it->second->mon_entries.lock_vector());
+                    ChannelCacheEntry::mon_entries_t::lock_vector_type M(it->second->mon_entries.lock_vector());
 
                     if(lvl>0) std::cout<<"  Channel "<<it->second->channelName
                                       <<" has "<<M.size()<<" Client Monitors\n";
 
                     mon_count += M.size();
-                    FOREACH(it2, end2, M)
+                    FOREACH(ChannelCacheEntry::mon_entries_t::lock_vector_type::const_iterator, it2, end2, M)
                     {
-                        AUTO_REF(W, it2->second->interested);
+                        const MonitorCacheEntry::interested_t& W(it2->second->interested);
                         if(lvl>0) std::cout<<"   Used by "<<W.size()<<" Client Monitors\n";
                         mon_user_count += W.size();
                     }

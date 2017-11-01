@@ -52,7 +52,8 @@ struct GroupMemberInfo {
     std::string pvname, // aka. name passed to dbChannelOpen()
                 pvfldname; // PVStructure sub-field
     std::string structID; // ID to assign to sub-field
-    std::set<std::string> triggers; // names in GroupInfo::members_names which are post()d on events from pvfldname
+    typedef std::set<std::string> triggers_t;
+    triggers_t triggers; // names in GroupInfo::members_names which are post()d on events from pvfldname
     std::tr1::shared_ptr<PVIFBuilder> builder; // not actually shared, but allows us to be copyable
     int putorder;
 
@@ -91,11 +92,11 @@ struct PDBProcessor
     // validate trigger mappings and process into bit map form
     void resolveTriggers()
     {
-        FOREACH(it, end, groups) { // for each group
+        FOREACH(groups_t::iterator, it, end, groups) { // for each group
             GroupInfo& info = it->second;
 
             if(info.hastriggers) {
-                FOREACH(it2, end2, info.triggers) { // for each trigger source
+                FOREACH(GroupInfo::triggers_t::iterator, it2, end2, info.triggers) { // for each trigger source
                     const std::string& src = it2->first;
                     GroupInfo::triggers_set_t& targets = it2->second;
 
@@ -111,7 +112,7 @@ struct PDBProcessor
                         fprintf(stderr, "  pdb trg '%s.%s'  -> ",
                                 info.name.c_str(), src.c_str());
 
-                    FOREACH(it3, end3, targets) { // for each trigger target
+                    FOREACH(GroupInfo::triggers_set_t::const_iterator, it3, end3, targets) { // for each trigger target
                         const std::string& target = *it3;
 
                         if(target=="*") {
@@ -151,7 +152,7 @@ struct PDBProcessor
             } else {
                 if(PDBProviderDebug>1) fprintf(stderr, "  pdb default triggers for '%s'\n", info.name.c_str());
 
-                FOREACH(it2, end2, info.members) {
+                FOREACH(GroupInfo::members_t::iterator, it2, end2, info.members) {
                     GroupMemberInfo& mem = *it2;
                     if(mem.pvname.empty())
                         continue;
@@ -324,9 +325,9 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
 #ifdef USE_MULTILOCK
     // assemble group PVD structure definitions and build dbLockers
-    FOREACH(it, end, proc.groups)
+    FOREACH(PDBProcessor::groups_t::const_iterator, it, end, proc.groups)
     {
-        GroupInfo &info=it->second;
+        const GroupInfo &info=it->second;
         try{
             if(persist_pv_map.find(info.name)!=persist_pv_map.end())
                 throw std::runtime_error("name already in used");
@@ -361,7 +362,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
 
             for(size_t i=0, J=0, N=info.members.size(); i<N; i++)
             {
-                GroupMemberInfo &mem = info.members[i];
+                const GroupMemberInfo &mem = info.members[i];
 
                 // parse down attachment point to build/traverse structure
                 FieldName parts(mem.pvfldname);
@@ -432,7 +433,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             // construct locker for records triggered by each member
             for(size_t i=0, J=0, N=info.members.size(); i<N; i++)
             {
-                GroupMemberInfo &mem = info.members[i];
+                const GroupMemberInfo &mem = info.members[i];
                 if(mem.pvname.empty()) continue;
                 PDBGroupPV::Info& info = pv->members[J++];
 
@@ -441,7 +442,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
                 std::vector<dbCommon*> trig_records;
                 trig_records.reserve(mem.triggers.size());
 
-                FOREACH(it, end, mem.triggers) {
+                FOREACH(GroupMemberInfo::triggers_t::const_iterator, it, end, mem.triggers) {
                     members_map_t::const_iterator imap(members_map.find(*it));
                     if(imap==members_map.end())
                         throw std::logic_error("trigger resolution missed map to non-dbChannel");
@@ -489,7 +490,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
             // prepare for monitor
 
             size_t i=0;
-            FOREACH(it2, end2, pv->members)
+            FOREACH(PDBGroupPV::members_t::iterator, it2, end2, pv->members)
             {
                 PDBGroupPV::Info& info = *it2;
                 info.evt_VALUE.index = info.evt_PROPERTY.index = i++;

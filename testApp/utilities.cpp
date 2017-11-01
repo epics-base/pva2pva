@@ -418,12 +418,12 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
 
     channels_t::vector_type toupdate(channels.lock_vector());
 
-    FOREACH(it, end, toupdate) // channel
+    FOREACH(channels_t::vector_type::const_iterator, it, end, toupdate) // channel
     {
         TestPVChannel *chan = it->get();
 
         TestPVChannel::monitors_t::vector_type tomon(chan->monitors.lock_vector());
-        FOREACH(it2, end2, tomon) // monitor/subscription
+        FOREACH(TestPVChannel::monitors_t::vector_type::const_iterator, it2, end2, tomon) // monitor/subscription
         {
             TestPVMonitor *mon = it2->get();
 
@@ -446,7 +446,7 @@ void TestPV::post(const pvd::BitSet& changed, bool notify)
                 if(mon->buffer.empty())
                     mon->needWakeup = true;
 
-                AUTO_REF(elem, mon->free.front());
+                pvd::MonitorElementPtr& elem(mon->free.front());
                 // Note: can't use 'changed' to optimize this copy since we don't know
                 //       the state of the free element
                 elem->pvStructurePtr->copyUnchecked(*mon->overflow->pvStructurePtr);
@@ -477,7 +477,7 @@ void TestPV::disconnect()
     Guard G(lock);
     channels_t::vector_type toupdate(channels.lock_vector());
 
-    FOREACH(it, end, toupdate) // channel
+    FOREACH(channels_t::vector_type::const_iterator, it, end, toupdate) // channel
     {
         TestPVChannel *chan = it->get();
 
@@ -580,12 +580,12 @@ void TestProvider::dispatch()
     testDiag("TestProvider::dispatch");
 
     pvs_t::lock_vector_type allpvs(pvs.lock_vector());
-    FOREACH(pvit, pvend, allpvs)
+    FOREACH(pvs_t::lock_vector_type::const_iterator, pvit, pvend, allpvs)
     {
         TestPV *pv = pvit->second.get();
         TestPV::channels_t::vector_type channels(pv->channels.lock_vector());
 
-        FOREACH(chit, chend, channels)
+        FOREACH(TestPV::channels_t::vector_type::const_iterator, chit, chend, channels)
         {
             TestPVChannel *chan = chit->get();
             TestPVChannel::monitors_t::vector_type monitors(chan->monitors.lock_vector());
@@ -593,7 +593,7 @@ void TestProvider::dispatch()
             if(!chan->isConnected())
                 continue;
 
-            FOREACH(monit, monend, monitors)
+            FOREACH(TestPVChannel::monitors_t::vector_type::const_iterator, monit, monend, monitors)
             {
                 TestPVMonitor *mon = monit->get();
 
