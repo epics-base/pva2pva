@@ -6,6 +6,13 @@
 #include <epicsString.h>
 #include <epicsAtomic.h>
 
+#include <dbAccess.h>
+#include <dbNotify.h>
+
+#include <dbEvent.h>
+
+#include <pv/pvAccess.h>
+
 #define epicsExportSharedSymbols
 #include "helper.h"
 #include "pdbsingle.h"
