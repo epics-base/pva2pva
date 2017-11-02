@@ -23,7 +23,6 @@
 #include <pv/iocreftrack.h>
 #include <pv/iocshelper.h>
 
-#define epicsExportSharedSymbols
 #include "server.h"
 
 namespace pvd = epics::pvData;

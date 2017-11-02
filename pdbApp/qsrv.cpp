@@ -38,4 +38,6 @@ void QSRVRegistrar()
     pva::ChannelProviderRegistry::servers()->add<PDBProvider>("QSRV");
 }
 
-epicsExportRegistrar(QSRVRegistrar);
+extern "C" {
+    epicsExportRegistrar(QSRVRegistrar);
+}
