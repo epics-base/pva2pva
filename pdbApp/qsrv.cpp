@@ -4,6 +4,13 @@
 #include <epicsExit.h>
 #include <epicsThread.h>
 
+#include <dbAccess.h>
+#include <dbChannel.h>
+#include <dbStaticLib.h>
+#include <dbLock.h>
+#include <dbEvent.h>
+#include <epicsVersion.h>
+
 #include <pv/reftrack.h>
 #include <pv/pvAccess.h>
 #include <pv/serverContext.h>
