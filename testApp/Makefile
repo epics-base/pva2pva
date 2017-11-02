@@ -17,50 +17,58 @@ p2pTestIoc_DBD += base.dbd
 TESTLIBRARY += testutils
 
 testutils_SRCS += utilities.cpp
-testutils_LIBS += pvAccess pvData Com
+testutils_LIBS += pvAccess pvData
+testutils_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 TESTPROD_HOST += testweak
-testweak_SRCS = testweak.cpp
-testweak_LIBS = Com
+testweak_SRCS += testweak.cpp
+testweak_LIBS += Com
 TESTS += testweak
 
 TESTPROD_HOST += testtest
-testtest_SRCS = testtest.cpp
-testtest_LIBS = testutils p2pcore pvAccess pvData Com
+testtest_SRCS += testtest.cpp
+testtest_LIBS += testutils p2pcore pvAccess pvData
+testtest_LIBS += $(EPICS_BASE_IOC_LIBS)
 TESTS += testtest
 
 TESTPROD_HOST += testmon
-testmon_SRCS = testmon.cpp
-testmon_LIBS = testutils p2pcore pvAccess pvData Com
+testmon_SRCS += testmon.cpp
+testmon_LIBS += testutils p2pcore pvAccess pvData
+testmon_LIBS += $(EPICS_BASE_IOC_LIBS)
 TESTS += testmon
 
 
 TESTPROD_HOST += testpvif
 testpvif_SRCS += testpvif.cpp
 testpvif_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpvif_LIBS += qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testpvif_LIBS += qsrv pvAccess pvData
+testpvif_LIBS += $(EPICS_BASE_IOC_LIBS)
 TESTS += testpvif
 
 TESTPROD_HOST += testpdb
 testpdb_SRCS += testpdb.cpp
 testpdb_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpdb_LIBS += testutils qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testpdb_LIBS += testutils qsrv pvAccess pvData
+testpdb_LIBS += $(EPICS_BASE_IOC_LIBS)
 TESTS += testpdb
 
 PROD_HOST += check_consist
 check_consist_SRCS += check_consist.cpp
-check_consist_LIBS += testutils pvAccess pvData Com
+check_consist_LIBS += testutils pvAccess pvData
+check_consist_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 #TESTPROD_HOST += testpvalink
 testpvalink_SRCS += testpvalink.cpp
 testpvalink_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpvalink_LIBS += testutils qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testpvalink_LIBS += testutils qsrv pvAccess pvData
+testpvalink_LIBS += $(EPICS_BASE_IOC_LIBS)
 #TESTS += testpvalink
 
 ifdef BASE_3_16
 TESTPROD_HOST += testgroupconfig
 testgroupconfig_SRCS += testgroupconfig
-testgroupconfig_LIBS += qsrv pvAccess pvData $(EPICS_BASE_IOC_LIBS)
+testgroupconfig_LIBS += qsrv pvAccess pvData
+testgroupconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
 endif
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
