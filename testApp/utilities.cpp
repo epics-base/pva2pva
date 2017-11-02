@@ -1,5 +1,12 @@
 
 #include <epicsAtomic.h>
+#include <errlog.h>
+#include <epicsEvent.h>
+#include <epicsUnitTest.h>
+#include <dbUnitTest.h>
+
+#include <pv/pvUnitTest.h>
+#include <pv/pvAccess.h>
 
 #define epicsExportSharedSymbols
 #include <utilities.h>
