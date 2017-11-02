@@ -21,6 +21,18 @@
 #define epicsExportSharedSymbols
 #include "pvif.h"
 
+#include <epicsExport.h>
+
+#ifdef EPICS_VERSION_INT
+#  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
+#    define USE_INT64
+#  endif
+#endif
+
+extern "C" {
+int qsrvDisableFormat = 1;
+}
+
 namespace pvd = epics::pvData;
 
 DBCH::DBCH(dbChannel *ch) :chan(ch)
@@ -90,11 +102,9 @@ struct pvCommon : public pvTimeAlarm {
     pvd::BitSet maskVALUE, maskPROPERTY, maskVALUEPut;
 
     pvd::PVDoublePtr displayLow, displayHigh, controlLow, controlHigh;
-    pvd::PVStringPtr egu;
+    pvd::PVStringPtr egu, desc, prec;
 
     pvd::PVScalarPtr warnLow, warnHigh, alarmLow, alarmHigh;
-
-    pvd::PVScalarPtr prec;
 
     pvd::PVStringArrayPtr enumopts;
 };
@@ -184,11 +194,12 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
     FMAP(controlHigh, PVDouble, "control.limitHigh", PROPERTY);
     FMAP(controlLow, PVDouble, "control.limitLow", PROPERTY);
     FMAP(egu, PVString, "display.units", PROPERTY);
-    //FMAP(prec,  PVScalar, "display.format", PROPERTY);
-    FMAP(warnHigh, PVScalar, "alarm.highWarningLimit", PROPERTY);
-    FMAP(warnLow,  PVScalar, "alarm.lowWarningLimit", PROPERTY);
-    FMAP(alarmHigh, PVScalar, "alarm.highAlarmLimit", PROPERTY);
-    FMAP(alarmLow,  PVScalar, "alarm.lowAlarmLimit", PROPERTY);
+    FMAP(desc, PVString, "display.description", PROPERTY);
+    FMAP(prec,  PVString, "display.format", PROPERTY);
+    FMAP(warnHigh, PVScalar, "valueAlarm.highWarningLimit", PROPERTY);
+    FMAP(warnLow,  PVScalar, "valueAlarm.lowWarningLimit", PROPERTY);
+    FMAP(alarmHigh, PVScalar, "valueAlarm.highAlarmLimit", PROPERTY);
+    FMAP(alarmLow,  PVScalar, "valueAlarm.lowAlarmLimit", PROPERTY);
     FMAP(enumopts,  PVStringArray, "value.choices", PROPERTY);
 #undef FMAP
 }
@@ -406,6 +417,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
 {
     META meta;
     long options = (int)META::mask, nReq = 0;
+    dbCommon *prec = dbChannelRecord(pv.chan);
 
     long status = dbChannelGet(pv.chan, dbChannelFinalFieldType(pv.chan), &meta, &options, &nReq, pfl);
     if(status)
@@ -425,6 +437,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     }
     if(dbe&DBE_PROPERTY) {
 #undef FMAP
+        if(pv.desc) pv.desc->put(prec->desc);
 #define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->put(meta.FNAME)
         FMAP(DBR_GR_DOUBLE, displayHigh, upper_disp_limit);
         FMAP(DBR_GR_DOUBLE, displayLow, lower_disp_limit);
@@ -432,6 +445,58 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
         FMAP(DBR_CTRL_DOUBLE, controlLow, lower_ctrl_limit);
         FMAP(DBR_GR_DOUBLE, egu, units);
 #undef FMAP
+        if(META::mask&DBR_PRECISION && pv.prec && !qsrvDisableFormat) {
+            // construct printf() style format.
+            // Widths based on epicsTypes.h
+            char buf[8];
+            char *pos = &buf[8]; // build string in reverse order
+            bool ok = true;
+
+            *--pos = '\0'; // buf[7] = '\0'
+
+            switch(dbChannelFinalFieldType(pv.chan)) {
+#ifdef USE_INT64
+            case DBF_UINT64:
+                *--pos = 'l';
+                *--pos = 'l';
+#endif
+            case DBF_UCHAR:
+            case DBF_USHORT:
+            case DBF_ULONG:
+                *--pos = 'u';
+                break;
+#ifdef USE_INT64
+            case DBF_INT64:
+                *--pos = 'l';
+                *--pos = 'l';
+#endif
+            case DBF_CHAR:
+            case DBF_SHORT:
+            case DBF_LONG:
+                *--pos = 'd';
+                break;
+            case DBF_DOUBLE:
+            case DBF_FLOAT:
+                *--pos = 'g'; // either decimal or scientific
+                break;
+            case DBF_STRING:
+                *--pos = 's';
+                break;
+            default:
+                ok = false;
+            }
+
+            if(ok) {
+                long dp = meta.precision.dp;
+                if(dp<0) dp = 0;
+                else if(dp>=99) dp = 99;
+                for(;dp;dp = dp/10u) {
+                    *--pos = '0'+(dp%10u);
+                }
+                *--pos = '%';
+            }
+            pv.prec->put(pos);
+        }
 #define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->putFrom(meta.FNAME)
         // not handling precision until I get a better idea of what 'format' is supposed to be...
         //FMAP(prec,  PVScalar, "display.format", PROPERTY);
@@ -612,7 +677,11 @@ ScalarBuilder::dtype(dbChannel *channel)
         return pvd::getStandardField()->enumerated("alarm,timeStamp");
 
     //TODO: ,valueAlarm for numeric
-    std::string options("alarm,timeStamp,display,control");
+    std::string options;
+    if(dbr!=DBR_STRING)
+        options = "alarm,timeStamp,display,control,valueAlarm";
+    else
+        options = "alarm,timeStamp,display,control";
 
     if(maxelem==1)
         return pvd::getStandardField()->scalar(pvt, options);
@@ -1004,4 +1073,8 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
         return new ProcBuilder;
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
+}
+
+extern "C" {
+    epicsExportAddress(int, qsrvDisableFormat);
 }
