@@ -86,7 +86,7 @@ void testScalar()
     pvif_li->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_li);
 
-#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+#define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
     testEqual(mask, pvd::BitSet()
               .set(OFF("li.value"))
               .set(OFF("li.alarm.severity"))
@@ -97,11 +97,15 @@ void testScalar()
               //.set(OFF("li.timeStamp.userTag"))
               .set(OFF("li.display.limitHigh"))
               .set(OFF("li.display.limitLow"))
-              //.set(OFF("li.display.description"))
-              //.set(OFF("li.display.format"))
+              .set(OFF("li.display.description"))
+              .set(OFF("li.display.format"))
               .set(OFF("li.display.units"))
               .set(OFF("li.control.limitHigh"))
-              .set(OFF("li.control.limitLow")));
+              .set(OFF("li.control.limitLow"))
+              .set(OFF("li.valueAlarm.highWarningLimit"))
+              .set(OFF("li.valueAlarm.lowWarningLimit"))
+              .set(OFF("li.valueAlarm.highAlarmLimit"))
+              .set(OFF("li.valueAlarm.lowAlarmLimit")));
 #undef OFF
     mask.clear();
 
@@ -111,7 +115,7 @@ void testScalar()
     pvif_si->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_si);
 
-#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+#define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
     testEqual(mask, pvd::BitSet()
               .set(OFF("si.value"))
               .set(OFF("si.alarm.severity"))
@@ -122,8 +126,8 @@ void testScalar()
               //.set(OFF("si.timeStamp.userTag"))
               .set(OFF("si.display.limitHigh"))
               .set(OFF("si.display.limitLow"))
-              //.set(OFF("si.display.description"))
-              //.set(OFF("si.display.format"))
+              .set(OFF("si.display.description"))
+              .set(OFF("si.display.format"))
               .set(OFF("si.display.units"))
               .set(OFF("si.control.limitHigh"))
               .set(OFF("si.control.limitLow")));
@@ -137,7 +141,7 @@ void testScalar()
     pvif_ai_rval->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
     dbScanUnlock((dbCommon*)prec_ai);
 
-#define OFF(NAME) root->getSubFieldT(NAME)->getFieldOffset()
+#define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
     testEqual(mask, pvd::BitSet()
               .set(OFF("ai.value"))
               .set(OFF("ai.alarm.severity"))
@@ -148,11 +152,15 @@ void testScalar()
               //.set(OFF("ai.timeStamp.userTag"))
               .set(OFF("ai.display.limitHigh"))
               .set(OFF("ai.display.limitLow"))
-              //.set(OFF("ai.display.description"))
-              //.set(OFF("ai.display.format"))
+              .set(OFF("ai.display.description"))
+              .set(OFF("ai.display.format"))
               .set(OFF("ai.display.units"))
               .set(OFF("ai.control.limitHigh"))
               .set(OFF("ai.control.limitLow"))
+              .set(OFF("ai.valueAlarm.highWarningLimit"))
+              .set(OFF("ai.valueAlarm.lowWarningLimit"))
+              .set(OFF("ai.valueAlarm.highAlarmLimit"))
+              .set(OFF("ai.valueAlarm.lowAlarmLimit"))
               .set(OFF("ai_rval.value"))
               .set(OFF("ai_rval.alarm.severity"))
               .set(OFF("ai_rval.alarm.status"))
@@ -162,11 +170,15 @@ void testScalar()
               //.set(OFF("ai_rval.timeStamp.userTag"))
               .set(OFF("ai_rval.display.limitHigh"))
               .set(OFF("ai_rval.display.limitLow"))
-              //.set(OFF("ai_rval.display.description"))
-              //.set(OFF("ai_rval.display.format"))
+              .set(OFF("ai_rval.display.description"))
+              .set(OFF("ai_rval.display.format"))
               .set(OFF("ai_rval.display.units"))
               .set(OFF("ai_rval.control.limitHigh"))
               .set(OFF("ai_rval.control.limitLow"))
+              .set(OFF("ai_rval.valueAlarm.highWarningLimit"))
+              .set(OFF("ai_rval.valueAlarm.lowWarningLimit"))
+              .set(OFF("ai_rval.valueAlarm.highAlarmLimit"))
+              .set(OFF("ai_rval.valueAlarm.lowAlarmLimit"))
               );
 #undef OFF
     mask.clear();
