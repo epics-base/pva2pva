@@ -10,9 +10,13 @@
 #include <dbEvent.h>
 #include <alarm.h>
 #include <errSymTbl.h>
+#include <epicsVersion.h>
 
+#include <pv/status.h>
 #include <pv/bitSet.h>
 #include <pv/pvData.h>
+#include <pv/anyscalar.h>
+#include <pv/reftrack.h>
 
 #define epicsExportSharedSymbols
 #include "pvif.h"
