@@ -41,7 +41,7 @@ TESTS += testmon
 TESTPROD_HOST += testpvif
 testpvif_SRCS += testpvif.cpp
 testpvif_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
-testpvif_LIBS += qsrv pvAccess pvData
+testpvif_LIBS += testutils qsrv pvAccess pvData
 testpvif_LIBS += $(EPICS_BASE_IOC_LIBS)
 TESTS += testpvif
 
