@@ -8,10 +8,10 @@
 
 #include <shareLib.h>
 
-struct epicsShareClass GWServerChannelProvider : public
-        epics::pvAccess::ChannelProvider,
-        epics::pvAccess::ChannelFind,
-        std::tr1::enable_shared_from_this<GWServerChannelProvider>
+struct epicsShareClass GWServerChannelProvider :
+        public epics::pvAccess::ChannelProvider,
+        public epics::pvAccess::ChannelFind,
+        public std::tr1::enable_shared_from_this<GWServerChannelProvider>
 {
     POINTER_DEFINITIONS(GWServerChannelProvider);
     ChannelCache cache;
