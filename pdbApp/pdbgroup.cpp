@@ -51,10 +51,6 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
 
                 if(doPost)
                     self->interested_iterating = true;
-
-                printf("# pdb_group_event group=%s pv=%s mask=%x waits=%u\n",
-                       self->name.c_str(), dbChannelName(evt->chan), evt->dbe_mask,
-                       (unsigned)self->initial_waits);
             }
 
             self->scratch.clear();
@@ -233,7 +229,7 @@ PDBGroupChannel::~PDBGroupChannel()
 
 void PDBGroupChannel::printInfo(std::ostream& out)
 {
-    out<<"PDB group : "<<pvname<<"\n";
+    out<<"PDBGroupChannel";
 }
 
 pva::ChannelPut::shared_pointer

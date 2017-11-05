@@ -205,8 +205,6 @@ struct epicsShareClass TestPVChannel : public BaseChannel
     virtual epics::pvData::Monitor::shared_pointer createMonitor(
             epics::pvData::MonitorRequester::shared_pointer const & monitorRequester,
             epics::pvData::PVStructure::shared_pointer const & pvRequest);
-
-    virtual void printInfo(std::ostream& out) {}
 };
 
 struct epicsShareClass TestPVMonitor : public epics::pvData::Monitor

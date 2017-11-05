@@ -203,7 +203,7 @@ PDBSingleChannel::~PDBSingleChannel()
 
 void PDBSingleChannel::printInfo(std::ostream& out)
 {
-    out<<"PDB single : "<<pvname<<"\n";
+    out<<"PDBSingleChannel";
 }
 
 pva::ChannelPut::shared_pointer
