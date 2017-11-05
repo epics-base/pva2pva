@@ -125,7 +125,7 @@ struct PDBSingleMonitor : public BaseMonitor
 {
     POINTER_DEFINITIONS(PDBSingleMonitor);
 
-    PDBSinglePV::weak_pointer pv;
+    const PDBSinglePV::weak_pointer pv;
 
     static size_t num_instances;
 
