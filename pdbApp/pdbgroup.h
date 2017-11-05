@@ -76,6 +76,10 @@ struct epicsShareClass PDBGroupPV : public PDBPV
     weak_pointer weakself;
     inline shared_pointer shared_from_this() { return shared_pointer(weakself); }
 
+    // only for use in pdb_single_event()
+    // which is not concurrent for all VALUE/PROPERTY.
+    epics::pvData::BitSet scratch;
+
     epicsMutex lock;
 
     bool pgatomic, monatomic;
@@ -101,13 +105,12 @@ struct epicsShareClass PDBGroupPV : public PDBPV
 
     DBManyLock locker; // all member channels
 
-    // monitor only
-    epics::pvData::BitSet scratch;
-
     epics::pvData::PVStructurePtr complete; // complete copy from subscription
 
-    typedef std::set<std::tr1::shared_ptr<PDBGroupMonitor> > interested_t;
-    interested_t interested;
+    typedef std::set<PDBGroupMonitor*> interested_t;
+    bool interested_iterating;
+    interested_t interested, interested_add, interested_remove;
+
     size_t initial_waits;
 
     static size_t num_instances;
@@ -119,6 +122,10 @@ struct epicsShareClass PDBGroupPV : public PDBPV
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
+
+    void addMonitor(PDBGroupMonitor*);
+    void removeMonitor(PDBGroupMonitor*);
+    void finalizeMonitor();
 };
 
 struct epicsShareClass PDBGroupChannel : public BaseChannel,

@@ -33,16 +33,20 @@ struct epicsShareClass PDBSinglePV : public PDBPV
     DBCH chan;
     PDBProvider::shared_pointer provider;
 
+    // only for use in pdb_single_event()
+    // which is not concurrent for VALUE/PROPERTY.
+    epics::pvData::BitSet scratch;
+
     epicsMutex lock;
 
-    epics::pvData::BitSet scratch;
     p2p::auto_ptr<ScalarBuilder> builder;
     p2p::auto_ptr<PVIF> pvif;
 
     epics::pvData::PVStructurePtr complete; // complete copy from subscription
 
-    typedef std::set<std::tr1::shared_ptr<PDBSingleMonitor> > interested_t;
-    interested_t interested;
+    typedef std::set<PDBSingleMonitor*> interested_t;
+    bool interested_iterating;
+    interested_t interested, interested_add, interested_remove;
 
     DBEvent evt_VALUE, evt_PROPERTY;
     bool hadevent_VALUE, hadevent_PROPERTY;
@@ -58,6 +62,10 @@ struct epicsShareClass PDBSinglePV : public PDBPV
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req);
+
+    void addMonitor(PDBSingleMonitor*);
+    void removeMonitor(PDBSingleMonitor*);
+    void finalizeMonitor();
 };
 
 struct PDBSingleChannel : public BaseChannel,

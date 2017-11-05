@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+
 #include <epicsAtomic.h>
 #include <dbAccess.h>
 
@@ -27,20 +29,35 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
         PDBGroupPV::Info& info = self->members[idx];
 
         {
-            Guard G(self->lock); // TODO: lock order?
+            bool doPost;
+            {
+                Guard G(self->lock);
 
-            if(!(evt->dbe_mask&DBE_PROPERTY)) {
-                if(!info.had_initial_VALUE) {
-                    info.had_initial_VALUE = true;
-                    self->initial_waits--;
+                if(!(evt->dbe_mask&DBE_PROPERTY)) {
+                    if(!info.had_initial_VALUE) {
+                        info.had_initial_VALUE = true;
+                        assert(self->initial_waits>0);
+                        self->initial_waits--;
+                    }
+                } else {
+                    if(!info.had_initial_PROPERTY) {
+                        info.had_initial_PROPERTY = true;
+                        assert(self->initial_waits>0);
+                        self->initial_waits--;
+                    }
                 }
-            } else {
-                if(!info.had_initial_PROPERTY) {
-                    info.had_initial_PROPERTY = true;
-                    self->initial_waits--;
-                }
+
+                doPost = self->initial_waits==0;
+
+                if(doPost)
+                    self->interested_iterating = true;
+
+                printf("# pdb_group_event group=%s pv=%s mask=%x waits=%u\n",
+                       self->name.c_str(), dbChannelName(evt->chan), evt->dbe_mask,
+                       (unsigned)self->initial_waits);
             }
 
+            self->scratch.clear();
             if(evt->dbe_mask&DBE_PROPERTY || !self->monatomic)
             {
                 DBScanLocker L(dbChannelRecord(info.chan));
@@ -59,13 +76,34 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                 }
             }
 
-            if(self->initial_waits>0) return; // don't post() until all subscriptions get initial updates
+            if(!doPost) return; // don't post() until all subscriptions get initial updates
 
             FOREACH(PDBGroupPV::interested_t::const_iterator, it, end, self->interested) {
-                PDBGroupMonitor& mon = *it->get();
+                PDBGroupMonitor& mon = **it;
                 mon.post(self->scratch);
             }
-            self->scratch.clear();
+
+            {
+                Guard G(self->lock);
+
+                assert(self->interested_iterating);
+
+                while(!self->interested_add.empty()) {
+                    PDBGroupPV::interested_t::iterator first(self->interested_add.begin());
+                    self->interested.insert(*first);
+                    self->interested_add.erase(first);
+                }
+
+                while(!self->interested_remove.empty()) {
+                    PDBGroupPV::interested_t::iterator first(self->interested_remove.begin());
+                    self->interested.erase(*first);
+                    self->interested_remove.erase(first);
+                }
+
+                self->interested_iterating = false;
+
+                self->finalizeMonitor();
+            }
         }
 
     }catch(std::tr1::bad_weak_ptr&){
@@ -83,6 +121,7 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
 PDBGroupPV::PDBGroupPV()
     :pgatomic(false)
     ,monatomic(false)
+    ,interested_iterating(false)
     ,initial_waits(0)
 {
     epics::atomic::increment(num_instances);
@@ -100,6 +139,83 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
     PDBGroupChannel::shared_pointer ret(new PDBGroupChannel(shared_from_this(), prov, req));
     return ret;
 }
+
+// caller must not hold lock
+void PDBGroupPV::addMonitor(PDBGroupMonitor *mon)
+{
+    bool needpost = false;
+    {
+        Guard G(lock);
+        if(interested.empty() && interested_add.empty()) {
+            // first monitor
+            // start subscriptions
+
+            size_t ievts = 0;
+            for(size_t i=0; i<members.size(); i++) {
+                PDBGroupPV::Info& info = members[i];
+
+                if(!!info.evt_VALUE) {
+                    db_event_enable(info.evt_VALUE.subscript);
+                    db_post_single_event(info.evt_VALUE.subscript);
+                    ievts++;
+                    info.had_initial_VALUE = false;
+                } else {
+                    info.had_initial_VALUE = true;
+                }
+                assert(info.evt_PROPERTY.subscript);
+                db_event_enable(info.evt_PROPERTY.subscript);
+                db_post_single_event(info.evt_PROPERTY.subscript);
+                ievts++;
+                info.had_initial_PROPERTY = false;
+            }
+            initial_waits = ievts;
+
+        } else if(initial_waits==0) {
+            // new subscriber and already had initial update
+            needpost = true;
+        } // else new subscriber, but no initial update.  so just wait
+
+        if(interested_iterating)
+            interested_add.insert(mon);
+        else
+            interested.insert(mon);
+    }
+    if(needpost)
+        mon->post();
+}
+
+// caller must not hold lock
+void PDBGroupPV::removeMonitor(PDBGroupMonitor *mon)
+{
+    Guard G(lock);
+
+    if(interested_iterating) {
+        interested_remove.insert(mon);
+    } else {
+        interested.erase(mon);
+        finalizeMonitor();
+    }
+}
+
+// must hold lock
+void PDBGroupPV::finalizeMonitor()
+{
+    assert(!interested_iterating);
+
+    if(!interested.empty())
+        return;
+
+    // last subscriber
+    for(size_t i=0; i<members.size(); i++) {
+        PDBGroupPV::Info& info = members[i];
+
+        if(!!info.evt_VALUE) {
+            db_event_disable(info.evt_VALUE.subscript);
+        }
+        db_event_disable(info.evt_PROPERTY.subscript);
+    }
+}
+
 
 PDBGroupChannel::PDBGroupChannel(const PDBGroupPV::shared_pointer& pv,
                                  const std::tr1::shared_ptr<pva::ChannelProvider>& prov,
@@ -293,61 +409,12 @@ void PDBGroupMonitor::destroy()
 
 void PDBGroupMonitor::onStart()
 {
-    guard_t G(pv->lock);
-
-    pv->scratch.clear();
-    pv->scratch.set(0);
-
-    if(pv->interested.empty()) {
-        // first subscriber
-        size_t ievts = 0;
-        for(size_t i=0; i<pv->members.size(); i++) {
-            PDBGroupPV::Info& info = pv->members[i];
-
-            if(!!info.evt_VALUE) {
-                db_event_enable(info.evt_VALUE.subscript);
-                db_post_single_event(info.evt_VALUE.subscript);
-                ievts++;
-                info.had_initial_VALUE = false;
-            } else {
-                info.had_initial_VALUE = true;
-            }
-            assert(info.evt_PROPERTY.subscript);
-            db_event_enable(info.evt_PROPERTY.subscript);
-            db_post_single_event(info.evt_PROPERTY.subscript);
-            ievts++;
-            info.had_initial_PROPERTY = false;
-        }
-        pv->initial_waits = ievts;
-    } else if(pv->initial_waits==0) {
-        // new subscriber and already had initial update
-        post();
-    } // else new subscriber, but no initial update.  so just wait
-
-    shared_pointer self(std::tr1::static_pointer_cast<PDBGroupMonitor>(shared_from_this()));
-    pv->interested.insert(self);
+    pv->addMonitor(this);
 }
 
 void PDBGroupMonitor::onStop()
 {
-    guard_t G(pv->lock);
-    shared_pointer self(std::tr1::static_pointer_cast<PDBGroupMonitor>(shared_from_this()));
-
-    if(pv->interested.erase(self)==0) {
-        fprintf(stderr, "%s: oops\n", __FUNCTION__);
-    }
-
-    if(pv->interested.empty()) {
-        // last subscriber
-        for(size_t i=0; i<pv->members.size(); i++) {
-            PDBGroupPV::Info& info = pv->members[i];
-
-            if(!!info.evt_VALUE) {
-                db_event_disable(info.evt_VALUE.subscript);
-            }
-            db_event_disable(info.evt_PROPERTY.subscript);
-        }
-    }
+    pv->addMonitor(this);
 }
 
 void PDBGroupMonitor::requestUpdate()

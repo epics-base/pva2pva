@@ -31,26 +31,57 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
     try{
         PDBSinglePV::shared_pointer self(std::tr1::static_pointer_cast<PDBSinglePV>(((PDBSinglePV*)evt->self)->shared_from_this()));
         {
-            Guard G(self->lock); // TODO: lock order?
+            bool doPost;
+            {
+                Guard G(self->lock);
 
+                if(evt->dbe_mask&DBE_PROPERTY)
+                    self->hadevent_PROPERTY = true;
+                else
+                    self->hadevent_VALUE = true;
+
+                doPost = self->hadevent_VALUE && self->hadevent_PROPERTY;
+
+                if(doPost)
+                    self->interested_iterating = true;
+            }
+
+            // we have exclusive use of self->scratch
+            self->scratch.clear();
             {
                 DBScanLocker L(dbChannelRecord(self->chan));
                 self->pvif->put(self->scratch, evt->dbe_mask, pfl);
             }
 
-            if(evt->dbe_mask&DBE_PROPERTY)
-                self->hadevent_PROPERTY = true;
-            else
-                self->hadevent_VALUE = true;
-
-            if(!self->hadevent_VALUE || !self->hadevent_PROPERTY)
+            if(!doPost)
                 return;
 
             FOREACH(PDBSinglePV::interested_t::const_iterator, it, end, self->interested) {
-                PDBSingleMonitor& mon = *it->get();
+                PDBSingleMonitor& mon = **it;
                 mon.post(self->scratch);
             }
-            self->scratch.clear();
+
+            {
+                Guard G(self->lock);
+
+                assert(self->interested_iterating);
+
+                while(!self->interested_add.empty()) {
+                    PDBSinglePV::interested_t::iterator first(self->interested_add.begin());
+                    self->interested.insert(*first);
+                    self->interested_add.erase(first);
+                }
+
+                while(!self->interested_remove.empty()) {
+                    PDBSinglePV::interested_t::iterator first(self->interested_remove.begin());
+                    self->interested.erase(*first);
+                    self->interested_remove.erase(first);
+                }
+
+                self->interested_iterating = false;
+
+                self->finalizeMonitor();
+            }
         }
 
     }catch(std::tr1::bad_weak_ptr&){
@@ -69,6 +100,7 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
             const PDBProvider::shared_pointer& prov)
     :provider(prov)
     ,builder(new ScalarBuilder)
+    ,interested_iterating(false)
     ,evt_VALUE(this)
     ,evt_PROPERTY(this)
     ,hadevent_VALUE(false)
@@ -101,6 +133,58 @@ PDBSinglePV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
 {
     PDBSingleChannel::shared_pointer ret(new PDBSingleChannel(shared_from_this(), req));
     return ret;
+}
+
+void PDBSinglePV::addMonitor(PDBSingleMonitor* mon)
+{
+    bool needpost = false;
+    {
+        Guard G(lock);
+        if(interested.empty() && interested_add.empty()) {
+            // first monitor
+            // start subscription
+
+            hadevent_VALUE = false;
+            hadevent_PROPERTY = false;
+            db_event_enable(evt_VALUE.subscript);
+            db_event_enable(evt_PROPERTY.subscript);
+            db_post_single_event(evt_VALUE.subscript);
+            db_post_single_event(evt_PROPERTY.subscript);
+
+        } if(hadevent_VALUE && hadevent_PROPERTY) {
+            // new subscriber and already had initial update
+            needpost = true;
+        } // else new subscriber, but no initial update.  so just wait
+
+        if(interested_iterating)
+            interested_add.insert(mon);
+        else
+            interested.insert(mon);
+    }
+    if(needpost)
+        mon->post();
+}
+
+void PDBSinglePV::removeMonitor(PDBSingleMonitor* mon)
+{
+    Guard G(lock);
+
+    if(interested_iterating) {
+        interested_remove.insert(mon);
+    } else {
+        interested.erase(mon);
+        finalizeMonitor();
+    }
+}
+
+void PDBSinglePV::finalizeMonitor()
+{
+    assert(!interested_iterating);
+
+    if(interested.empty()) {
+        db_event_disable(evt_VALUE.subscript);
+        db_event_disable(evt_PROPERTY.subscript);
+    }
 }
 
 PDBSingleChannel::PDBSingleChannel(const PDBSinglePV::shared_pointer& pv,
@@ -357,25 +441,8 @@ void PDBSingleMonitor::onStart()
 {
     PDBSinglePV::shared_pointer PV(pv.lock());
     if(!PV) return;
-    guard_t G(PV->lock);
 
-    PV->scratch.clear();
-    PV->scratch.set(0);
-    if(PV->interested.empty()) {
-        // first subscriber
-        PV->hadevent_VALUE = false;
-        PV->hadevent_PROPERTY = false;
-        db_event_enable(PV->evt_VALUE.subscript);
-        db_event_enable(PV->evt_PROPERTY.subscript);
-        db_post_single_event(PV->evt_VALUE.subscript);
-        db_post_single_event(PV->evt_PROPERTY.subscript);
-    } else if(PV->hadevent_VALUE && PV->hadevent_PROPERTY) {
-        // new subscriber and already had initial update
-        post();
-    } // else new subscriber, but no initial update.  so just wait
-
-    shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(shared_from_this()));
-    PV->interested.insert(self);
+    PV->addMonitor(this);
 }
 
 void PDBSingleMonitor::onStop()
@@ -383,17 +450,8 @@ void PDBSingleMonitor::onStop()
     PDBSinglePV::shared_pointer PV(pv.lock());
     if(PV) return;
     guard_t G(PV->lock);
-    shared_pointer self(std::tr1::static_pointer_cast<PDBSingleMonitor>(shared_from_this()));
 
-    if(PV->interested.erase(self)==0) {
-        fprintf(stderr, "%s: oops\n", __FUNCTION__);
-    }
-
-    if(PV->interested.empty()) {
-        // last subscriber
-        db_event_disable(PV->evt_VALUE.subscript);
-        db_event_disable(PV->evt_PROPERTY.subscript);
-    }
+    PV->removeMonitor(this);
 }
 
 void PDBSingleMonitor::requestUpdate()
