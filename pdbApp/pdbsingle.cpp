@@ -73,8 +73,8 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
                 }
 
                 while(!self->interested_remove.empty()) {
-                    PDBSinglePV::interested_t::iterator first(self->interested_remove.begin());
-                    self->interested.erase(*first);
+                    PDBSinglePV::interested_remove_t::iterator first(self->interested_remove.begin());
+                    self->interested.erase(static_cast<PDBSingleMonitor*>(first->get()));
                     self->interested_remove.erase(first);
                 }
 
@@ -169,8 +169,13 @@ void PDBSinglePV::removeMonitor(PDBSingleMonitor* mon)
 {
     Guard G(lock);
 
-    if(interested_iterating) {
-        interested_remove.insert(mon);
+    if(interested_add.erase(mon)) {
+        // and+remove while iterating.  no-op
+
+    } else if(interested_iterating) {
+        // keep monitor alive while iterating
+        interested_remove.insert(mon->shared_from_this());
+
     } else {
         interested.erase(mon);
         finalizeMonitor();

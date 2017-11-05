@@ -46,7 +46,10 @@ struct epicsShareClass PDBSinglePV : public PDBPV
 
     typedef std::set<PDBSingleMonitor*> interested_t;
     bool interested_iterating;
-    interested_t interested, interested_add, interested_remove;
+    interested_t interested, interested_add;
+
+    typedef std::set<BaseMonitor::shared_pointer> interested_remove_t;
+    interested_remove_t interested_remove;
 
     DBEvent evt_VALUE, evt_PROPERTY;
     bool hadevent_VALUE, hadevent_PROPERTY;

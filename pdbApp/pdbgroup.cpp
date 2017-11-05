@@ -91,8 +91,8 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                 }
 
                 while(!self->interested_remove.empty()) {
-                    PDBGroupPV::interested_t::iterator first(self->interested_remove.begin());
-                    self->interested.erase(*first);
+                    PDBGroupPV::interested_remove_t::iterator first(self->interested_remove.begin());
+                    self->interested.erase(static_cast<PDBGroupMonitor*>(first->get()));
                     self->interested_remove.erase(first);
                 }
 
@@ -185,8 +185,13 @@ void PDBGroupPV::removeMonitor(PDBGroupMonitor *mon)
 {
     Guard G(lock);
 
-    if(interested_iterating) {
-        interested_remove.insert(mon);
+    if(interested_add.erase(mon)) {
+        // and+remove while iterating.  no-op
+
+    } else if(interested_iterating) {
+        // keep the monitor alive until we've finished iterating
+        interested_remove.insert(mon->shared_from_this());
+
     } else {
         interested.erase(mon);
         finalizeMonitor();
@@ -410,7 +415,7 @@ void PDBGroupMonitor::onStart()
 
 void PDBGroupMonitor::onStop()
 {
-    pv->addMonitor(this);
+    pv->removeMonitor(this);
 }
 
 void PDBGroupMonitor::requestUpdate()

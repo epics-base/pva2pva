@@ -254,16 +254,7 @@ public:
 
     virtual void destroy()
     {
-        bool run;
-        {
-            guard_t G(lock);
-            run = running;
-            if(run) {
-                running = false;
-            }
-        }
-        if(run)
-            this->onStop();
+        stop();
     }
 
 private:

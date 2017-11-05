@@ -109,7 +109,10 @@ struct epicsShareClass PDBGroupPV : public PDBPV
 
     typedef std::set<PDBGroupMonitor*> interested_t;
     bool interested_iterating;
-    interested_t interested, interested_add, interested_remove;
+    interested_t interested, interested_add;
+
+    typedef std::set<BaseMonitor::shared_pointer> interested_remove_t;
+    interested_remove_t interested_remove;
 
     size_t initial_waits;
 
