@@ -311,7 +311,7 @@ struct PDBProcessor
 
 size_t PDBProvider::num_instances;
 
-PDBProvider::PDBProvider(const epics::pvAccess::Configuration::shared_pointer &)
+PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_pointer &)
 {
     /* Long view
      * 1. PDBProcessor collects info() tags and builds config of groups and group fields

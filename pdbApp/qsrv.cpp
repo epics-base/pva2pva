@@ -42,7 +42,7 @@ void QSRVRegistrar()
     epics::registerRefCounter("PDBGroupMonitor", &PDBGroupMonitor::num_instances);
 #endif // USE_MULTILOCK
     epics::registerRefCounter("PDBProvider", &PDBProvider::num_instances);
-    pva::ChannelProviderRegistry::servers()->add<PDBProvider>("QSRV");
+    pva::ChannelProviderRegistry::servers()->addSingleton<PDBProvider>("QSRV");
 }
 
 extern "C" {

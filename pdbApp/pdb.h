@@ -32,7 +32,7 @@ struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
 {
     POINTER_DEFINITIONS(PDBProvider);
 
-    explicit PDBProvider(const epics::pvAccess::Configuration::shared_pointer& =epics::pvAccess::Configuration::shared_pointer());
+    explicit PDBProvider(const epics::pvAccess::Configuration::const_shared_pointer& =epics::pvAccess::Configuration::const_shared_pointer());
     virtual ~PDBProvider();
     virtual void destroy();
     virtual std::string getProviderName();
