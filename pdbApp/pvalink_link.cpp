@@ -1,0 +1,127 @@
+#include <pv/reftrack.h>
+
+#define epicsExportSharedSymbols
+#include <shareLib.h>
+
+#include "pvalink.h"
+
+namespace pvalink {
+
+pvaLink::pvaLink()
+    :alive(true)
+    ,plink(0)
+    ,used_scratch(false)
+    ,used_queue(false)
+{
+    REFTRACE_INCREMENT(num_instances);
+
+    //TODO: valgrind tells me these aren't initialized by Base, but probably should be.
+    parseDepth = 0;
+    parent = 0;
+}
+
+pvaLink::~pvaLink()
+{
+    alive = false;
+
+    if(lchan) { // may be NULL if parsing fails
+        Guard G(lchan->lock);
+
+        lchan->links.erase(this);
+        lchan->links_changed = true;
+    }
+
+    REFTRACE_DECREMENT(num_instances);
+}
+
+static
+pvd::StructureConstPtr putRequestType = pvd::getFieldCreate()->createFieldBuilder()
+        ->addNestedStructure("field")
+        ->endNested()
+        ->addNestedStructure("record")
+            ->addNestedStructure("_options")
+                ->add("block", pvd::pvBoolean)
+                ->add("process", pvd::pvString) // "true", "false", or "passive"
+            ->endNested()
+        ->endNested()
+        ->createStructure();
+
+static
+pvd::StructureConstPtr monitorRequestType = pvd::getFieldCreate()->createFieldBuilder()
+        ->addNestedStructure("field")
+        ->endNested()
+        ->addNestedStructure("record")
+            ->addNestedStructure("_options")
+                ->add("pipeline", pvd::pvBoolean)
+                ->add("atomic", pvd::pvBoolean)
+                ->add("queueSize", pvd::pvUInt)
+            ->endNested()
+        ->endNested()
+        ->createStructure();
+
+pvd::PVStructurePtr pvaLink::makeRequest()
+{
+//    const char *proc = "passive";
+
+//    switch(pp) {
+//    case NPP: proc = "false"; break;
+//    case Default: break;
+//    case PP:
+//    case CP:
+//    case CPP:
+//        proc = "true";
+//    }
+
+    pvd::PVStructurePtr ret;
+//    ret = pvd::getPVDataCreate()->createPVStructure(putRequestType);
+//    ret->getSubFieldT<pvd::PVBoolean>("record._options.block")->put(false); // TODO: some way to expose completion...
+//    ret->getSubFieldT<pvd::PVString>("record._options.process")->put(proc);
+
+    ret = pvd::getPVDataCreate()->createPVStructure(monitorRequestType);
+    ret->getSubFieldT<pvd::PVBoolean>("record._options.pipeline")->put(false);
+    ret->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(true);
+    ret->getSubFieldT<pvd::PVUInt>("record._options.queueSize")->put(queueSize);
+    return ret;
+}
+
+// caller must lock lchan->lock
+bool pvaLink::valid() const
+{
+    return lchan->connected && lchan->op_mon.root;
+}
+
+// caller must lock lchan->lock
+pvd::PVField::const_shared_pointer pvaLink::getSubField(const char *name)
+{
+    pvd::PVField::const_shared_pointer ret;
+    if(valid()) {
+        if(fieldName.empty()) {
+            // we access the top level struct
+            ret = lchan->op_mon.root->getSubField(name);
+
+        } else {
+            // we access a sub-struct
+            ret = lchan->op_mon.root->getSubField(fieldName);
+            if(ret->getField()->getType()!=pvd::structure) {
+                // addressed sub-field isn't a sub-structure
+                if(strcmp(name, "value")!=0) {
+                    // unless we are trying to fetch the "value", we fail here
+                    ret.reset();
+                }
+            } else {
+                ret = static_cast<const pvd::PVStructure*>(ret.get())->getSubField(name);
+            }
+        }
+    }
+    return ret;
+}
+
+// call with channel lock held
+void pvaLink::onDisconnect()
+{
+    // TODO: option to remain queue'd while disconnected
+
+    used_queue = used_scratch = false;
+}
+
+} // namespace pvalink
