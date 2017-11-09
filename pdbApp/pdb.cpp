@@ -543,7 +543,7 @@ void PDBProvider::destroy()
     if(ctxt) db_close_events(ctxt);
 }
 
-std::string PDBProvider::getProviderName() { return "PDBProvider"; }
+std::string PDBProvider::getProviderName() { return "QSRV"; }
 
 namespace {
 struct ChannelFindRequesterNOOP : public pva::ChannelFind
