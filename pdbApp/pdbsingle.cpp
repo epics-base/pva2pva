@@ -364,10 +364,10 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value, FieldName()));
         unsigned mask = putpvif->dbe(*changed);
 
-        if(mask&~DBE_VALUE) {
+        if(mask!=DBE_VALUE) {
             requester_type::shared_pointer req(requester.lock());
             if(req)
-                req->message("wait=true only supports .value", pva::warningMessage);
+                req->message("block=true only supports .value (empty put mask)", pva::warningMessage);
         }
 
         if(epics::atomic::compareAndSwap(notifyBusy, 0, 1)!=0)
