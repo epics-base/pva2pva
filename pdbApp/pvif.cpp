@@ -662,21 +662,19 @@ short PVD2DBR(pvd::ScalarType pvt)
 epics::pvData::FieldConstPtr
 ScalarBuilder::dtype(dbChannel *channel)
 {
-    const short dbr = dbChannelFinalFieldType(channel);
+    short dbr = dbChannelFinalFieldType(channel);
     const long maxelem = dbChannelFinalElements(channel);
     const pvd::ScalarType pvt = DBR2PVD(dbr);
 
     if(INVALID_DB_REQ(dbr))
         throw std::invalid_argument("DBF code out of range");
-    if(maxelem!=1 && dbr==DBR_STRING)
-        throw std::invalid_argument("String array not supported");
+
     if(maxelem!=1 && dbr==DBR_ENUM)
-        throw std::invalid_argument("enum array not supported");
+        dbr = DBF_SHORT;
 
     if(dbr==DBR_ENUM)
         return pvd::getStandardField()->enumerated("alarm,timeStamp");
 
-    //TODO: ,valueAlarm for numeric
     std::string options;
     if(dbr!=DBR_STRING)
         options = "alarm,timeStamp,display,control,valueAlarm";
@@ -723,10 +721,11 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& r
         case DBR_CHAR:
         case DBR_UCHAR:
         case DBR_SHORT:
+        case DBR_ENUM:
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
-            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
+        case DBR_STRING:
         case DBR_FLOAT:
         case DBR_DOUBLE:
             return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
