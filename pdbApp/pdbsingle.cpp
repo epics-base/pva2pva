@@ -156,10 +156,11 @@ void PDBSinglePV::addMonitor(PDBSingleMonitor* mon)
             needpost = true;
         } // else new subscriber, but no initial update.  so just wait
 
-        if(interested_iterating)
+        if(interested_iterating) {
             interested_add.insert(mon);
-        else
+        } else {
             interested.insert(mon);
+        }
     }
     if(needpost)
         mon->post();
@@ -444,25 +445,18 @@ void PDBSingleMonitor::destroy()
 
 void PDBSingleMonitor::onStart()
 {
-    PDBSinglePV::shared_pointer PV(pv.lock());
-    if(!PV) return;
-
-    PV->addMonitor(this);
+    pv->addMonitor(this);
 }
 
 void PDBSingleMonitor::onStop()
 {
-    PDBSinglePV::shared_pointer PV(pv.lock());
-    if(PV) return;
-    guard_t G(PV->lock);
+    guard_t G(pv->lock);
 
-    PV->removeMonitor(this);
+    pv->removeMonitor(this);
 }
 
 void PDBSingleMonitor::requestUpdate()
 {
-    PDBSinglePV::shared_pointer PV(pv.lock());
-    if(PV) return;
-    guard_t G(PV->lock);
+    guard_t G(pv->lock);
     post();
 }
