@@ -216,6 +216,7 @@ void attachAll(PVX& pvm, const pvd::PVStructurePtr& pv)
         // set field bit and all enclosing structure bits
         pvm.maskVALUEPut.set(fld->getFieldOffset());
     }
+    pvm.maskVALUEPut.set(0);
     attachMeta(pvm, pv);
 }
 
@@ -581,6 +582,7 @@ struct PVIFScalarNumeric : public PVIF
             pvmeta.maskPROPERTY.clear();
             pvmeta.maskPROPERTY.set(bit);
             pvmeta.maskVALUEPut.clear();
+            pvmeta.maskVALUEPut.set(0);
             pvmeta.maskVALUEPut.set(bit);
         }
         findNSMask(pvmeta, chan, pvalue);
@@ -778,7 +780,10 @@ struct PVIFPlain : public PVIF
 
     virtual unsigned dbe(const epics::pvData::BitSet& mask)
     {
-        if(mask.get(fieldOffset))
+        // TODO: figure out how to handle various intermidiate compressed
+        //       bitSet and enclosing.
+        //       Until then check only also for wildcard bit (0).
+        if(mask.get(fieldOffset) || mask.get(0))
             return DBE_VALUE;
         return 0;
     }
