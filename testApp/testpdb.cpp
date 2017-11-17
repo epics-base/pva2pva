@@ -6,6 +6,7 @@
 #include <dbAccess.h>
 #include <pva/client.h>
 
+#include <pv/reftrack.h>
 #include <pv/epicsException.h>
 
 #include "utilities.h"
@@ -298,8 +299,17 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(92);
+    testPlan(93);
     try{
+        QSRVRegistrar_counters();
+        epics::RefSnapshot ref_before;
+        ref_before.update();
+
+        testDiag("Refs before");
+        for(epics::RefSnapshot::iterator it(ref_before.begin()), end(ref_before.end()); it!=end; ++it) {
+            testDiag("Cnt %s = %zu (%ld)", it->first.c_str(), it->second.current, it->second.delta);
+        }
+
         TestIOC IOC;
 
         testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
@@ -323,12 +333,20 @@ MAIN(testpdb)
             testSingleMonitor(client);
             testGroupMonitor(client);
             testGroupMonitorTriggers(client);
+
+            testEqual(epics::atomic::get(PDBProvider::num_instances), 1u);
         }
 
         testOk1(prov.unique());
         prov.reset();
 
-        iocshCmd("stopPVAServer");
+        testDiag("Refs after");
+        epics::RefSnapshot ref_after;
+        ref_after.update();
+        epics::RefSnapshot ref_diff = ref_after - ref_before;
+        for(epics::RefSnapshot::iterator it(ref_diff.begin()), end(ref_diff.end()); it!=end; ++it) {
+            testDiag("Cnt %s = %zu (%ld)", it->first.c_str(), it->second.current, it->second.delta);
+        }
 
         testDiag("check to see that all dbChannel are closed before IOC shuts down");
         testEqual(epics::atomic::get(PDBProvider::num_instances), 0u);

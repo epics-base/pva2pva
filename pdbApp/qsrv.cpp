@@ -28,8 +28,7 @@
 
 namespace pva = epics::pvAccess;
 
-static
-void QSRVRegistrar()
+void QSRVRegistrar_counters()
 {
     epics::registerRefCounter("PDBSinglePV", &PDBSinglePV::num_instances);
     epics::registerRefCounter("PDBSingleChannel", &PDBSingleChannel::num_instances);
@@ -42,6 +41,12 @@ void QSRVRegistrar()
     epics::registerRefCounter("PDBGroupMonitor", &PDBGroupMonitor::num_instances);
 #endif // USE_MULTILOCK
     epics::registerRefCounter("PDBProvider", &PDBProvider::num_instances);
+}
+
+static
+void QSRVRegistrar()
+{
+    QSRVRegistrar_counters();
     pva::ChannelProviderRegistry::servers()->addSingleton<PDBProvider>("QSRV");
 }
 

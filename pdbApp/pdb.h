@@ -57,4 +57,7 @@ struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
     static size_t num_instances;
 };
 
+epicsShareFunc
+void QSRVRegistrar_counters();
+
 #endif // PDB_H
