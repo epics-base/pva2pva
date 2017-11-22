@@ -1,6 +1,9 @@
 
 #include <stdio.h>
 
+// rediect stdio/stderr for iocsh
+#include <epicsStdio.h>
+
 #include <epicsAtomic.h>
 #include <dbAccess.h>
 
@@ -214,6 +217,26 @@ void PDBGroupPV::finalizeMonitor()
             db_event_disable(info.evt_VALUE.subscript);
         }
         db_event_disable(info.evt_PROPERTY.subscript);
+    }
+}
+
+void PDBGroupPV::show(int lvl)
+{
+    // no locking as we only print things which are const after initialization
+
+    printf("  Atomic Get/Put:%s Monitor:%s Members:%zu\n",
+           pgatomic?"yes":"no", monatomic?"yes":"no", members.size());
+
+    if(lvl<=1)
+        return;
+
+    for(members_t::const_iterator it(members.begin()), end(members.end());
+        it != end; ++it)
+    {
+        const Info& info = *it;
+        printf("  ");
+        info.attachment.show(); // printf()s
+        printf("\t<-> %s\n", dbChannelName(info.chan));
     }
 }
 

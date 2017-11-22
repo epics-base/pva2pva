@@ -124,11 +124,13 @@ struct epicsShareClass PDBGroupPV : public PDBPV
     virtual
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
-                const epics::pvAccess::ChannelRequester::shared_pointer& req);
+                const epics::pvAccess::ChannelRequester::shared_pointer& req) OVERRIDE;
 
     void addMonitor(PDBGroupMonitor*);
     void removeMonitor(PDBGroupMonitor*);
     void finalizeMonitor();
+
+    virtual void show(int lvl) OVERRIDE;
 };
 
 struct epicsShareClass PDBGroupChannel : public BaseChannel,

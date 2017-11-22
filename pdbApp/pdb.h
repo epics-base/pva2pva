@@ -25,6 +25,9 @@ struct PDBPV
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                 const epics::pvAccess::ChannelRequester::shared_pointer& req) =0;
+
+    // print info to stdout (with iocsh redirection)
+    virtual void show(int lvl) {}
 };
 
 struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,

@@ -56,7 +56,9 @@ struct epicsShareClass DBCH {
     void swap(DBCH&);
 
     operator dbChannel*() { return chan; }
+    operator const dbChannel*() const { return chan; }
     dbChannel *operator->() { return chan; }
+    const dbChannel *operator->() const { return chan; }
 private:
     DBCH(const DBCH&);
     DBCH& operator=(const DBCH&);
@@ -287,6 +289,7 @@ struct epicsShareClass FieldName
     epics::pvData::PVFieldPtr
     lookup(const epics::pvData::PVStructurePtr& S, epics::pvData::PVField** ppenclose) const;
 
+    void show() const;
 private:
     FieldName(const FieldName&);
     FieldName& operator=(const FieldName&);

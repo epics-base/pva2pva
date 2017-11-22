@@ -3,6 +3,8 @@
 #include <initHooks.h>
 #include <epicsExit.h>
 #include <epicsThread.h>
+#include <epicsString.h>
+#include <epicsStdio.h>
 
 #include <dbAccess.h>
 #include <dbChannel.h>
@@ -43,12 +45,51 @@ void QSRVRegistrar_counters()
     epics::registerRefCounter("PDBProvider", &PDBProvider::num_instances);
 }
 
-static
+namespace {
+
+void dbgl(int lvl, const char *pattern)
+{
+    if(!pattern)
+        pattern = "";
+
+    try {
+        PDBProvider::shared_pointer prov(
+                    std::tr1::dynamic_pointer_cast<PDBProvider>(
+                        pva::ChannelProviderRegistry::servers()->getProvider("QSRV")));
+        if(!prov)
+            throw std::runtime_error("No Provider (PVA server not running?)");
+
+        PDBProvider::persist_pv_map_t pvs;
+        {
+            epicsGuard<epicsMutex> G(prov->transient_pv_map.mutex());
+            pvs = prov->persist_pv_map; // copy map
+        }
+
+        for(PDBProvider::persist_pv_map_t::const_iterator it(pvs.begin()), end(pvs.end());
+            it != end; ++it)
+        {
+            if(pattern[0] && epicsStrGlobMatch(it->first.c_str(), pattern)==0)
+                continue;
+
+            printf("%s\n", it->first.c_str());
+            if(lvl<=0)
+                continue;
+            it->second->show(lvl);
+        }
+
+    }catch(std::exception& e){
+        fprintf(stderr, "Error: %s\n", e.what());
+    }
+}
+
 void QSRVRegistrar()
 {
     QSRVRegistrar_counters();
     pva::ChannelProviderRegistry::servers()->addSingleton<PDBProvider>("QSRV");
+    epics::iocshRegister<int, const char*, &dbgl>("dbgl", "level", "pattern");
 }
+
+} // namespace
 
 extern "C" {
     epicsExportRegistrar(QSRVRegistrar);

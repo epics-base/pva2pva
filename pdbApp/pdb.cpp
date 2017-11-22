@@ -718,6 +718,28 @@ FieldName::lookup(const epics::pvData::PVStructurePtr& S, epics::pvData::PVField
     return ret;
 }
 
+void FieldName::show() const
+{
+    if(parts.empty()) {
+        printf("/");
+        return;
+    }
+
+    bool first = true;
+    for(size_t i=0, N=parts.size(); i<N; i++)
+    {
+        if(!first) {
+            printf(".");
+        } else {
+            first = false;
+        }
+        if(parts[i].isArray())
+            printf("%s[%u]", parts[i].name.c_str(), (unsigned)parts[i].index);
+        else
+            printf("%s", parts[i].name.c_str());
+    }
+}
+
 extern "C" {
 epicsExportAddress(int, PDBProviderDebug);
 }
