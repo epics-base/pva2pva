@@ -9,3 +9,6 @@ function(QSRV_image_demo)
 # from pvif.cpp
 # Disable mapping of display.format
 variable(qsrvDisableFormat, int)
+# from pdb.cpp
+# Extra debug info when parsing group definitions
+variable(PDBProviderDebug, int)

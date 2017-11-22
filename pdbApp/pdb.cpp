@@ -6,6 +6,9 @@
 #include <epicsString.h>
 #include <epicsAtomic.h>
 
+// printfs in this file will be redirected for capture
+#include <epicsStdio.h>
+
 #include <dbAccess.h>
 #include <dbNotify.h>
 
@@ -21,10 +24,12 @@
 #  include "pdbgroup.h"
 #endif
 
+#include <epicsExport.h>
+
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
-int PDBProviderDebug = 3;
+int PDBProviderDebug;
 
 namespace {
 
@@ -109,7 +114,7 @@ struct PDBProcessor
 
                     GroupInfo::members_map_t::iterator it2x = info.members_map.find(src);
                     if(it2x==info.members_map.end()) {
-                        fprintf(stderr, "Group \"%s\" defines triggers from non-existant field \"%s\"\n",
+                        fprintf(stderr, "Error: Group \"%s\" defines triggers from non-existant field \"%s\"\n",
                                 info.name.c_str(), src.c_str());
                         continue;
                     }
@@ -135,7 +140,7 @@ struct PDBProcessor
 
                             GroupInfo::members_map_t::iterator it3x = info.members_map.find(target);
                             if(it3x==info.members_map.end()) {
-                                fprintf(stderr, "Group \"%s\" defines triggers to non-existant field \"%s\"\n",
+                                fprintf(stderr, "Error: Group \"%s\" defines triggers to non-existant field \"%s\"\n",
                                         info.name.c_str(), target.c_str());
                                 continue;
                             }
@@ -203,7 +208,7 @@ struct PDBProcessor
                     const GroupConfig::Group& grp = git->second;
 
                     if(dbChannelTest(grpname.c_str())==0) {
-                        fprintf(stderr, "%s : Group name conflicts with record name.  Ignoring...\n", grpname.c_str());
+                        fprintf(stderr, "%s : Error: Group name conflicts with record name.  Ignoring...\n", grpname.c_str());
                         continue;
                     }
 
@@ -225,7 +230,7 @@ struct PDBProcessor
 
                         GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
                         if(oldgrp!=curgroup->members_map.end()) {
-                            fprintf(stderr, "%s.%s ignoring duplicate mapping %s%s\n",
+                            fprintf(stderr, "%s.%s Warning: ignoring duplicate mapping %s%s\n",
                                     grpname.c_str(), fldname.c_str(),
                                     recbase.c_str(), fld.channel.c_str());
                             continue;
@@ -267,8 +272,8 @@ struct PDBProcessor
                         GroupInfo::tribool V = grp.atomic ? GroupInfo::True : GroupInfo::False;
 
                         if(curgroup->atomic!=GroupInfo::Unset && curgroup->atomic!=V)
-                            fprintf(stderr, "  pdb atomic setting inconsistent '%s'\n",
-                                    curgroup->name.c_str());
+                            fprintf(stderr, "%s Warning: pdb atomic setting inconsistent '%s'\n",
+                                    grpname.c_str(), curgroup->name.c_str());
 
                         curgroup->atomic=V;
 
@@ -711,4 +716,8 @@ FieldName::lookup(const epics::pvData::PVStructurePtr& S, epics::pvData::PVField
         }
     }
     return ret;
+}
+
+extern "C" {
+epicsExportAddress(int, PDBProviderDebug);
 }
