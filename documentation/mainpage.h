@@ -53,9 +53,12 @@ add:
 @code
 PROD_HOST += myiocname
 # include QSRV
+myiocname_DBD += base.dbd
 myiocname_DBD += PVAServerRegister.dbd
 myiocname_DBD += qsrv.dbd
 myiocname_LIBS += qsrv
+myiocname_LIBS += $(EPICS_BASE_PVA_CORE_LIBS)
+myiocname_LIBS += $(EPICS_BASE_IOC_LIBS)
 @endcode
 
 Now run your IOC and QSRV starts automatically.
