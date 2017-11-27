@@ -21,7 +21,7 @@ struct ChannelCacheEntry;
 struct MonitorUser;
 struct GWChannel;
 
-struct epicsShareClass MonitorCacheEntry : public epics::pvData::MonitorRequester
+struct MonitorCacheEntry : public epics::pvData::MonitorRequester
 {
     POINTER_DEFINITIONS(MonitorCacheEntry);
     static size_t num_instances;
@@ -64,7 +64,7 @@ struct epicsShareClass MonitorCacheEntry : public epics::pvData::MonitorRequeste
     virtual std::string getRequesterName();
 };
 
-struct epicsShareClass MonitorUser : public epics::pvData::Monitor
+struct MonitorUser : public epics::pvData::Monitor
 {
     POINTER_DEFINITIONS(MonitorUser);
     static size_t num_instances;
@@ -102,7 +102,7 @@ struct epicsShareClass MonitorUser : public epics::pvData::Monitor
     virtual std::string getRequesterName();
 };
 
-struct epicsShareClass ChannelCacheEntry
+struct ChannelCacheEntry
 {
     POINTER_DEFINITIONS(ChannelCacheEntry);
     static size_t num_instances;
@@ -131,7 +131,7 @@ struct epicsShareClass ChannelCacheEntry
 
     // this exists as a seperate object to prevent a reference loop
     // ChannelCacheEntry -> pva::Channel -> CRequester
-    struct epicsShareClass CRequester : public epics::pvAccess::ChannelRequester
+    struct CRequester : public epics::pvAccess::ChannelRequester
     {
         static size_t num_instances;
 

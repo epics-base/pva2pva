@@ -5,19 +5,22 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
+USR_CPPFLAGS += -I$(TOP)/common
+
 PROD_HOST = p2p
 
 p2p_SRCS += gwmain.cpp
-p2p_LIBS += p2pcore pvAccessIOC pvAccess pvData Com
 
-LIBRARY_HOST += p2pcore
+PROD_SRCS += server.cpp
+PROD_SRCS += chancache.cpp
+PROD_SRCS += moncache.cpp
+PROD_SRCS += channel.cpp
 
-p2pcore_SRCS += server.cpp
-p2pcore_SRCS += chancache.cpp
-p2pcore_SRCS += moncache.cpp
-p2pcore_SRCS += channel.cpp
+PROD_LIBS += pvAccessIOC pvAccess pvData Com
 
-p2pcore_LIBS += pvAccess pvData Com
+TESTPROD += testmon
+testmon_SRCS += testmon.cpp
+testmon_SRCS += utilitiesx.cpp
 
 #===========================
 

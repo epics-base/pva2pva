@@ -7,7 +7,7 @@
 
 #include "chancache.h"
 
-struct epicsShareClass GWChannel : public epics::pvAccess::Channel
+struct GWChannel : public epics::pvAccess::Channel
 {
     POINTER_DEFINITIONS(GWChannel);
     static size_t num_instances;

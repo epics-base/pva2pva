@@ -8,7 +8,7 @@
 
 #include <shareLib.h>
 
-struct epicsShareClass GWServerChannelProvider :
+struct GWServerChannelProvider :
         public epics::pvAccess::ChannelProvider,
         public epics::pvAccess::ChannelFind,
         public std::tr1::enable_shared_from_this<GWServerChannelProvider>
@@ -37,7 +37,7 @@ struct epicsShareClass GWServerChannelProvider :
     virtual ~GWServerChannelProvider();
 };
 
-struct epicsShareClass ServerConfig {
+struct ServerConfig {
     int debug;
     bool interactive;
     epics::pvData::PVStructure::shared_pointer conf;
