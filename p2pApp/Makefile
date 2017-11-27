@@ -18,9 +18,12 @@ PROD_SRCS += channel.cpp
 
 PROD_LIBS += pvAccessIOC pvAccess pvData Com
 
-TESTPROD += testmon
+TESTPROD_HOST += testmon
 testmon_SRCS += testmon.cpp
 testmon_SRCS += utilitiesx.cpp
+TESTS += testmon
+
+TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
 #===========================
 
