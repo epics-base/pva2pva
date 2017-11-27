@@ -5,6 +5,9 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
+INC += qsrvVersion.h
+INC += qsrvVersionNum.h
+
 LIBRARY += qsrv
 
 USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
@@ -45,9 +48,23 @@ softIocPVA_DBD += softIoc.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
+EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
+EXPANDVARS += EPICS_QSRV_MINOR_VERSION
+EXPANDVARS += EPICS_QSRV_MAINTENANCE_VERSION
+EXPANDVARS += EPICS_QSRV_DEVELOPMENT_FLAG
+
+EXPANDFLAGS += $(foreach var,$(EXPANDVARS),-D$(var)="$(strip $($(var)))")
+
+# shared library ABI version.
+SHRLIB_VERSION = 1.0.0
+
 #===========================
 
 include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
 
+# Can't use EXPAND as generated headers must appear
+# in O.Common, but EXPAND emits rules for O.$(T_A)
+../O.Common/qsrvVersionNum.h: ../qsrvVersionNum.h@
+	$(EXPAND_TOOL) $(EXPANDFLAGS) $($@_EXPANDFLAGS) $< $@
