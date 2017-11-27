@@ -7,6 +7,8 @@ include $(TOP)/configure/CONFIG
 
 LIBRARY += qsrv
 
+SHRLIB_VERSION ?= $(EPICS_QSRV_ABI_MAJOR_VERSION).$(EPICS_QSRV_ABI_MINOR_VERSION)
+
 USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 
 qsrv_SRCS += pvif.cpp

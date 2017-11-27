@@ -1,3 +1,6 @@
+# Changes to this file may require incrementing
+# the ABI version in CONFIG_QSRV_VERSION
+
 registrar(QSRVRegistrar)
 #registrar(installPVAAddLinkHook)
 #link("pva", "lsetPVA")
