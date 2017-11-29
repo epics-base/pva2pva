@@ -82,6 +82,7 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                 mon.post(self->scratch);
             }
 
+            PDBGroupPV::interested_remove_t temp;
             {
                 Guard G(self->lock);
 
@@ -93,10 +94,11 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                     self->interested_add.erase(first);
                 }
 
-                while(!self->interested_remove.empty()) {
-                    PDBGroupPV::interested_remove_t::iterator first(self->interested_remove.begin());
-                    self->interested.erase(static_cast<PDBGroupMonitor*>(first->get()));
-                    self->interested_remove.erase(first);
+                temp.swap(self->interested_remove);
+                for(PDBGroupPV::interested_remove_t::iterator it(temp.begin()),
+                    end(temp.end()); it != end; ++it)
+                {
+                    self->interested.erase(static_cast<PDBGroupMonitor*>(it->get()));
                 }
 
                 self->interested_iterating = false;
