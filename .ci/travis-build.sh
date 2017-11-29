@@ -16,5 +16,5 @@ make -j2 $EXTRA
 if [ "$TEST" != "NO" ]
 then
   make tapfiles
-  find . -name '*.tap' -print0 | xargs -0 -n1 ./.ci/proveit.sh
+  make -s test-results
 fi
