@@ -290,7 +290,12 @@ struct epicsShareClass FieldName
     lookup(const epics::pvData::PVStructurePtr& S, epics::pvData::PVField** ppenclose) const;
 
     void show() const;
+
+#if !defined(__GNUC__) || (__GNUC__ * 100 + __GNUC_MINOR__ >= 403)
+// Workaround needed for older GCC
 private:
+#endif
+    // Prevent default copy/assignment op's
     FieldName(const FieldName&);
     FieldName& operator=(const FieldName&);
 };
