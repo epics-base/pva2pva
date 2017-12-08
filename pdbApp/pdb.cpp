@@ -58,8 +58,8 @@ struct Splitter {
 
 struct GroupMemberInfo {
     // consumes builder
-    GroupMemberInfo(const std::string& a, const std::string& b, p2p::auto_ptr<PVIFBuilder>& builder)
-        :pvname(a), pvfldname(b), builder(PTRMOVE(builder)), putorder(0) {}
+    GroupMemberInfo(const std::string& a, const std::string& b, const std::tr1::shared_ptr<PVIFBuilder>& builder)
+        :pvname(a), pvfldname(b), builder(builder), putorder(0) {}
 
     std::string pvname, // aka. name passed to dbChannelOpen()
                 pvfldname; // PVStructure sub-field
@@ -236,7 +236,7 @@ struct PDBProcessor
                             continue;
                         }
 
-                        p2p::auto_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
+                        std::tr1::shared_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
 
                         curgroup->members.push_back(GroupMemberInfo(fld.channel.empty() ? fld.channel : recbase + fld.channel, fldname, builder));
                         curgroup->members.back().structID = fld.id;
