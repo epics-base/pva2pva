@@ -269,6 +269,18 @@ void mapStatus(unsigned code, pvd::PVInt* status, pvd::PVString* message)
     status->put(out);
 }
 
+
+template<typename META>
+void putMetaImpl(const pvTimeAlarm& pv, const META& meta)
+{
+    pvd::int32 nsec = meta.time.nsec;
+    if(pv.nsecMask) {
+        pv.userTag->put(nsec&pv.nsecMask);
+        nsec &= ~pv.nsecMask;
+    }
+    pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
+}
+
 void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
 {
     metaTIME meta;
@@ -278,12 +290,7 @@ void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
-    pvd::int32 nsec = meta.time.nsec;
-    if(pv.nsecMask) {
-        pv.userTag->put(nsec&pv.nsecMask);
-        nsec &= ~pv.nsecMask;
-    }
-    pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
+    putMetaImpl(pv, meta);
     if(dbe&DBE_ALARM) {
         mapStatus(meta.status, pv.status.get(), pv.message.get());
         pv.severity->put(meta.severity);
@@ -412,7 +419,6 @@ void putValue(dbChannel *chan, pvd::PVScalarArray* value, db_field_log *pfl)
         value->putFrom(pvd::freeze(buf));
     }
 }
-
 template<typename META>
 void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
 {
@@ -424,14 +430,8 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
-    pvd::int32 nsec = meta.time.nsec;
-    if(pv.nsecMask) {
-        pv.userTag->put(nsec&pv.nsecMask);
-        nsec &= ~pv.nsecMask;
-    }
-    pv.nsec->put(nsec);
+    putMetaImpl(pv, meta);
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
-    FMAP(sec, time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
     if(dbe&DBE_ALARM) {
         mapStatus(meta.status, pv.status.get(), pv.message.get());
         FMAP(severity, severity);
@@ -539,6 +539,7 @@ void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStr
         try{
             pvmeta.nsecMask = epics::pvData::castUnsafe<pvd::uint32>(std::string(&UT[9]));
         }catch(std::exception& e){
+            pvmeta.nsecMask = 0;
             std::cerr<<dbChannelRecord(chan)->name<<" : Q:time:tag nsec:lsb: requires a number not '"<<UT[9]<<"'\n";
         }
     }
