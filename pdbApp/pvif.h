@@ -100,9 +100,13 @@ struct pdbRecordIterator {
     }
     pdbRecordIterator(const dbChannel *chan)
     {
+#if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
+        dbInitEntryFromRecord(dbChannelRecord(chan), &ent);
+#else
         dbInitEntry(pdbbase, &ent);
         if(dbFindRecord(&ent, dbChannelRecord(chan)->name)!=0)
-            throw std::runtime_error("Record not found");
+            throw std::logic_error("Record not found");
+#endif
         m_done = false;
     }
     ~pdbRecordIterator()
