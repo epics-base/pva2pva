@@ -2,6 +2,7 @@
 
 #include <epicsAtomic.h>
 #include <epicsString.h>
+#include <epicsTimer.h>
 
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/epicsException.h>

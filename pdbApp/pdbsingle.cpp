@@ -3,10 +3,15 @@
 #include <string.h>
 
 #include <dbAccess.h>
+#include <dbChannel.h>
+#include <dbStaticLib.h>
 #include <epicsAtomic.h>
 #include <errlog.h>
+#include <dbNotify.h>
 
 #include <pv/epicsException.h>
+#include <pv/pvAccess.h>
+#include <pv/configuration.h>
 
 #define epicsExportSharedSymbols
 #include "helper.h"

@@ -7,6 +7,7 @@
 #include <pv/epicsException.h>
 #include <pv/monitor.h>
 #include <pv/thread.h>
+#include <pv/serverContext.h>
 
 #include "server.h"
 

@@ -12,6 +12,7 @@
 #include <dbLock.h>
 #include <dbEvent.h>
 #include <epicsVersion.h>
+#include <dbNotify.h>
 
 #include <pv/reftrack.h>
 #include <pv/pvAccess.h>

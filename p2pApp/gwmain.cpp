@@ -12,6 +12,7 @@
 #include <epicsStdlib.h>
 #include <epicsGetopt.h>
 #include <iocsh.h>
+#include <epicsTimer.h>
 
 #include <pv/json.h>
 

@@ -3,11 +3,15 @@
 
 #include <dbAccess.h>
 
+#include <dbAccess.h>
+#include <dbChannel.h>
+#include <dbStaticLib.h>
 #include <dbEvent.h>
 #include <dbLock.h>
 
 #include <pv/pvIntrospect.h>
 #include <pv/pvAccess.h>
+#include <pv/configuration.h>
 #include <pv/json.h>
 
 #define epicsExportSharedSymbols
