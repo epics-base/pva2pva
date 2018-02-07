@@ -40,21 +40,21 @@ struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
     virtual ~PDBProvider();
 
     // ChannelProvider
-    virtual void destroy();
-    virtual std::string getProviderName();
+    virtual void destroy() OVERRIDE FINAL;
+    virtual std::string getProviderName() OVERRIDE FINAL;
     virtual epics::pvAccess::ChannelFind::shared_pointer channelFind(std::string const & channelName,
-                                             epics::pvAccess::ChannelFindRequester::shared_pointer const & channelFindRequester);
-    virtual epics::pvAccess::ChannelFind::shared_pointer channelList(epics::pvAccess::ChannelListRequester::shared_pointer const & channelListRequester);
+                                             epics::pvAccess::ChannelFindRequester::shared_pointer const & channelFindRequester) OVERRIDE FINAL;
+    virtual epics::pvAccess::ChannelFind::shared_pointer channelList(epics::pvAccess::ChannelListRequester::shared_pointer const & channelListRequester) OVERRIDE FINAL;
     virtual epics::pvAccess::Channel::shared_pointer createChannel(std::string const & channelName,
                                                                    epics::pvAccess::ChannelRequester::shared_pointer const & channelRequester,
-                                           short priority = PRIORITY_DEFAULT);
+                                           short priority = PRIORITY_DEFAULT) OVERRIDE FINAL;
     virtual epics::pvAccess::Channel::shared_pointer createChannel(std::string const & channelName,
                                                                    epics::pvAccess::ChannelRequester::shared_pointer const & channelRequester,
-                                                                   short priority, std::string const & address);
+                                                                   short priority, std::string const & address) OVERRIDE FINAL;
 
     // ChannelFind
-    virtual std::tr1::shared_ptr<ChannelProvider> getChannelProvider() { return shared_from_this(); }
-    virtual void cancel() {/* our channelFind() is synchronous, so nothing to cancel */}
+    virtual std::tr1::shared_ptr<ChannelProvider> getChannelProvider() OVERRIDE FINAL { return shared_from_this(); }
+    virtual void cancel() OVERRIDE FINAL {/* our channelFind() is synchronous, so nothing to cancel */}
 
     typedef std::map<std::string, PDBPV::shared_pointer> persist_pv_map_t;
     persist_pv_map_t persist_pv_map;

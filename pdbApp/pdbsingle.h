@@ -62,9 +62,10 @@ struct epicsShareClass PDBSinglePV : public PDBPV
 
     void activate();
 
+    virtual
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
-                const epics::pvAccess::ChannelRequester::shared_pointer& req);
+                const epics::pvAccess::ChannelRequester::shared_pointer& req) OVERRIDE FINAL;
 
     void addMonitor(PDBSingleMonitor*);
     void removeMonitor(PDBSingleMonitor*);
@@ -120,16 +121,14 @@ struct PDBSinglePut : public epics::pvAccess::ChannelPut,
                  const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBSinglePut();
 
-    virtual void destroy() { pvif.reset(); channel.reset(); requester.reset(); }
-    virtual void lock() {}
-    virtual void unlock() {}
-    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
-    virtual void cancel();
-    virtual void lastRequest() {}
+    virtual void destroy() OVERRIDE FINAL { pvif.reset(); channel.reset(); requester.reset(); }
+    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() OVERRIDE FINAL { return channel; }
+    virtual void cancel() OVERRIDE FINAL;
+    virtual void lastRequest() OVERRIDE FINAL {}
     virtual void put(
             epics::pvData::PVStructure::shared_pointer const & pvPutStructure,
-            epics::pvData::BitSet::shared_pointer const & putBitSet);
-    virtual void get();
+            epics::pvData::BitSet::shared_pointer const & putBitSet) OVERRIDE FINAL;
+    virtual void get() OVERRIDE FINAL;
 };
 
 struct PDBSingleMonitor : public BaseMonitor
@@ -145,11 +144,11 @@ struct PDBSingleMonitor : public BaseMonitor
                      const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBSingleMonitor();
 
-    virtual void onStart();
-    virtual void onStop();
-    virtual void requestUpdate();
+    virtual void onStart() OVERRIDE FINAL;
+    virtual void onStop() OVERRIDE FINAL;
+    virtual void requestUpdate() OVERRIDE FINAL;
 
-    virtual void destroy();
+    virtual void destroy() OVERRIDE FINAL;
 };
 
 #endif // PDBSINGLE_H

@@ -124,7 +124,7 @@ struct epicsShareClass PDBGroupPV : public PDBPV
     virtual
     epics::pvAccess::Channel::shared_pointer
         connect(const std::tr1::shared_ptr<PDBProvider>& prov,
-                const epics::pvAccess::ChannelRequester::shared_pointer& req) OVERRIDE;
+                const epics::pvAccess::ChannelRequester::shared_pointer& req) OVERRIDE FINAL;
 
     void addMonitor(PDBGroupMonitor*);
     void removeMonitor(PDBGroupMonitor*);
@@ -149,12 +149,12 @@ struct epicsShareClass PDBGroupChannel : public BaseChannel,
 
     virtual epics::pvAccess::ChannelPut::shared_pointer createChannelPut(
             epics::pvAccess::ChannelPutRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+            epics::pvData::PVStructure::shared_pointer const & pvRequest) OVERRIDE FINAL;
     virtual epics::pvData::Monitor::shared_pointer createMonitor(
             epics::pvData::MonitorRequester::shared_pointer const & requester,
-            epics::pvData::PVStructure::shared_pointer const & pvRequest);
+            epics::pvData::PVStructure::shared_pointer const & pvRequest) OVERRIDE FINAL;
 
-    virtual void printInfo(std::ostream& out);
+    virtual void printInfo(std::ostream& out) OVERRIDE FINAL;
 };
 
 struct PDBGroupPut : public epics::pvAccess::ChannelPut,
@@ -180,16 +180,14 @@ struct PDBGroupPut : public epics::pvAccess::ChannelPut,
                 const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBGroupPut();
 
-    virtual void destroy() { pvif.clear(); channel.reset(); requester.reset(); }
-    virtual void lock() {}
-    virtual void unlock() {}
-    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() { return channel; }
-    virtual void cancel() {}
-    virtual void lastRequest() {}
+    virtual void destroy() OVERRIDE FINAL { pvif.clear(); channel.reset(); requester.reset(); }
+    virtual std::tr1::shared_ptr<epics::pvAccess::Channel> getChannel() OVERRIDE FINAL { return channel; }
+    virtual void cancel() OVERRIDE FINAL {}
+    virtual void lastRequest() OVERRIDE FINAL {}
     virtual void put(
             epics::pvData::PVStructure::shared_pointer const & pvPutStructure,
-            epics::pvData::BitSet::shared_pointer const & putBitSet);
-    virtual void get();
+            epics::pvData::BitSet::shared_pointer const & putBitSet) OVERRIDE FINAL;
+    virtual void get() OVERRIDE FINAL;
 };
 
 struct PDBGroupMonitor : public BaseMonitor
@@ -207,11 +205,11 @@ struct PDBGroupMonitor : public BaseMonitor
                      const epics::pvData::PVStructure::shared_pointer& pvReq);
     virtual ~PDBGroupMonitor();
 
-    virtual void onStart();
-    virtual void onStop();
-    virtual void requestUpdate();
+    virtual void onStart() OVERRIDE FINAL;
+    virtual void onStop() OVERRIDE FINAL;
+    virtual void requestUpdate() OVERRIDE FINAL;
 
-    virtual void destroy();
+    virtual void destroy() OVERRIDE FINAL;
 
 };
 
