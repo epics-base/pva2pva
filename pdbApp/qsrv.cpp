@@ -1,5 +1,4 @@
 
-#include <epicsExport.h>
 #include <initHooks.h>
 #include <epicsExit.h>
 #include <epicsThread.h>
@@ -28,6 +27,8 @@
 #ifdef USE_MULTILOCK
 #  include "pdbgroup.h"
 #endif
+
+#include <epicsExport.h>
 
 namespace pva = epics::pvAccess;
 
