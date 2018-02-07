@@ -416,7 +416,7 @@ void PDBGroupPut::get()
 PDBGroupMonitor::PDBGroupMonitor(const PDBGroupPV::shared_pointer& pv,
                  const epics::pvAccess::MonitorRequester::weak_pointer &requester,
                  const pvd::PVStructure::shared_pointer& pvReq)
-    :BaseMonitor(requester, pvReq)
+    :BaseMonitor(pv->lock, requester, pvReq)
     ,pv(pv)
 {
     epics::atomic::increment(num_instances);

@@ -55,6 +55,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
             self->scratch.clear();
             {
                 DBScanLocker L(dbChannelRecord(self->chan));
+                // dbGet() into self->complete
                 self->pvif->put(self->scratch, evt->dbe_mask, pfl);
             }
 
@@ -63,6 +64,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
 
             FOREACH(PDBSinglePV::interested_t::const_iterator, it, end, self->interested) {
                 PDBSingleMonitor& mon = **it;
+                // from self->complete into monitor queue element
                 mon.post(self->scratch);
             }
 
@@ -433,7 +435,7 @@ void PDBSinglePut::get()
 PDBSingleMonitor::PDBSingleMonitor(const PDBSinglePV::shared_pointer& pv,
                  const requester_t::shared_pointer& requester,
                  const pvd::PVStructure::shared_pointer& pvReq)
-    :BaseMonitor(requester, pvReq)
+    :BaseMonitor(pv->lock, requester, pvReq)
     ,pv(pv)
 {
     epics::atomic::increment(num_instances);

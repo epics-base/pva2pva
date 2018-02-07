@@ -74,7 +74,7 @@ struct BaseMonitor : public epics::pvAccess::Monitor
 
     typedef epics::pvAccess::MonitorRequester requester_t;
 
-    mutable epicsMutex lock; // not held during any callback
+    epicsMutex& lock; // not held during any callback
     typedef epicsGuard<epicsMutex> guard_t;
 
 private:
@@ -90,9 +90,11 @@ private:
     buffer_t inuse, empty;
 
 public:
-    BaseMonitor(const requester_t::weak_pointer& requester,
+    BaseMonitor(epicsMutex& lock,
+                const requester_t::weak_pointer& requester,
                 const epics::pvData::PVStructure::shared_pointer& pvReq)
-        :requester(requester)
+        :lock(lock)
+        ,requester(requester)
         ,inoverflow(false)
         ,running(false)
         ,nbuffers(2)
