@@ -31,12 +31,15 @@ struct PDBPV
 };
 
 struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
-                     public std::tr1::enable_shared_from_this<PDBProvider>
+                                     public epics::pvAccess::ChannelFind,
+                                     public std::tr1::enable_shared_from_this<PDBProvider>
 {
     POINTER_DEFINITIONS(PDBProvider);
 
     explicit PDBProvider(const epics::pvAccess::Configuration::const_shared_pointer& =epics::pvAccess::Configuration::const_shared_pointer());
     virtual ~PDBProvider();
+
+    // ChannelProvider
     virtual void destroy();
     virtual std::string getProviderName();
     virtual epics::pvAccess::ChannelFind::shared_pointer channelFind(std::string const & channelName,
@@ -48,6 +51,10 @@ struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
     virtual epics::pvAccess::Channel::shared_pointer createChannel(std::string const & channelName,
                                                                    epics::pvAccess::ChannelRequester::shared_pointer const & channelRequester,
                                                                    short priority, std::string const & address);
+
+    // ChannelFind
+    virtual std::tr1::shared_ptr<ChannelProvider> getChannelProvider() { return shared_from_this(); }
+    virtual void cancel() {/* our channelFind() is synchronous, so nothing to cancel */}
 
     typedef std::map<std::string, PDBPV::shared_pointer> persist_pv_map_t;
     persist_pv_map_t persist_pv_map;

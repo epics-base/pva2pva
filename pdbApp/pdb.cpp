@@ -586,8 +586,14 @@ pva::ChannelFind::shared_pointer
 PDBProvider::channelList(pva::ChannelListRequester::shared_pointer const & requester)
 {
     pva::ChannelFind::shared_pointer ret;
-    requester->channelListResult(pvd::Status(pvd::Status::STATUSTYPE_ERROR, "not supported"),
-                                 ret, pvd::PVStringArray::const_svector(), true);
+    pvd::PVStringArray::svector names;
+    for(pdbRecordIterator rec; !rec.done(); rec.next())
+    {
+        names.push_back(rec.name());
+    }
+    requester->channelListResult(pvd::Status::Ok,
+                                 shared_from_this(),
+                                 pvd::freeze(names), false);
     return ret;
 }
 
