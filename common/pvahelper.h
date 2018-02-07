@@ -76,6 +76,7 @@ struct BaseMonitor : public epics::pvAccess::Monitor
 
     epicsMutex& lock; // not held during any callback
     typedef epicsGuard<epicsMutex> guard_t;
+    typedef epicsGuardRelease<epicsMutex> unguard_t;
 
 private:
     const requester_t::weak_pointer requester;
@@ -106,121 +107,136 @@ public:
 
     //! Must call before first post().  Sets .complete and calls monitorConnect()
     //! @note that value will never by accessed except by post() and requestUpdate()
-    void connect(const epics::pvData::PVStructurePtr& value)
+    void connect(guard_t& guard, const epics::pvData::PVStructurePtr& value)
     {
+        guard.assertIdenticalMutex(lock);
         epics::pvData::StructureConstPtr dtype(value->getStructure());
         epics::pvData::PVDataCreatePtr create(epics::pvData::getPVDataCreate());
         BaseMonitor::shared_pointer self(shared_from_this());
         requester_t::shared_pointer req(requester.lock());
-        {
-            guard_t G(lock);
-            assert(!complete); // can't call twice
 
-            complete = value;
-            empty.resize(nbuffers);
-            for(size_t i=0; i<empty.size(); i++) {
-                empty[i].reset(new epics::pvAccess::MonitorElement(create->createPVStructure(dtype)));
-            }
+        assert(!complete); // can't call twice
+
+        complete = value;
+        empty.resize(nbuffers);
+        for(size_t i=0; i<empty.size(); i++) {
+            empty[i].reset(new epics::pvAccess::MonitorElement(create->createPVStructure(dtype)));
         }
-        epics::pvData::Status sts;
-        if(req)
+
+        if(req) {
+            unguard_t U(guard);
+            epics::pvData::Status sts;
             req->monitorConnect(sts, self, dtype);
+        }
     }
 
     struct no_overflow {};
 
     //! post update if queue not full, if full return false w/o overflow
-    bool post(const epics::pvData::BitSet& updated, no_overflow)
+    bool post(guard_t& guard, const epics::pvData::BitSet& updated, no_overflow)
     {
+        guard.assertIdenticalMutex(lock);
         requester_t::shared_pointer req;
-        {
-            guard_t G(lock);
-            if(!complete || !running) return false;
 
-            changed |= updated;
+        if(!complete || !running) return false;
 
-            if(empty.empty()) return false;
+        changed |= updated;
 
-            if(p_postone())
-                req = requester.lock();
-            inoverflow = false;
+        if(empty.empty()) return false;
+
+        if(p_postone())
+            req = requester.lock();
+        inoverflow = false;
+
+        if(req) {
+            unguard_t U(guard);
+            req->monitorEvent(shared_from_this());
         }
-        if(req) req->monitorEvent(shared_from_this());
         return true;
     }
 
     //! post update of pending changes.  eg. call from requestUpdate()
-    bool post()
+    bool post(guard_t& guard)
     {
+        guard.assertIdenticalMutex(lock);
         bool oflow;
         requester_t::shared_pointer req;
-        {
-            guard_t G(lock);
-            if(!complete || !running) return false;
 
-            if(empty.empty()) {
-                oflow = inoverflow = true;
+        if(!complete || !running) return false;
 
-            } else {
+        if(empty.empty()) {
+            oflow = inoverflow = true;
 
-                if(p_postone())
-                    req = requester.lock();
-                oflow = inoverflow = false;
-            }
+        } else {
+
+            if(p_postone())
+                req = requester.lock();
+            oflow = inoverflow = false;
         }
-        if(req) req->monitorEvent(shared_from_this());
+
+        if(req) {
+            unguard_t U(guard);
+            req->monitorEvent(shared_from_this());
+        }
         return !oflow;
     }
 
     //! post update with changed and overflowed masks (eg. when updates were lost in some upstream queue)
-    bool post(const epics::pvData::BitSet& updated, const epics::pvData::BitSet& overflowed)
+    bool post(guard_t& guard,
+              const epics::pvData::BitSet& updated,
+              const epics::pvData::BitSet& overflowed)
     {
+        guard.assertIdenticalMutex(lock);
         bool oflow;
         requester_t::shared_pointer req;
-        {
-            guard_t G(lock);
-            if(!complete || !running) return false;
 
-            if(empty.empty()) {
-                oflow = inoverflow = true;
-                overflow |= overflowed;
-                overflow.or_and(updated, changed);
-                changed |= updated;
+        if(!complete || !running) return false;
 
-            } else {
+        if(empty.empty()) {
+            oflow = inoverflow = true;
+            overflow |= overflowed;
+            overflow.or_and(updated, changed);
+            changed |= updated;
 
-                changed |= updated;
-                if(p_postone())
-                    req = requester.lock();
-                oflow = inoverflow = false;
-            }
+        } else {
+
+            changed |= updated;
+            if(p_postone())
+                req = requester.lock();
+            oflow = inoverflow = false;
         }
-        if(req) req->monitorEvent(shared_from_this());
+
+        if(req) {
+            unguard_t U(guard);
+            req->monitorEvent(shared_from_this());
+        }
         return !oflow;
     }
 
     //! post update with changed
-    bool post(const epics::pvData::BitSet& updated) {
+    bool post(guard_t& guard, const epics::pvData::BitSet& updated) {
         bool oflow;
         requester_t::shared_pointer req;
-        {
-            guard_t G(lock);
-            if(!complete || !running) return false;
 
-            if(empty.empty()) {
-                oflow = inoverflow = true;
-                overflow.or_and(updated, changed);
-                changed |= updated;
+        if(!complete || !running) return false;
 
-            } else {
+        if(empty.empty()) {
+            oflow = inoverflow = true;
+            overflow.or_and(updated, changed);
+            changed |= updated;
 
-                changed |= updated;
-                if(p_postone())
-                    req = requester.lock();
-                oflow = inoverflow = false;
-            }
+        } else {
+
+            changed |= updated;
+            if(p_postone())
+                req = requester.lock();
+            oflow = inoverflow = false;
         }
-        if(req) req->monitorEvent(shared_from_this());
+
+        if(req) {
+            unguard_t U(guard);
+            req->monitorEvent(shared_from_this());
+        }
         return !oflow;
     }
 
@@ -252,7 +268,7 @@ public:
     virtual void onStop() {}
     //! called when within release() when the opportunity exists to end the overflow condition
     //! May do nothing, or lock and call post()
-    virtual void requestUpdate() {guard_t G(lock); post();}
+    virtual void requestUpdate() {guard_t G(lock); post(G);}
 
     virtual void destroy()
     {

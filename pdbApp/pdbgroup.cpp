@@ -36,30 +36,10 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
         PDBGroupPV::shared_pointer self(std::tr1::static_pointer_cast<PDBGroupPV>(((PDBGroupPV*)evt->self)->shared_from_this()));
         PDBGroupPV::Info& info = self->members[idx];
 
+        PDBGroupPV::interested_remove_t temp;
         {
-            bool doPost;
-            {
-                Guard G(self->lock);
 
-                if(!(evt->dbe_mask&DBE_PROPERTY)) {
-                    if(!info.had_initial_VALUE) {
-                        info.had_initial_VALUE = true;
-                        assert(self->initial_waits>0);
-                        self->initial_waits--;
-                    }
-                } else {
-                    if(!info.had_initial_PROPERTY) {
-                        info.had_initial_PROPERTY = true;
-                        assert(self->initial_waits>0);
-                        self->initial_waits--;
-                    }
-                }
-
-                doPost = self->initial_waits==0;
-
-                if(doPost)
-                    self->interested_iterating = true;
-            }
+            Guard G(self->lock);
 
             self->scratch.clear();
             if(evt->dbe_mask&DBE_PROPERTY || !self->monatomic)
@@ -80,35 +60,50 @@ void pdb_group_event(void *user_arg, struct dbChannel *chan,
                 }
             }
 
-            if(!doPost) return; // don't post() until all subscriptions get initial updates
-
-            FOREACH(PDBGroupPV::interested_t::const_iterator, it, end, self->interested) {
-                PDBGroupMonitor& mon = **it;
-                mon.post(self->scratch);
+            if(!(evt->dbe_mask&DBE_PROPERTY)) {
+                if(!info.had_initial_VALUE) {
+                    info.had_initial_VALUE = true;
+                    assert(self->initial_waits>0);
+                    self->initial_waits--;
+                }
+            } else {
+                if(!info.had_initial_PROPERTY) {
+                    info.had_initial_PROPERTY = true;
+                    assert(self->initial_waits>0);
+                    self->initial_waits--;
+                }
             }
 
-            PDBGroupPV::interested_remove_t temp;
-            {
-                Guard G(self->lock);
+            if(self->initial_waits==0) {
+                self->interested_iterating = true;
 
-                assert(self->interested_iterating);
-
-                while(!self->interested_add.empty()) {
-                    PDBGroupPV::interested_t::iterator first(self->interested_add.begin());
-                    self->interested.insert(*first);
-                    self->interested_add.erase(first);
+                FOREACH(PDBGroupPV::interested_t::const_iterator, it, end, self->interested) {
+                    PDBGroupMonitor& mon = **it;
+                    mon.post(G, self->scratch); // G unlocked
                 }
 
-                temp.swap(self->interested_remove);
-                for(PDBGroupPV::interested_remove_t::iterator it(temp.begin()),
-                    end(temp.end()); it != end; ++it)
                 {
-                    self->interested.erase(static_cast<PDBGroupMonitor*>(it->get()));
+                    Guard G(self->lock);
+
+                    assert(self->interested_iterating);
+
+                    while(!self->interested_add.empty()) {
+                        PDBGroupPV::interested_t::iterator first(self->interested_add.begin());
+                        self->interested.insert(*first);
+                        self->interested_add.erase(first);
+                    }
+
+                    temp.swap(self->interested_remove);
+                    for(PDBGroupPV::interested_remove_t::iterator it(temp.begin()),
+                        end(temp.end()); it != end; ++it)
+                    {
+                        self->interested.erase(static_cast<PDBGroupMonitor*>(it->get()));
+                    }
+
+                    self->interested_iterating = false;
+
+                    self->finalizeMonitor();
                 }
-
-                self->interested_iterating = false;
-
-                self->finalizeMonitor();
             }
         }
 
@@ -149,45 +144,40 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
 // caller must not hold lock
 void PDBGroupPV::addMonitor(PDBGroupMonitor *mon)
 {
-    bool needpost = false;
-    {
-        Guard G(lock);
-        if(interested.empty() && interested_add.empty()) {
-            // first monitor
-            // start subscriptions
+    Guard G(lock);
+    if(interested.empty() && interested_add.empty()) {
+        // first monitor
+        // start subscriptions
 
-            size_t ievts = 0;
-            for(size_t i=0; i<members.size(); i++) {
-                PDBGroupPV::Info& info = members[i];
+        size_t ievts = 0;
+        for(size_t i=0; i<members.size(); i++) {
+            PDBGroupPV::Info& info = members[i];
 
-                if(!!info.evt_VALUE) {
-                    db_event_enable(info.evt_VALUE.subscript);
-                    db_post_single_event(info.evt_VALUE.subscript);
-                    ievts++;
-                    info.had_initial_VALUE = false;
-                } else {
-                    info.had_initial_VALUE = true;
-                }
-                assert(info.evt_PROPERTY.subscript);
-                db_event_enable(info.evt_PROPERTY.subscript);
-                db_post_single_event(info.evt_PROPERTY.subscript);
+            if(!!info.evt_VALUE) {
+                db_event_enable(info.evt_VALUE.subscript);
+                db_post_single_event(info.evt_VALUE.subscript);
                 ievts++;
-                info.had_initial_PROPERTY = false;
+                info.had_initial_VALUE = false;
+            } else {
+                info.had_initial_VALUE = true;
             }
-            initial_waits = ievts;
+            assert(info.evt_PROPERTY.subscript);
+            db_event_enable(info.evt_PROPERTY.subscript);
+            db_post_single_event(info.evt_PROPERTY.subscript);
+            ievts++;
+            info.had_initial_PROPERTY = false;
+        }
+        initial_waits = ievts;
 
-        } else if(initial_waits==0) {
-            // new subscriber and already had initial update
-            needpost = true;
-        } // else new subscriber, but no initial update.  so just wait
+    } else if(initial_waits==0) {
+        // new subscriber and already had initial update
+        mon->post(G);
+    } // else new subscriber, but no initial update.  so just wait
 
-        if(interested_iterating)
-            interested_add.insert(mon);
-        else
-            interested.insert(mon);
-    }
-    if(needpost)
-        mon->post();
+    if(interested_iterating)
+        interested_add.insert(mon);
+    else
+        interested.insert(mon);
 }
 
 // caller must not hold lock
@@ -285,7 +275,8 @@ PDBGroupChannel::createMonitor(
     PDBGroupMonitor::shared_pointer ret(new PDBGroupMonitor(pv->shared_from_this(), requester, pvRequest));
     ret->weakself = ret;
     assert(!!pv->complete);
-    ret->connect(pv->complete);
+    guard_t G(pv->lock);
+    ret->connect(G, pv->complete);
     return ret;
 }
 
@@ -451,5 +442,5 @@ void PDBGroupMonitor::onStop()
 void PDBGroupMonitor::requestUpdate()
 {
     Guard G(pv->lock);
-    post();
+    post(G);
 }
