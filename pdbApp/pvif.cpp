@@ -56,17 +56,6 @@ DBCH::DBCH(const std::string& name)
     }
 }
 
-DBCH::DBCH(const char *name)
-    :chan(dbChannelCreate(name))
-{
-    if(!chan)
-        throw std::invalid_argument("Invalid channel");
-    if(dbChannelOpen(chan)) {
-        dbChannelDelete(chan);
-        throw std::invalid_argument(std::string("Failed to open channel ")+name);
-    }
-}
-
 DBCH::~DBCH()
 {
     if(chan) dbChannelDelete(chan);
