@@ -37,19 +37,19 @@ namespace pvd = epics::pvData;
 
 DBCH::DBCH(dbChannel *ch) :chan(ch)
 {
+    if(!chan)
+        throw std::invalid_argument("NULL channel");
     if(dbChannelOpen(chan)) {
         dbChannelDelete(chan);
         throw std::invalid_argument("Failed to open channel");
     }
-    if(!chan)
-        throw std::invalid_argument(std::string("Invalid channel ")+dbChannelName(ch));
 }
 
 DBCH::DBCH(const std::string& name)
     :chan(dbChannelCreate(name.c_str()))
 {
     if(!chan)
-        throw std::invalid_argument("Invalid channel");
+        throw std::invalid_argument("NULL channel");
     if(dbChannelOpen(chan)) {
         dbChannelDelete(chan);
         throw std::invalid_argument("Failed to open channel "+name);
