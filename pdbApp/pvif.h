@@ -61,6 +61,7 @@ struct epicsShareClass DBCH {
 private:
     DBCH(const DBCH&);
     DBCH& operator=(const DBCH&);
+    void prepare();
 };
 
 struct pdbRecordInfo {

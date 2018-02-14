@@ -19,6 +19,7 @@
 #include <pv/reftrack.h>
 
 #define epicsExportSharedSymbols
+#include "sb.h"
 #include "pvif.h"
 
 #include <epicsExport.h>
@@ -37,22 +38,22 @@ namespace pvd = epics::pvData;
 
 DBCH::DBCH(dbChannel *ch) :chan(ch)
 {
-    if(!chan)
-        throw std::invalid_argument("NULL channel");
-    if(dbChannelOpen(chan)) {
-        dbChannelDelete(chan);
-        throw std::invalid_argument("Failed to open channel");
-    }
+    prepare();
 }
 
 DBCH::DBCH(const std::string& name)
     :chan(dbChannelCreate(name.c_str()))
 {
+    prepare();
+}
+
+void DBCH::prepare()
+{
     if(!chan)
         throw std::invalid_argument("NULL channel");
     if(dbChannelOpen(chan)) {
         dbChannelDelete(chan);
-        throw std::invalid_argument("Failed to open channel "+name);
+        throw std::invalid_argument(SB()<<"Failed to open channel "<<dbChannelName(chan));
     }
 }
 
