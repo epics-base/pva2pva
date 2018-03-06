@@ -88,6 +88,7 @@ record(...) {
 @li "plain"
 @li "any"
 @li "meta"
+@li "proc"
 
 The "scalar" mapping places an NTScalar or NTScalarArray as a sub-structure.
 
@@ -100,6 +101,9 @@ The "meta" mapping ignores the "value" and places only the alarm and time
 meta-data as sub-fields.
 The special group level tag 'meta:""' allows these meta-data fields to be
 placed in the top-level structure.
+
+The "proc" mapping uses neither "value" nor meta-data.
+Instead the target record is processed during a put.
 
 @subsubsection qsrv_group_map_trig Field Update Triggers
 
