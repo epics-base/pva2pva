@@ -5,10 +5,12 @@
 
 @section qsrv QSRV
 
-QSRV is a network server using the PVAccess protocol which
+@ref qsrv_page is a network server using the PVAccess protocol which
 runs inside an EPICS IOC process and allows clients
 to make requests to access the Process Variables (PVs)
 within.
+
+Configuration of @ref qsrv_group_def.
 
 @subsection qsrv_build Building
 

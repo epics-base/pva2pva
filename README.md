@@ -86,15 +86,15 @@ A full list of `info(Q:group` options.
 record(...) {
     info(Q:group, {
         "<group_name>":{
-            +id:"some/NT:1.0",  // top level ID
-            +meta:"FLD",        // map top level alarm/timeStamp
-            +atomic:true,       // whether monitors default to multi-locking atomicity
+            +id:"some/NT:1.0",  # top level ID
+            +meta:"FLD",        # map top level alarm/timeStamp
+            +atomic:true,       # whether monitors default to multi-locking atomicity
             "<field.name>":{
-                +type:"scalar", // controls how map VAL mapped onto <field.name>
+                +type:"scalar", # controls how map VAL mapped onto <field.name>
                 +channel:"VAL",
                 +id:"some/NT:1.0",
-                +trigger:"*",   // "*" or comma seperated list of <field.name>s
-                +putorder:0,    // set for fields where put is allowed, processing done in increasing order
+                +trigger:"*",   # "*" or comma seperated list of <field.name>s
+                +putorder:0,    # set for fields where put is allowed, processing done in increasing order
             }
         }
     })
