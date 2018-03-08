@@ -591,6 +591,16 @@ PDBProvider::channelList(pva::ChannelListRequester::shared_pointer const & reque
     {
         names.push_back(rec.name());
     }
+    {
+        epicsGuard<epicsMutex> G(transient_pv_map.mutex());
+
+        for(persist_pv_map_t::const_iterator it=persist_pv_map.begin(), end=persist_pv_map.end();
+            it != end; ++it)
+        {
+            names.push_back(it->first);
+        }
+    }
+    // check for duplicates?
     requester->channelListResult(pvd::Status::Ok,
                                  shared_from_this(),
                                  pvd::freeze(names), false);
