@@ -35,11 +35,15 @@ record(aao, "$(N)B") {
     field(TPRO, "1")
 }
 
-record(bo, "$(N)Save") {
+record(longout, "$(N)Save") {
+    field(MDEL, "-1") # ensure we always trigger group monitor
     field(TPRO, "1")
     info(Q:group, {
         "$(N)Tbl":{
-            "_save":{+type:"proc", +channel:"VAL", +putorder:2}
+            "_save":{+type:"proc",
+                     +channel:"VAL",
+                     +putorder:2,
+                     +trigger:"*"}
         }
     })
 }

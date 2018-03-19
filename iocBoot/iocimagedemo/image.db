@@ -1,18 +1,20 @@
 
 
 record(longout, "$(N):ArraySize0_RBV") {
+    field(VAL, "100")
     info(Q:group, {
         "$(N):Array":{
-            "dimension[0].size":{+channel:"VAL", +type:"plain"}
+            "dimension[0].size":{+channel:"VAL", +type:"plain", +putorder:0}
         }
     })
     field(FLNK, "$(N):ArraySize1_RBV")
 }
 
 record(longout, "$(N):ArraySize1_RBV") {
+    field(VAL, "100")
     info(Q:group, {
         "$(N):Array":{
-            "dimension[1].size":{+channel:"VAL", +type:"plain"}
+            "dimension[1].size":{+channel:"VAL", +type:"plain", +putorder:0}
         }
     })
     field(FLNK, "$(N):ArrayData_")
@@ -20,6 +22,7 @@ record(longout, "$(N):ArraySize1_RBV") {
 
 record(aSub, "$(N):ArrayData_") {
     field(SNAM, "QSRV_image_demo")
+    field(PINI, "YES")
     field(FTA, "ULONG")
     field(FTB, "ULONG")
     field(FTVA, "USHORT")
@@ -35,7 +38,9 @@ record(waveform, "$(N):ArrayData") {
     info(Q:group, {
         "$(N):Array":{
             +id:"epics:nt/NTNDArray:1.0",
-            "value":{+type:"any", +channel:"VAL", +trigger:"*"},
+            "value":{+type:"any",
+                     +channel:"VAL",
+                     +trigger:"*"},
             "":{+type:"meta", +channel:"SEVR"}
         }
     })
