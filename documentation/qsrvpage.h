@@ -118,4 +118,27 @@ values/meta-data of all fields.
 It may be useful to specify a comma seperated list of field names
 so that changes may partially update the group.
 
+@subsection qsrv_stamp QSRV Timestamp Options
+
+QSRV has the ability to perform certain transformations on the timestamp before transporting it.
+The mechanism for configuring this is the "Q:time:tag" info() tag.
+
+@subsubsection qsrv_stamp_nslsb Nano-seconds least significant bits
+
+Setting "Q:time:tag" to a value of "nsec:lsb:#", where # is a number between 0 and 32,
+will split the nanoseconds value stored in the associated record.
+The least significant # bits are stored in the 'timeStamp.userTag' field.
+While the remaining 32-# bits are stored in 'timeStamp.nanoseconds' (without shifting).
+
+For example, in the following situation 16 bits are split off.
+If the nanoseconds part of the record timestamp is 0x12345678,
+then the PVD structure would include "timeStamp.nanoseconds=0x12300000"
+and "timeStamp.userTag=0x45678".
+
+@code
+record(ai, "...") {
+  info(Q:time:tag, "nsec:lsb:20")
+}
+@endcode
+
 */
