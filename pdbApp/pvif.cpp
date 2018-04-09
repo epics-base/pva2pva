@@ -627,12 +627,11 @@ pvd::ScalarType DBR2PVD(short dbr)
 {
     switch(dbr) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: return pvd::pv##PVACODE;
-#define CASE_ENUM
 #define CASE_SKIP_BOOL
 #include "pv/typemap.h"
-#undef CASE_ENUM
 #undef CASE_SKIP_BOOL
 #undef CASE
+    case DBF_ENUM: return pvd::pvUShort;
     case DBF_STRING: return pvd::pvString;
     }
     throw std::invalid_argument("Unsupported DBR code");

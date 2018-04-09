@@ -54,6 +54,12 @@ TESTPROD_HOST += testgroupconfig
 testgroupconfig_SRCS += testgroupconfig
 testgroupconfig_LIBS += qsrv pvAccess pvData
 testgroupconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
+
+TESTPROD_HOST += testdbf_copy
+testdbf_copy_SRCS += testdbf_copy
+testdbf_copy_LIBS += qsrv pvAccess pvData
+testdbf_copy_LIBS += $(EPICS_BASE_IOC_LIBS)
+TESTS += testdbf_copy
 endif
 
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)

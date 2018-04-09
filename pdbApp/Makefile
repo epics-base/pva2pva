@@ -15,6 +15,7 @@ qsrv_SRCS += pvif.cpp
 qsrv_SRCS += qsrv.cpp
 qsrv_SRCS += pdb.cpp
 qsrv_SRCS += pdbsingle.cpp
+qsrv_SRCS += dbf_copy.cpp
 #qsrv_SRCS += pvalink.cpp
 qsrv_SRCS += tpool.cpp
 qsrv_SRCS += demo.cpp
