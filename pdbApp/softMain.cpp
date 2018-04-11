@@ -73,8 +73,13 @@
 
 extern "C" int softIocPVA_registerRecordDeviceDriver(struct dbBase *pdbbase);
 
+#ifdef __rtems__
+#define DBD_FILE "dbd/softIocPVA.dbd"
+#define EXIT_FILE "db/softIocExit.db"
+#else
 #define DBD_FILE FINAL_LOCATION "/dbd/softIocPVA.dbd"
 #define EXIT_FILE FINAL_LOCATION "/db/softIocExit.db"
+#endif
 
 #ifdef VERSION_INT
 #if EPICS_VERSION_INT>=VERSION_INT(3,15,0,1)
