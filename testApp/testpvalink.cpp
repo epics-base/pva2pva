@@ -39,7 +39,7 @@ void testPut()
     testDiag("==== testPut ====");
     testdbGetFieldEqual("target:li2.VAL", DBF_LONG, 43);
     testdbGetFieldEqual("src:li2.VAL", DBF_LONG, 0);
-    testdbGetFieldEqual("src:li2.INP", DBF_STRING, "{\"pva\":\"target:l2\"}");
+    testdbGetFieldEqual("src:li2.OUT", DBF_STRING, "{\"pva\":\"target:li2\"}");
 
     testdbPutFieldOk("src:li2.VAL", DBF_LONG, 14);
 
@@ -50,11 +50,11 @@ void testPut()
 } // namespace
 
 extern "C"
-void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
+void pvaLinkTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpvalink)
 {
-    testPlan(0);
+    testPlan(15);
 
     // Disable PVA client provider, use local/QSRV provider
     pvaLinkIsolate = 1;
@@ -63,8 +63,8 @@ MAIN(testpvalink)
     try {
         TestIOC IOC;
 
-        testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
-        p2pTestIoc_registerRecordDeviceDriver(pdbbase);
+        testdbReadDatabase("pvaLinkTestIoc.dbd", NULL, NULL);
+        pvaLinkTestIoc_registerRecordDeviceDriver(pdbbase);
         testdbReadDatabase("testpvalink.db", NULL, NULL);
 
         IOC.init();

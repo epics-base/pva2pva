@@ -14,6 +14,10 @@ p2pTestIoc_DBD += base.dbd
 # Tests explicitly create/destory PDB provider
 #p2pTestIoc_DBD += qsrv.dbd
 
+TARGETS += $(COMMON_DIR)/pvaLinkTestIoc.dbd
+pvaLinkTestIoc_DBD += base.dbd
+pvaLinkTestIoc_DBD += qsrv.dbd
+
 PROD_SRCS += utilitiesx.cpp
 PROD_LIBS += pvAccess pvData
 PROD_LIBS += $(EPICS_BASE_IOC_LIBS)
@@ -43,11 +47,11 @@ TESTS += testpdb
 PROD_HOST += check_consist
 check_consist_SRCS += check_consist.cpp
 
-#TESTPROD_HOST += testpvalink
+TESTPROD_HOST += testpvalink
 testpvalink_SRCS += testpvalink.cpp
-testpvalink_SRCS += p2pTestIoc_registerRecordDeviceDriver.cpp
+testpvalink_SRCS += pvaLinkTestIoc_registerRecordDeviceDriver.cpp
 testpvalink_LIBS += qsrv
-#TESTS += testpvalink
+TESTS += testpvalink
 
 ifdef BASE_3_16
 TESTPROD_HOST += testgroupconfig

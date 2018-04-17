@@ -29,8 +29,10 @@
 #include "pvif.h"
 #include "tpool.h"
 
-extern int pvaLinkDebug;
-extern int pvaLinkIsolate;
+extern "C" {
+    epicsShareExtern int pvaLinkDebug;
+    epicsShareExtern int pvaLinkIsolate;
+}
 
 #if 0
 #  define TRACE(X) std::cerr<<"PVAL "<<__func__<<" " X <<"\n"

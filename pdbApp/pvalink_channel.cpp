@@ -71,7 +71,7 @@ void pvaLinkChannel::open()
     } catch(std::exception& e){
         errlogPrintf("failed to find in QSRV; %s\n", key.first.c_str());
     }
-    if(!chan) {
+    if(!pvaLinkIsolate && !chan) {
         chan = pvaGlobal->provider_remote.connect(key.first);
         TRACE(<<"Remote "<<key.first);
     }
