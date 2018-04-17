@@ -5,11 +5,30 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
+ifeq ($(OS_CLASS),RTEMS)
+# set by Base in configure/os/CONFIG.UnixCommon.Common
+# then clobbered by included RTEMS make/host.cfg
+# to drop the '-p'
+MKDIR = mkdir -p
+endif
+
 LIBRARY += qsrv
 
 SHRLIB_VERSION ?= $(EPICS_QSRV_ABI_MAJOR_VERSION).$(EPICS_QSRV_ABI_MINOR_VERSION)
 
 USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
+
+INC += pv/qsrv.h
+INC += pv/qsrvVersionNum.h
+
+EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
+EXPANDVARS += EPICS_QSRV_MINOR_VERSION
+EXPANDVARS += EPICS_QSRV_MAINTENANCE_VERSION
+EXPANDVARS += EPICS_QSRV_DEVELOPMENT_FLAG
+EXPANDVARS += EPICS_QSRV_ABI_MAJOR_VERSION
+EXPANDVARS += EPICS_QSRV_ABI_MINOR_VERSION
+
+EXPANDFLAGS += $(foreach var,$(EXPANDVARS),-D$(var)="$(strip $($(var)))")
 
 qsrv_SRCS += pvif.cpp
 qsrv_SRCS += qsrv.cpp
@@ -59,3 +78,10 @@ include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
 
+# Can't use EXPAND as generated headers must appear
+# in O.Common, but EXPAND emits rules for O.$(T_A)
+../O.Common/pv/qsrvVersionNum.h: ../pv/qsrvVersionNum.h@
+	$(MKDIR) $(COMMON_DIR)/pv
+	$(EXPAND_TOOL) $(EXPANDFLAGS) $($@_EXPANDFLAGS) $< $@
+
+qsrv$(DEP): ../O.Common/pv/qsrvVersionNum.h
