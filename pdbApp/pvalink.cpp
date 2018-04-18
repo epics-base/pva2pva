@@ -150,4 +150,5 @@ extern "C" {
     epicsExportRegistrar(installPVAAddLinkHook);
     epicsExportAddress(jlif, lsetPVA);
     epicsExportAddress(int, pvaLinkDebug);
+    epicsExportAddress(int, pvaLinkNWorkers);
 }

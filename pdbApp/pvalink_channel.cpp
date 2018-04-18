@@ -8,6 +8,8 @@
 
 #include "pvalink.h"
 
+int pvaLinkNWorkers = 1;
+
 namespace pvalink {
 
 pvaGlobal_t *pvaGlobal;
@@ -20,7 +22,7 @@ pvaGlobal_t::pvaGlobal_t()
     ,queue("PVAL")
 {
     // worker should be above PVA worker priority?
-    queue.start(1, epicsThreadPriorityMedium);
+    queue.start(std::max(1, pvaLinkNWorkers), epicsThreadPriorityMedium);
 }
 
 pvaGlobal_t::~pvaGlobal_t()

@@ -32,6 +32,7 @@
 extern "C" {
     epicsShareExtern int pvaLinkDebug;
     epicsShareExtern int pvaLinkIsolate;
+    epicsShareExtern int pvaLinkNWorkers;
 }
 
 #if 0
