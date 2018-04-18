@@ -10,7 +10,8 @@ runs inside an EPICS IOC process and allows clients
 to make requests to access the Process Variables (PVs)
 within.
 
-Documentation of @ref qsrv_config including @ref qsrv_group_def.
+Documentation of @ref qsrv_config including @ref qsrv_group_def
+and @ref qsrv_link configuration.
 
 @subsection qsrv_build Building
 
