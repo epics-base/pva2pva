@@ -78,7 +78,7 @@ pvd::PVStructurePtr pvaLink::makeRequest()
 //    ret->getSubFieldT<pvd::PVString>("record._options.process")->put(proc);
 
     ret = pvd::getPVDataCreate()->createPVStructure(monitorRequestType);
-    ret->getSubFieldT<pvd::PVBoolean>("record._options.pipeline")->put(false);
+    ret->getSubFieldT<pvd::PVBoolean>("record._options.pipeline")->put(pipeline);
     ret->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(true);
     ret->getSubFieldT<pvd::PVUInt>("record._options.queueSize")->put(queueSize);
     return ret;
