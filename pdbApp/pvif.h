@@ -29,7 +29,6 @@
 #  define USE_MULTILOCK
 #endif
 
-epics::pvData::ScalarType DBR2PVD(short dbr);
 short PVD2DBR(epics::pvData::ScalarType pvt);
 
 // copy from PVField (.value sub-field) to DBF buffer

@@ -18,6 +18,22 @@
 
 namespace pvd = epics::pvData;
 
+// note that we handle DBF_ENUM differently than in pvif.cpp
+static
+pvd::ScalarType DBR2PVD(short dbr)
+{
+    switch(dbr) {
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: return pvd::pv##PVACODE;
+#define CASE_SKIP_BOOL
+#include "pv/typemap.h"
+#undef CASE_SKIP_BOOL
+#undef CASE
+    case DBF_ENUM: return pvd::pvUShort;
+    case DBF_STRING: return pvd::pvString;
+    }
+    throw std::invalid_argument("Unsupported DBR code");
+}
+
 long copyPVD2DBF(const pvd::PVField::const_shared_pointer& inraw,
                  void *outbuf, short outdbf, long *outnReq)
 {
