@@ -634,22 +634,29 @@ pvd::ScalarType DBR2PVD(short dbr)
 #undef CASE_SKIP_BOOL
 #undef CASE
     case DBF_STRING: return pvd::pvString;
-    default:
-        throw std::invalid_argument("Unsupported DBR code");
     }
+    throw std::invalid_argument("Unsupported DBR code");
 }
 
 short PVD2DBR(pvd::ScalarType pvt)
 {
     switch(pvt) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: return DBR_##DBFTYPE;
-#define CASE_SQUEEZE_INT64
+#ifdef USE_INT64
+#  define CASE_REAL_INT64
+#else
+#  define CASE_SQUEEZE_INT64
+#endif
 #include "pv/typemap.h"
-#undef CASE_SQUEEZE_INT64
+#ifdef USE_INT64
+#  undef CASE_REAL_INT64
+#else
+#  undef CASE_SQUEEZE_INT64
+#endif
 #undef CASE
-    default:
-        throw std::invalid_argument("Unsupported pvType code");
+    case pvd::pvString: return DBF_STRING;
     }
+    return -1;
 }
 
 epics::pvData::FieldConstPtr
