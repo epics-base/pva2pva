@@ -296,6 +296,11 @@ void putValue(dbChannel *chan, pvd::PVScalar* value, db_field_log *pfl)
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
+    if(nReq==0) {
+        // this was an actual max length 1 array, which has zero elements now.
+        memset(&buf, 0, sizeof(buf));
+    }
+
     switch(dbChannelFinalFieldType(chan)) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: value->putFrom<PVATYPE>(buf.dbf_##DBFTYPE); break;
 #define CASE_ENUM
