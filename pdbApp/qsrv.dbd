@@ -2,8 +2,8 @@
 # the ABI version in CONFIG_QSRV_VERSION
 
 registrar(QSRVRegistrar)
-#registrar(installPVAAddLinkHook)
-#link("pva", "lsetPVA")
+registrar(installPVAAddLinkHook)
+link("pva", "lsetPVA")
 
 # from demo.cpp
 device(waveform, CONSTANT, devWfPDBDemo, "QSRV Demo")
