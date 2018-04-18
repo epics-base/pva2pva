@@ -25,6 +25,34 @@ epicsShareExtern unsigned qsrvVersion(void);
 /** returns QSRV_ABI_VERSION_INT captured at compilation time */
 epicsShareExtern unsigned qsrvABIVersion(void);
 
+/** Call before testIocShutdownOk()
+ @code
+   testdbPrepare();
+   ...
+   testIocInitOk();
+   ...
+   testqsrvShutdownOk();
+   testIocShutdownOk();
+   testqsrvCleanup();
+   testdbCleanup();
+ @endcode
+ */
+epicsShareExtern void testqsrvShutdownOk(void);
+
+/** Call after testIocShutdownOk() and before testdbCleanup()
+ @code
+   testdbPrepare();
+   ...
+   testIocInitOk();
+   ...
+   testqsrvShutdownOk();
+   testIocShutdownOk();
+   testqsrvCleanup();
+   testdbCleanup();
+ @endcode
+ */
+epicsShareExtern void testqsrvCleanup(void);
+
 #ifdef __cplusplus
 }
 #endif

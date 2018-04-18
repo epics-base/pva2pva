@@ -2,6 +2,7 @@
 #include <dbUnitTest.h>
 #include <testMain.h>
 
+#include <pv/qsrv.h>
 #include "utilities.h"
 #include "pvalink.h"
 
@@ -70,7 +71,9 @@ MAIN(testpvalink)
         IOC.init();
         testGet();
         testPut();
+        testqsrvShutdownOk();
         IOC.shutdown();
+        testqsrvCleanup();
 
     }catch(std::exception& e){
         testFail("Unexpected exception: %s", e.what());

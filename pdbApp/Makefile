@@ -85,3 +85,4 @@ include $(TOP)/configure/RULES
 	$(EXPAND_TOOL) $(EXPANDFLAGS) $($@_EXPANDFLAGS) $< $@
 
 qsrv$(DEP): ../O.Common/pv/qsrvVersionNum.h
+pvalink$(DEP): ../O.Common/pv/qsrvVersionNum.h
