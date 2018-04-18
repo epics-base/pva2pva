@@ -239,8 +239,6 @@ This option controls whether reading a value from an input PVA link
 has the addition effect of propagating any alarm via the Maximize
 Severity process.
 
-@warning Not yet implemented
-
 @li false - Do not maximize severity.
 @li true - Maximize alarm severity
 @li "MSI" - Maximize only if the remote severity is INVALID.

@@ -1,5 +1,7 @@
 #include <sstream>
 
+#include <epicsStdio.h> // redirects stdout/stderr
+
 #define epicsExportSharedSymbols
 #include <shareLib.h>
 
@@ -30,8 +32,8 @@ using namespace pvalink;
  *  "field":"blah.foo",
  *  "Q":5,
  *  "pipeline":false,
- *  "proc":true, // false, true, none, "CP", "CPP"
- *  "sevr":true, // false, true, "MSI", "MSS"
+ *  "proc":true, // false, true, none, "", "NPP", "PP", "CP", "CPP"
+ *  "sevr":true, // false, true, "NMS", "MS", "MSI", "MSS"
  *  "monorder":#,// order of processing during CP scan
  *  "defer":true,// whether to immediately start Put, or only queue value to be sent
  * }
@@ -143,7 +145,9 @@ jlif_result pva_parse_string(jlink *pjlink, const char *val, size_t len)
             pvt->fieldName = sval;
 
         } else if(pvt->jkey=="proc") {
-            if(sval=="CP") {
+            if(sval.empty()) {
+                pvt->pp = pvaLinkConfig::Default;
+            } else if(sval=="CP") {
                 pvt->pp = pvaLinkConfig::CP;
             } else if(sval=="CPP") {
                 pvt->pp = pvaLinkConfig::CPP;
@@ -157,10 +161,17 @@ jlif_result pva_parse_string(jlink *pjlink, const char *val, size_t len)
             }
 
         } else if(pvt->jkey=="sevr") {
-            if(sval=="MSS") {
-                pvt->ms = pvaLinkConfig::MSS;
+            if(sval=="NMS") {
+                pvt->ms = pvaLinkConfig::NMS;
+            } else if(sval=="MS") {
+                pvt->ms = pvaLinkConfig::MS;
             } else if(sval=="MSI") {
                 pvt->ms = pvaLinkConfig::MSI;
+            } else if(sval=="MSS") {
+                // not sure how to handle mapping severity for MSS.
+                // leave room for this to happen compatibly later by
+                // handling as alias for MS until then.
+                pvt->ms = pvaLinkConfig::MS;
             } else if(pvt->debug) {
                 printf("pva link parsing unknown sevr depth=%u key=\"%s\" value=\"%s\"\n",
                        pvt->parseDepth, pvt->jkey.c_str(), sval.c_str());
@@ -235,7 +246,6 @@ void pva_report(const jlink *rpjlink, int lvl, int indent)
                 switch(pval->ms) {
                 case pvaLinkConfig::NMS: printf(" NMS"); break;
                 case pvaLinkConfig::MS:  printf(" MS"); break;
-                case pvaLinkConfig::MSS: printf(" MSS"); break;
                 case pvaLinkConfig::MSI: printf(" MSI"); break;
                 }
             }

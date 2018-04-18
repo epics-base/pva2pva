@@ -74,7 +74,6 @@ struct pvaLinkConfig : public jlink
     enum ms_t {
         NMS,
         MS,
-        MSS,
         MSI,
     } ms;
 
@@ -126,11 +125,12 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     pvac::Monitor op_mon;
     pvac::Operation op_put;
 
-    size_t num_disconnect;
+    size_t num_disconnect, num_type_change;
     bool connected;
     bool connected_latched; // connection status at the run()
     bool isatomic;
     bool queued; // added to WorkQueue
+    std::tr1::shared_ptr<const void> previous_root;
 
     struct LinkSort {
         bool operator()(const pvaLink *L, const pvaLink *R) const;
@@ -181,6 +181,22 @@ struct pvaLink : public pvaLinkConfig
     bool used_scratch, used_queue;
     pvd::shared_vector<const void> put_scratch, put_queue;
 
+    // cached fields from channel op_mon
+    // updated in onTypeChange()
+    epics::pvData::PVField::const_shared_pointer fld_value;
+    epics::pvData::PVScalar::const_shared_pointer fld_severity,
+                                                  fld_seconds,
+                                                  fld_nanoseconds;
+    epics::pvData::PVStructure::const_shared_pointer fld_display,
+                                                     fld_control,
+                                                     fld_valueAlarm;
+
+    // cached snapshot of alarm and  timestamp
+    // captured in pvaGetValue().
+    // we choose not to ensure consistency with display/control meta-data
+    epicsTimeStamp snap_time;
+    short snap_severity;
+
     pvaLink();
     virtual ~pvaLink();
 
@@ -193,6 +209,7 @@ struct pvaLink : public pvaLinkConfig
     pvd::PVField::const_shared_pointer getSubField(const char *name);
 
     void onDisconnect();
+    void onTypeChange();
 };
 
 

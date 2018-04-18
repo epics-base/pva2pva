@@ -1,4 +1,5 @@
 #include <pv/reftrack.h>
+#include <alarm.h>
 
 #define epicsExportSharedSymbols
 #include <shareLib.h>
@@ -14,6 +15,10 @@ pvaLink::pvaLink()
     ,used_queue(false)
 {
     REFTRACE_INCREMENT(num_instances);
+
+    snap_severity = INVALID_ALARM;
+    snap_time.secPastEpoch = 0;
+    snap_time.nsec = 0;
 
     //TODO: valgrind tells me these aren't initialized by Base, but probably should be.
     parseDepth = 0;
@@ -87,7 +92,7 @@ pvd::PVStructurePtr pvaLink::makeRequest()
 // caller must lock lchan->lock
 bool pvaLink::valid() const
 {
-    return lchan->connected && lchan->op_mon.root;
+    return lchan->connected_latched && lchan->op_mon.root;
 }
 
 // caller must lock lchan->lock
@@ -119,9 +124,24 @@ pvd::PVField::const_shared_pointer pvaLink::getSubField(const char *name)
 // call with channel lock held
 void pvaLink::onDisconnect()
 {
+    TRACE(<<"");
     // TODO: option to remain queue'd while disconnected
 
     used_queue = used_scratch = false;
+}
+
+void pvaLink::onTypeChange()
+{
+    TRACE(<<"");
+    assert(lchan->connected_latched && !!lchan->op_mon.root); // we should only be called when connected
+
+    fld_value = getSubField("value");
+    fld_seconds = std::tr1::dynamic_pointer_cast<const pvd::PVScalar>(getSubField("timeStamp.secondsPastEpoch"));
+    fld_nanoseconds = std::tr1::dynamic_pointer_cast<const pvd::PVScalar>(getSubField("timeStamp.nanoseconds"));
+    fld_severity = std::tr1::dynamic_pointer_cast<const pvd::PVScalar>(getSubField("alarm.severity"));
+    fld_display = std::tr1::dynamic_pointer_cast<const pvd::PVStructure>(getSubField("display"));
+    fld_control = std::tr1::dynamic_pointer_cast<const pvd::PVStructure>(getSubField("control"));
+    fld_valueAlarm = std::tr1::dynamic_pointer_cast<const pvd::PVStructure>(getSubField("valueAlarm"));
 }
 
 } // namespace pvalink

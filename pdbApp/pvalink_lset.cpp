@@ -1,5 +1,7 @@
 
 #include <epicsString.h>
+#include <alarm.h>
+#include <recGbl.h>
 
 #define epicsExportSharedSymbols
 #include <shareLib.h>
@@ -147,10 +149,8 @@ long pvaGetElements(const DBLINK *plink, long *nelements)
         Guard G(self->lchan->lock);
         if(!self->valid()) return -1;
 
-        pvd::PVField::const_shared_pointer value(self->getSubField("value"));
-
-        if(value && value->getField()->getType()==pvd::scalarArray)
-            return static_cast<const pvd::PVScalarArray*>(value.get())->getLength();
+        if(self->fld_value && self->fld_value->getField()->getType()==pvd::scalarArray)
+            return static_cast<const pvd::PVScalarArray*>(self->fld_value.get())->getLength();
         else
             return 0;
     }CATCH(pvaIsConnected)
@@ -164,14 +164,43 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
         TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
 
-        pvd::PVField::const_shared_pointer value(self->getSubField("value"));
+        if(!self->valid()) {
+            // disconnected
+            if(self->ms != pvaLink::NMS) {
+                recGblSetSevr(plink->precord, self->snap_severity, LINK_ALARM);
+            }
+            // TODO: better capture of disconnect time
+            epicsTimeGetCurrent(&self->snap_time);
+            return -1;
+        }
 
-        // copy from 'value' into 'pbuffer'
-        long status = copyPVD2DBF(value, pbuffer, dbrType, pnRequest);
-        if(status) return status;
+        if(self->fld_value) {
+            long status = copyPVD2DBF(self->fld_value, pbuffer, dbrType, pnRequest);
+            if(status) return status;
+        }
 
-        if(self->ms != pvaLink::NMS) {
-            // TODO
+        if(self->fld_seconds) {
+            self->snap_time.secPastEpoch = self->fld_seconds->getAs<pvd::uint32>() - POSIX_TIME_AT_EPICS_EPOCH;
+            if(self->fld_nanoseconds) {
+                self->snap_time.nsec = self->fld_nanoseconds->getAs<pvd::uint32>();
+            } else {
+                self->snap_time.nsec = 0u;
+            }
+        } else {
+            self->snap_time.secPastEpoch = 0u;
+            self->snap_time.nsec = 0u;
+        }
+
+        if(self->fld_severity) {
+            self->snap_severity = self->fld_severity->getAs<pvd::uint16>();
+        } else {
+            self->snap_severity = NO_ALARM;
+        }
+
+        if((self->snap_severity!=NO_ALARM && self->ms == pvaLink::MS) ||
+           (self->snap_severity==INVALID_ALARM && self->ms == pvaLink::MSI))
+        {
+            recGblSetSevr(plink->precord, self->snap_severity, LINK_ALARM);
         }
 
         return 0;
@@ -186,14 +215,14 @@ long pvaGetControlLimits(const DBLINK *plink, double *lo, double *hi)
         Guard G(self->lchan->lock);
         if(!self->valid()) return -1;
 
-        if(self->lchan->connected_latched) {
+        if(self->fld_control) {
             pvd::PVScalar::const_shared_pointer value;
             if(lo) {
-                value = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->getSubField("control.limitLow"));
+                value = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->fld_control->getSubField("limitLow"));
                 *lo = value ? value->getAs<double>() : 0.0;
             }
             if(hi) {
-                value = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->getSubField("control.limitHigh"));
+                value = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->fld_control->getSubField("limitHigh"));
                 *hi = value ? value->getAs<double>() : 0.0;
             }
         } else {
@@ -208,9 +237,22 @@ long pvaGetGraphicLimits(const DBLINK *plink, double *lo, double *hi)
 {
     TRY {
         TRACE(<<plink->precord->name<<" "<<self->channelName);
+        Guard G(self->lchan->lock);
         if(!self->valid()) return -1;
-        //Guard G(self->lchan->lock);
-        *lo = *hi = 0.0;
+
+        if(self->fld_display) {
+            pvd::PVScalar::const_shared_pointer value;
+            if(lo) {
+                value = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->fld_display->getSubField("limitLow"));
+                *lo = value ? value->getAs<double>() : 0.0;
+            }
+            if(hi) {
+                value = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->fld_display->getSubField("limitHigh"));
+                *hi = value ? value->getAs<double>() : 0.0;
+            }
+        } else {
+            *lo = *hi = 0.0;
+        }
         return 0;
     }CATCH(pvaIsConnected)
     return -1;
@@ -235,6 +277,8 @@ long pvaGetPrecision(const DBLINK *plink, short *precision)
         TRACE(<<plink->precord->name<<" "<<self->channelName);
         if(!self->valid()) return -1;
         //Guard G(self->lchan->lock);
+
+        // No sane way to recover precision from display.format string.
         *precision = 0;
         return 0;
     }CATCH(pvaIsConnected)
@@ -245,8 +289,21 @@ long pvaGetUnits(const DBLINK *plink, char *units, int unitsSize)
 {
     TRY {
         TRACE(<<plink->precord->name<<" "<<self->channelName);
+        Guard G(self->lchan->lock);
         if(!self->valid()) return -1;
-        //Guard G(self->lchan->lock);
+
+        if(unitsSize==0) return 0;
+
+        if(units && self->fld_display) {
+            pvd::PVString::const_shared_pointer value(std::tr1::static_pointer_cast<const pvd::PVString>(self->fld_display->getSubField("units")));
+            if(value) {
+                const std::string& egu = value->get();
+                strncpy(units, egu.c_str(), unitsSize);
+            }
+        } else if(units) {
+            units[0] = '\0';
+        }
+        units[unitsSize-1] = '\0';
         return 0;
     }CATCH(pvaIsConnected)
     return -1;
@@ -257,19 +314,14 @@ long pvaGetAlarm(const DBLINK *plink, epicsEnum16 *status,
 {
     TRY {
         TRACE(<<plink->precord->name<<" "<<self->channelName);
-        if(!self->valid()) return -1;
         Guard G(self->lchan->lock);
-        epicsEnum16 stat = NO_ALARM;
+        if(!self->valid()) return -1;
 
-        pvd::PVScalar::const_shared_pointer afld;
-
-        if(severity && (afld = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->getSubField("alarm.severity")))) {
-            *severity = afld->getAs<pvd::uint16>();
-            // no direct translation for NT alarm status codes
-            stat = LINK_ALARM;
+        if(severity) {
+            *severity = self->snap_severity;
         }
         if(status) {
-            *status = stat;
+            *status = self->snap_severity ? LINK_ALARM : NO_ALARM;
         }
 
         return 0;
@@ -283,18 +335,9 @@ long pvaGetTimeStamp(const DBLINK *plink, epicsTimeStamp *pstamp)
         TRACE(<<plink->precord->name<<" "<<self->channelName);
         if(!self->valid()) return -1;
         Guard G(self->lchan->lock);
-        pvd::PVScalar::const_shared_pointer afld;
 
-        if(afld = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->getSubField("timeStamp.secondsPastEpoch"))) {
-            pstamp->secPastEpoch = afld->getAs<pvd::uint32>()-POSIX_TIME_AT_EPICS_EPOCH;
-        } else {
-            return S_time_noProvider;
-        }
-
-        if(afld = std::tr1::static_pointer_cast<const pvd::PVScalar>(self->getSubField("timeStamp.nanoseconds"))) {
-            pstamp->nsec = afld->getAs<pvd::uint32>();
-        } else {
-            pstamp->nsec = 0u;
+        if(pstamp) {
+            *pstamp = self->snap_time;
         }
 
         return 0;

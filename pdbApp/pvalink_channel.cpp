@@ -42,6 +42,7 @@ pvaLinkChannel::pvaLinkChannel(const pvaGlobal_t::channels_key_t &key, const pvd
     :key(key)
     ,pvRequest(pvRequest)
     ,num_disconnect(0u)
+    ,num_type_change(0u)
     ,connected(false)
     ,connected_latched(false)
     ,isatomic(false)
@@ -208,6 +209,8 @@ void pvaLinkChannel::run()
         if(connected && !op_mon.poll())
             return; // monitor queue is empty, nothing more to do here
 
+        assert(!connected || !!op_mon.root);
+
         if(!connected) {
             num_disconnect++;
 
@@ -219,6 +222,21 @@ void pvaLinkChannel::run()
                 pvaLink *link = *it;
                 link->onDisconnect();
             }
+
+            // Don't clear previous_root on disconnect.
+            // We will usually re-connect with the same type,
+            // and may get back the same PVStructure.
+
+        } else if(previous_root.get() != (const void*)op_mon.root.get()) {
+            num_type_change++;
+
+            for(links_t::iterator it(links.begin()), end(links.end()); it!=end; ++it)
+            {
+                pvaLink *link = *it;
+                link->onTypeChange();
+            }
+
+            previous_root = std::tr1::static_pointer_cast<const void>(op_mon.root);
         }
 
         // at this point we know we will re-queue, but not immediately
@@ -256,6 +274,8 @@ void pvaLinkChannel::run()
             links_changed = false;
         }
     }
+
+    // TODO: test op_mon.changed with link::fld_value to only process on value change
 
     if(scan_records.empty()) {
         // Nothing to do, so don't bother locking
