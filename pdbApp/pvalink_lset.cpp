@@ -413,6 +413,9 @@ void pvaScanForward(DBLINK *plink)
     TRY {
         TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
+
+        // FWD_LINK is never deferred, and always results in a Put
+        self->lchan->put(true);
     }CATCH(pvaIsConnected)
 }
 

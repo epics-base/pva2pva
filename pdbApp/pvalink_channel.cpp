@@ -83,11 +83,11 @@ void pvaLinkChannel::open()
 }
 
 // call with channel lock held
-void pvaLinkChannel::put()
+void pvaLinkChannel::put(bool force)
 {
     if(!connected) return;
 
-    bool doit = false;
+    bool doit = force;
     for(links_t::iterator it(links.begin()), end(links.end()); it!=end; ++it)
     {
         pvaLink *link = *it;
@@ -193,6 +193,25 @@ void pvaLinkChannel::monitorEvent(const pvac::MonitorEvent& evt)
     }
 }
 
+// the work in calling dbProcess() which is common to
+// both dbScanLock() and dbScanLockMany()
+void pvaLinkChannel::run_dbProcess(size_t idx)
+{
+    dbCommon *precord = scan_records[idx];
+
+    if(scan_check_passive[idx] && precord->scan!=0) {
+        return;
+
+    } else if (precord->pact) {
+        if (precord->tpro)
+            printf("%s: Active %s\n",
+                epicsThreadGetNameSelf(), precord->name);
+        precord->rpro = TRUE;
+
+    }
+    dbProcess(precord);
+}
+
 // Running from global WorkQueue thread
 void pvaLinkChannel::run()
 {
@@ -273,40 +292,24 @@ void pvaLinkChannel::run()
 
             links_changed = false;
         }
-    }
 
-    // TODO: test op_mon.changed with link::fld_value to only process on value change
+        // TODO: if connected_latched.  Option to test op_mon.changed with link::fld_value to only process on value change
+    }
 
     if(scan_records.empty()) {
         // Nothing to do, so don't bother locking
 
-    } else if(isatomic) {
+    } else if(isatomic && scan_records.size() > 1u) {
         DBManyLocker L(atomic_lock);
 
         for(size_t i=0, N=scan_records.size(); i<N; i++) {
-            dbCommon *precord = scan_records[i];
-
-            if (precord->pact) {
-                if (precord->tpro)
-                    printf("%s: Active %s\n",
-                        epicsThreadGetNameSelf(), precord->name);
-                precord->rpro = TRUE;
-
-            } else if(scan_check_passive[i] && precord->scan!=0) {
-                continue;
-            }
-            dbProcess(precord);
+            run_dbProcess(i);
         }
 
     } else {
         for(size_t i=0, N=scan_records.size(); i<N; i++) {
             DBScanLocker L(scan_records[i]);
-
-            if(scan_check_passive[i] && scan_records[i]->scan!=0) {
-                continue;
-            }
-
-            dbProcess(scan_records[i]);
+            run_dbProcess(i);
         }
     }
 

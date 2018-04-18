@@ -149,7 +149,7 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     virtual ~pvaLinkChannel();
 
     void open();
-    void put(); // begin Put op.
+    void put(bool force=false); // begin Put op.
 
     // pvac::ClientChanel::MonitorCallback
     virtual void monitorEvent(const pvac::MonitorEvent& evt) OVERRIDE FINAL;
@@ -159,6 +159,7 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     virtual void putDone(const pvac::PutEvent& evt) OVERRIDE FINAL;
 private:
     virtual void run() OVERRIDE FINAL;
+    void run_dbProcess(size_t idx); // idx is index in scan_records
 
     // ==== Treat remaining as local to run()
 
