@@ -40,18 +40,6 @@ pvaLink::~pvaLink()
 }
 
 static
-pvd::StructureConstPtr putRequestType = pvd::getFieldCreate()->createFieldBuilder()
-        ->addNestedStructure("field")
-        ->endNested()
-        ->addNestedStructure("record")
-            ->addNestedStructure("_options")
-                ->add("block", pvd::pvBoolean)
-                ->add("process", pvd::pvString) // "true", "false", or "passive"
-            ->endNested()
-        ->endNested()
-        ->createStructure();
-
-static
 pvd::StructureConstPtr monitorRequestType = pvd::getFieldCreate()->createFieldBuilder()
         ->addNestedStructure("field")
         ->endNested()
@@ -66,23 +54,7 @@ pvd::StructureConstPtr monitorRequestType = pvd::getFieldCreate()->createFieldBu
 
 pvd::PVStructurePtr pvaLink::makeRequest()
 {
-//    const char *proc = "passive";
-
-//    switch(pp) {
-//    case NPP: proc = "false"; break;
-//    case Default: break;
-//    case PP:
-//    case CP:
-//    case CPP:
-//        proc = "true";
-//    }
-
-    pvd::PVStructurePtr ret;
-//    ret = pvd::getPVDataCreate()->createPVStructure(putRequestType);
-//    ret->getSubFieldT<pvd::PVBoolean>("record._options.block")->put(false); // TODO: some way to expose completion...
-//    ret->getSubFieldT<pvd::PVString>("record._options.process")->put(proc);
-
-    ret = pvd::getPVDataCreate()->createPVStructure(monitorRequestType);
+    pvd::PVStructurePtr ret(pvd::getPVDataCreate()->createPVStructure(monitorRequestType));
     ret->getSubFieldT<pvd::PVBoolean>("record._options.pipeline")->put(pipeline);
     ret->getSubFieldT<pvd::PVBoolean>("record._options.atomic")->put(true);
     ret->getSubFieldT<pvd::PVUInt>("record._options.queueSize")->put(queueSize);

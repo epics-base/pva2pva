@@ -82,11 +82,27 @@ void pvaLinkChannel::open()
     REFTRACE_INCREMENT(num_instances);
 }
 
+static
+pvd::StructureConstPtr putRequestType = pvd::getFieldCreate()->createFieldBuilder()
+        ->addNestedStructure("field")
+        ->endNested()
+        ->addNestedStructure("record")
+            ->addNestedStructure("_options")
+                ->add("block", pvd::pvBoolean)
+                ->add("process", pvd::pvString) // "true", "false", or "passive"
+            ->endNested()
+        ->endNested()
+        ->createStructure();
+
 // call with channel lock held
 void pvaLinkChannel::put(bool force)
 {
     if(!connected) return;
 
+    pvd::PVStructurePtr pvReq(pvd::getPVDataCreate()->createPVStructure(putRequestType));
+    pvReq->getSubFieldT<pvd::PVBoolean>("record._options.block")->put(false); // TODO: some way to expose completion...
+
+    unsigned reqProcess = 0;
     bool doit = force;
     for(links_t::iterator it(links.begin()), end(links.end()); it!=end; ++it)
     {
@@ -101,12 +117,39 @@ void pvaLinkChannel::put(bool force)
         link->used_queue = true;
 
         doit = true;
+
+        switch(link->pp) {
+        case pvaLink::NPP:
+            reqProcess |= 1;
+            break;
+        case pvaLink::Default:
+            break;
+        case pvaLink::PP:
+        case pvaLink::CP:
+        case pvaLink::CPP:
+            reqProcess |= 2;
+            break;
+        }
     }
+
+    /* By default, use remote default (passive).
+     * Request processing, or not, if any link asks.
+     * Prefer PP over NPP if both are specified.
+     *
+     * TODO: per field granularity?
+     */
+    const char *proc = "passive";
+    if(reqProcess&2) {
+        proc = "true";
+    } else if(reqProcess&1) {
+        proc = "false";
+    }
+    pvReq->getSubFieldT<pvd::PVString>("record._options.process")->put(proc);
 
     if(doit) {
         TRACE(<<"start");
         // start net Put, cancels in-progress put
-        op_put = chan.put(this); // TODO: pvRequest
+        op_put = chan.put(this, pvReq);
     }
 }
 
