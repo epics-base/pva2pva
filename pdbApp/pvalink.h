@@ -77,7 +77,7 @@ struct pvaLinkConfig : public jlink
         MSI,
     } ms;
 
-    bool defer, pipeline;
+    bool defer, pipeline, time;
     int monorder;
 
     // internals used by jlif parsing

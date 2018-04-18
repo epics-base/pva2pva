@@ -14,6 +14,7 @@ pvaLinkConfig::pvaLinkConfig()
     ,ms(NMS)
     ,defer(false)
     ,pipeline(false)
+    ,time(false)
     ,monorder(0)
 {}
 pvaLinkConfig::~pvaLinkConfig() {}
@@ -34,6 +35,7 @@ using namespace pvalink;
  *  "pipeline":false,
  *  "proc":true, // false, true, none, "", "NPP", "PP", "CP", "CPP"
  *  "sevr":true, // false, true, "NMS", "MS", "MSI", "MSS"
+ *  "time":true, // false, true
  *  "monorder":#,// order of processing during CP scan
  *  "defer":true,// whether to immediately start Put, or only queue value to be sent
  * }
@@ -100,6 +102,8 @@ jlif_result pva_parse_bool(jlink *pjlink, int val)
             pvt->defer = !!val;
         } else if(pvt->jkey == "pipeline") {
             pvt->pipeline = !!val;
+        } else if(pvt->jkey == "time") {
+            pvt->time = !!val;
         } else if(pvt->debug) {
             printf("pva link parsing unknown integer depth=%u key=\"%s\" value=%s\n",
                    pvt->parseDepth, pvt->jkey.c_str(), val ? "true" : "false");

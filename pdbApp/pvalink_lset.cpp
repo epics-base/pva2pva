@@ -171,6 +171,9 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             }
             // TODO: better capture of disconnect time
             epicsTimeGetCurrent(&self->snap_time);
+            if(self->time) {
+                plink->precord->time = self->snap_time;
+            }
             return -1;
         }
 
@@ -201,6 +204,10 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
            (self->snap_severity==INVALID_ALARM && self->ms == pvaLink::MSI))
         {
             recGblSetSevr(plink->precord, self->snap_severity, LINK_ALARM);
+        }
+
+        if(self->time) {
+            plink->precord->time = self->snap_time;
         }
 
         return 0;
