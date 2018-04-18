@@ -242,7 +242,7 @@ void pvaLinkChannel::run()
                 // NPP and none/Default don't scan
                 // PP, CP, and CPP do scan
                 // PP and CPP only if SCAN=Passive
-                if(link->pp != pvaLink::CPP && link->pp != pvaLink::CP)
+                if(link->pp != pvaLink::PP && link->pp != pvaLink::CPP && link->pp != pvaLink::CP)
                     continue;
 
                 scan_records.push_back(link->plink->precord);
