@@ -66,6 +66,7 @@ void WorkQueue::close()
     for(workers_t::iterator it(temp.begin()), end(temp.end()); it!=end; ++it)
     {
         (*it)->exitWait();
+        delete *it;
     }
 
     {
