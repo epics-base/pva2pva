@@ -270,8 +270,13 @@ void pvaLinkChannel::run()
 
         // pop next update from monitor queue.
         // still under lock to safeguard concurrent calls to lset functions
-        if(connected && !op_mon.poll())
+        if(connected && !op_mon.poll()) {
+            TRACE(<<"empty");
+            run_done.signal();
             return; // monitor queue is empty, nothing more to do here
+        }
+
+        TRACE(<<(connected_latched?"connected":"disconnected"));
 
         assert(!connected || !!op_mon.root);
 
@@ -305,7 +310,7 @@ void pvaLinkChannel::run()
 
         // at this point we know we will re-queue, but not immediately
         // so an expected error won't get us stuck in a tight loop.
-        requeue = queued = true;
+        requeue = queued = connected_latched;
 
         if(links_changed) {
             // a link has been added or removed since the last update.
@@ -361,6 +366,8 @@ void pvaLinkChannel::run()
     if(requeue) {
         // re-queue until monitor queue is empty
         pvaGlobal->queue.add(shared_from_this());
+    } else {
+        run_done.signal();
     }
 }
 

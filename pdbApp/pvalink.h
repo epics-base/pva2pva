@@ -121,6 +121,7 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     static size_t num_instances;
 
     pvd::Mutex lock;
+    epicsEvent run_done; // used by testing code
 
     pvac::ClientChannel chan;
     pvac::Monitor op_mon;

@@ -99,7 +99,6 @@ int pvaIsConnected(const DBLINK *plink)
     TRY {
         TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
 
         return self->valid();
 
@@ -161,8 +160,9 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
         long *pnRequest)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
+
+        TRACE(<<plink->precord->name<<" "<<self->channelName<<" conn="<<(self->valid()?"T":"F"));
 
         if(!self->valid()) {
             // disconnected
@@ -371,9 +371,10 @@ long pvaPutValue(DBLINK *plink, short dbrType,
         const void *pbuffer, long nRequest)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         (void)self;
         Guard G(self->lchan->lock);
+
+        TRACE(<<plink->precord->name<<" "<<self->channelName<<" nReq="<<nRequest<<" conn="<<(self->valid()?"T":"F"));
 
         if(nRequest < 0) return -1;
 

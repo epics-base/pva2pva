@@ -19,11 +19,15 @@
 extern "C" {
 #endif
 
+struct link; /* aka. DBLINK from link.h */
+
 /** returns QSRV_VERSION_INT captured at compilation time */
 epicsShareExtern unsigned qsrvVersion(void);
 
 /** returns QSRV_ABI_VERSION_INT captured at compilation time */
 epicsShareExtern unsigned qsrvABIVersion(void);
+
+epicsShareFunc void testqsrvWaitForLinkEvent(struct link *plink);
 
 /** Call before testIocShutdownOk()
  @code

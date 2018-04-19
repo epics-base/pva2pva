@@ -138,6 +138,23 @@ void testqsrvCleanup(void)
     }
 }
 
+void testqsrvWaitForLinkEvent(struct link *plink)
+{
+    std::tr1::shared_ptr<pvaLinkChannel> lchan;
+    {
+        DBScanLocker lock(plink->precord);
+
+        if(plink->type!=JSON_LINK || !plink->value.json.jlink || plink->value.json.jlink->pif!=&lsetPVA) {
+            testAbort("Not a PVA link");
+        }
+        pvaLink *pval = static_cast<pvaLink*>(plink->value.json.jlink);
+        lchan = pval->lchan;
+    }
+    if(lchan) {
+        lchan->run_done.wait();
+    }
+}
+
 static
 void installPVAAddLinkHook()
 {

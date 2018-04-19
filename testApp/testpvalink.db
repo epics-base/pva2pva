@@ -16,6 +16,6 @@ record(longin, "target:li2") {
     field(VAL, "43")
 }
 
-record(longout, "src:li2") {
+record(longout, "src:lo2") {
     field(OUT, {pva:"target:li2"})
 }
