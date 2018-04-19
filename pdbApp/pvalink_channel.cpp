@@ -169,7 +169,14 @@ void pvaLinkChannel::putBuild(const epics::pvData::StructureConstPtr& build, pva
         if(!link->used_queue) continue;
         link->used_queue = false; // clear early so unexpected exception won't get us in a retry loop
 
-        pvd::PVFieldPtr value(top->getSubField("value"));
+        pvd::PVFieldPtr value(link->fieldName.empty() ? pvd::PVFieldPtr(top) : top->getSubField(link->fieldName));
+        if(value && value->getField()->getType()==pvd::structure) {
+            // maybe drill into NTScalar et al.
+            pvd::PVFieldPtr sub(static_cast<pvd::PVStructure*>(value.get())->getSubField("value"));
+            if(sub)
+                value.swap(sub);
+        }
+
         if(!value) return; // TODO: how to signal error?
 
         pvd::PVStringArray::const_svector choices; // TODO populate from op_mon
