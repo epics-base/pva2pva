@@ -15,6 +15,7 @@ pvaLinkConfig::pvaLinkConfig()
     ,defer(false)
     ,pipeline(false)
     ,time(false)
+    ,retry(false)
     ,monorder(0)
 {}
 pvaLinkConfig::~pvaLinkConfig() {}
@@ -38,6 +39,7 @@ using namespace pvalink;
  *  "time":true, // false, true
  *  "monorder":#,// order of processing during CP scan
  *  "defer":true,// whether to immediately start Put, or only queue value to be sent
+ *  "retry":true,// queue Put while disconnected, and retry on connect
  * }
  */
 
@@ -104,6 +106,8 @@ jlif_result pva_parse_bool(jlink *pjlink, int val)
             pvt->pipeline = !!val;
         } else if(pvt->jkey == "time") {
             pvt->time = !!val;
+        } else if(pvt->jkey == "retry") {
+            pvt->retry = !!val;
         } else if(pvt->debug) {
             printf("pva link parsing unknown integer depth=%u key=\"%s\" value=%s\n",
                    pvt->parseDepth, pvt->jkey.c_str(), val ? "true" : "false");

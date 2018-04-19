@@ -378,8 +378,7 @@ long pvaPutValue(DBLINK *plink, short dbrType,
 
         if(nRequest < 0) return -1;
 
-        if(!self->valid()) {
-            // TODO: option to queue while disconnected
+        if(!self->retry && !self->valid()) {
             return -1;
         }
 
@@ -421,6 +420,10 @@ void pvaScanForward(DBLINK *plink)
     TRY {
         TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
+
+        if(!self->retry && !self->valid()) {
+            return;
+        }
 
         // FWD_LINK is never deferred, and always results in a Put
         self->lchan->put(true);
