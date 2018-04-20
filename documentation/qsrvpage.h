@@ -176,10 +176,14 @@ record(longin, "src") {
     field(INP, {pva:{
         pv:"tgt",
         field:"",   # may be a sub-field
+        local:false,# Require local PV
         Q:4,        # monitor queue depth
+        pipeline:false, # require that server uses monitor flow control protocol
         proc:none,  # Request record processing (side-effects).
         sevr:false, # Maximize severity.
+        time:false, # set record time during getValue
         monorder:0, # Order of record processing as a result of CP and CPP
+        retry:false,# allow Put while disconnected.
         defer:false # Defer put
     }})
 }
@@ -203,6 +207,10 @@ If the sub-field is an PVScalar or PVScalarArray, then a value
 will be taken from it, but not meta-data will be available.
 
 @todo Ability to traverse through unions and into structure arrays (as with group mappings).
+
+@subsubsection qsrv_link_local local: Require local PV
+
+When true, link will not connect unless the named PV is provided by the local (QSRV) data provider.
 
 @subsubsection qsrv_link_Q Q: Monitor queue depth
 
@@ -243,6 +251,13 @@ Severity process.
 @li true - Maximize alarm severity
 @li "MSI" - Maximize only if the remote severity is INVALID.
 
+@subsubsection qsrv_link_time time: Time propagation
+
+Somewhat analogous to sevr: applied to timestamp.
+When true, the record TIME field is updated when the link value is read.
+
+@warning TSEL must be set to -2 for time:true to have an effect.
+
 @subsubsection qsrv_link_monorder monorder: Monitor processing order
 
 When multiple record target the same target PV, and request processing
@@ -261,5 +276,28 @@ new value in an internal cache, but not start a PVA Put.
 
 This option, in combination with field: allows a single
 Put to contain updates to multiple sub-fields.
+
+
+@subsubsection qsrv_link_retry retry: Put while disconnected
+
+Allow a Put operation to be queued while the link is disconnected.
+The Put will be executed when the link becomes connected.
+
+@subsubsection qsrv_link_sem Link semantics/behavior
+
+This section attempts to answer some questions about how links behave in certain situations.
+
+Links are evaluated in three basic contexts.
+
+@li dbPutLink()/dbScanFwdLink()
+@li dbGetLink() of non-CP link
+@li dbGetLink() during a scan resulting from a CP link.
+
+An input link can bring in a Value as well as meta-data, alarm, time, and display/control info.
+For input links, the PVA link engine attempts to always maintain consistency between Value, alarm, and time.
+However, consistency between these, and the display/control info is only ensured during a CP scan.
+
+
+
 
 */
