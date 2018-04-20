@@ -2,6 +2,7 @@
 #include <epicsString.h>
 #include <alarm.h>
 #include <recGbl.h>
+#include <epicsStdio.h> // redirect stdout/stderr
 
 #define epicsExportSharedSymbols
 #include <shareLib.h>
@@ -68,13 +69,18 @@ void pvaOpenLink(DBLINK *plink)
             chan->open(); // start subscription
         }
 
-        {
+        if(!self->local || chan->providerName=="QSRV"){
             Guard G(chan->lock);
 
             chan->links.insert(self);
             chan->links_changed = true;
 
             self->lchan.swap(chan); // we are now attached
+        } else {
+            // TODO: only print duing iocInit()?
+            fprintf(stderr, "%s local:true link to '%s' can't be fulfilled\n",
+                   plink->precord->name, self->channelName.c_str());
+            plink->lset = NULL;
         }
 
         return;

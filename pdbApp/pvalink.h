@@ -78,7 +78,7 @@ struct pvaLinkConfig : public jlink
         MSI,
     } ms;
 
-    bool defer, pipeline, time, retry;
+    bool defer, pipeline, time, retry, local;
     int monorder;
 
     // internals used by jlif parsing
@@ -127,6 +127,7 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     pvac::Monitor op_mon;
     pvac::Operation op_put;
 
+    std::string providerName;
     size_t num_disconnect, num_type_change;
     bool connected;
     bool connected_latched; // connection status at the run()

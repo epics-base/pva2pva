@@ -16,6 +16,7 @@ pvaLinkConfig::pvaLinkConfig()
     ,pipeline(false)
     ,time(false)
     ,retry(false)
+    ,local(false)
     ,monorder(0)
 {}
 pvaLinkConfig::~pvaLinkConfig() {}
@@ -40,6 +41,7 @@ using namespace pvalink;
  *  "monorder":#,// order of processing during CP scan
  *  "defer":true,// whether to immediately start Put, or only queue value to be sent
  *  "retry":true,// queue Put while disconnected, and retry on connect
+ *  "local":false,// Require local channel
  * }
  */
 
@@ -80,6 +82,8 @@ jlif_result pva_parse_null(jlink *pjlink)
             pvt->pp = pvaLinkConfig::Default;
         } else if(pvt->jkey == "sevr") {
             pvt->ms = pvaLinkConfig::NMS;
+        } else if(pvt->jkey == "local") {
+            pvt->local = false; // alias for local:false
         } else if(pvt->debug) {
             printf("pva link parsing unknown none depth=%u key=\"%s\"\n",
                    pvt->parseDepth, pvt->jkey.c_str());
@@ -108,6 +112,8 @@ jlif_result pva_parse_bool(jlink *pjlink, int val)
             pvt->time = !!val;
         } else if(pvt->jkey == "retry") {
             pvt->retry = !!val;
+        } else if(pvt->jkey == "local") {
+            pvt->local = !!val;
         } else if(pvt->debug) {
             printf("pva link parsing unknown integer depth=%u key=\"%s\" value=%s\n",
                    pvt->parseDepth, pvt->jkey.c_str(), val ? "true" : "false");
@@ -236,29 +242,40 @@ void pva_report(const jlink *rpjlink, int lvl, int indent)
         printf("%*s'pva': %s", indent, "", pval->channelName.c_str());
         if(!pval->fieldName.empty())
             printf("|.%s", pval->fieldName.c_str());
+
+        switch(pval->pp) {
+        case pvaLinkConfig::NPP: printf(" NPP"); break;
+        case pvaLinkConfig::Default: printf(" Def"); break;
+        case pvaLinkConfig::PP: printf(" PP"); break;
+        case pvaLinkConfig::CP: printf(" CP"); break;
+        case pvaLinkConfig::CPP: printf(" CPP"); break;
+        }
+        switch(pval->ms) {
+        case pvaLinkConfig::NMS: printf(" NMS"); break;
+        case pvaLinkConfig::MS:  printf(" MS"); break;
+        case pvaLinkConfig::MSI: printf(" MSI"); break;
+        }
+        if(lvl>0) {
+            printf(" Q=%u pipe=%c defer=%c time=%c retry=%c morder=%d",
+                   unsigned(pval->queueSize),
+                   pval->pipeline ? 'T' : 'F',
+                   pval->defer ? 'T' : 'F',
+                   pval->time ? 'T' : 'F',
+                   pval->retry ? 'T' : 'F',
+                   pval->monorder);
+        }
+
         if(pval->lchan) {
             // after open()
             Guard G(pval->lchan->lock);
 
-            printf(" %sconnected", pval->lchan->connected ? "" : "dis");
+            printf(" conn=%c", pval->lchan->connected ? 'T' : 'F');
 
             if(lvl>0) {
-                printf(" #disconn=%zu", pval->lchan->num_disconnect);
-                switch(pval->pp) {
-                case pvaLinkConfig::NPP: printf(" NPP"); break;
-                case pvaLinkConfig::Default: printf(" Def"); break;
-                case pvaLinkConfig::PP: printf(" PP"); break;
-                case pvaLinkConfig::CP: printf(" CP"); break;
-                case pvaLinkConfig::CPP: printf(" CPP"); break;
-                }
-                switch(pval->ms) {
-                case pvaLinkConfig::NMS: printf(" NMS"); break;
-                case pvaLinkConfig::MS:  printf(" MS"); break;
-                case pvaLinkConfig::MSI: printf(" MSI"); break;
-                }
+                printf(" #disconn=%zu prov=%s", pval->lchan->num_disconnect, pval->lchan->providerName.c_str());
             }
             if(lvl>1) {
-                printf(" Q=%c",
+                printf(" inprog=%c",
                        pval->lchan->queued?'T':'F');
             }
             if(lvl>5) {
@@ -266,6 +283,8 @@ void pva_report(const jlink *rpjlink, int lvl, int indent)
                 pval->lchan->chan.show(strm);
                 printf("\n%*s   CH: %s", indent, "", strm.str().c_str());
             }
+        } else {
+            printf(" No Channel");
         }
         printf("\n");
     }CATCH()

@@ -71,12 +71,14 @@ void pvaLinkChannel::open()
     try {
         chan = pvaGlobal->provider_local.connect(key.first);
         TRACE(<<"Local "<<key.first);
+        providerName = pvaGlobal->provider_local.name();
     } catch(std::exception& e){
         errlogPrintf("failed to find in QSRV; %s\n", key.first.c_str());
     }
     if(!pvaLinkIsolate && !chan) {
         chan = pvaGlobal->provider_remote.connect(key.first);
         TRACE(<<"Remote "<<key.first);
+        providerName = pvaGlobal->provider_remote.name();
     }
 
     op_mon = chan.monitor(this, pvRequest);
