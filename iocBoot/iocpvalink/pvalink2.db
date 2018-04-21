@@ -1,0 +1,10 @@
+# use with pvalink.db, run in a second IOC
+
+record(calc, "$(P)cnt:rmt") {
+    field(SCAN, "1 second")
+    field(INPA, "$(P)cnt")
+    field(INPB, "9")
+    field(CALC, "A<B?A+1:0")
+    field(HIGH, "7")
+    field(HSV , "MAJOR")
+}

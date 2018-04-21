@@ -1,0 +1,51 @@
+record(ai, "$(P)target") {}
+
+# local input link shorthand
+record(longin, "$(P)inp1") {
+    field(INP , {pva:"$(P)target"})
+}
+
+# local input link longhand
+record(longin, "$(P)inp2") {
+    field(INP , {pva:{pv:"$(P)target"}})
+}
+
+# remote input link
+record(longin, "$(P)inp3") {
+    field(INP , {pva:"invalid:pv:name"})
+}
+
+# null like (requires local, but not local)
+record(longin, "$(P)inp4") {
+    field(INP , {pva:{pv:"invalid:pv:name", local:true}})
+}
+
+# local input link w/ CP (process on update)
+record(calc, "$(P)cnt") {
+    field(SCAN, "1 second")
+    field(INPA, "$(P)cnt")
+    field(INPB, "9")
+    field(CALC, "A<B?A+1:0")
+    field(HIGH, "7")
+    field(HSV , "MAJOR")
+}
+record(longin, "$(P)track") {
+    field(INP , {pva:{
+                    pv:"$(P)cnt",
+                    proc:"CP",
+                    sevr:true,
+                    time:true
+                    }})
+    field(TSE, "-2")
+}
+
+# remote input link w/ CP (process on update)
+record(longin, "$(P)track2") {
+    field(INP , {pva:{
+                    pv:"$(P)cnt:rmt",
+                    proc:"CP",
+                    sevr:true,
+                    time:true
+                    }})
+    field(TSE, "-2")
+}
