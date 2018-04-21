@@ -114,6 +114,29 @@ void pvaLink::onTypeChange()
     fld_display = std::tr1::dynamic_pointer_cast<const pvd::PVStructure>(getSubField("display"));
     fld_control = std::tr1::dynamic_pointer_cast<const pvd::PVStructure>(getSubField("control"));
     fld_valueAlarm = std::tr1::dynamic_pointer_cast<const pvd::PVStructure>(getSubField("valueAlarm"));
+
+    proc_changed.clear();
+
+    // build mask of all "changed" bits associated with our .value
+    // CP/CPP input links will process this link only for updates where
+    // the changed mask and proc_changed share at least one set bit.
+    if(fld_value) {
+        // bit for this field
+        proc_changed.set(fld_value->getFieldOffset());
+
+        // bits of all parent fields
+        for(const pvd::PVStructure* parent = fld_value->getParent(); parent; parent = parent->getParent()) {
+            proc_changed.set(parent->getFieldOffset());
+        }
+
+        if(fld_value->getField()->getType()==pvd::structure)
+        {
+            // bits of all child fields
+            const pvd::PVStructure *val = static_cast<const pvd::PVStructure*>(fld_value.get());
+            for(size_t i=val->getFieldOffset(), N=val->getNextFieldOffset(); i<N; i++)
+                proc_changed.set(i);
+        }
+    }
 }
 
 } // namespace pvalink

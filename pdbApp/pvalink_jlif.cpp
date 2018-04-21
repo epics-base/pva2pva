@@ -17,6 +17,7 @@ pvaLinkConfig::pvaLinkConfig()
     ,time(false)
     ,retry(false)
     ,local(false)
+    ,always(false)
     ,monorder(0)
 {}
 pvaLinkConfig::~pvaLinkConfig() {}
@@ -41,6 +42,7 @@ using namespace pvalink;
  *  "monorder":#,// order of processing during CP scan
  *  "defer":true,// whether to immediately start Put, or only queue value to be sent
  *  "retry":true,// queue Put while disconnected, and retry on connect
+ *  "always":true,// CP/CPP updates always process a like, even if its input field hasn't changed
  *  "local":false,// Require local channel
  * }
  */
@@ -114,6 +116,8 @@ jlif_result pva_parse_bool(jlink *pjlink, int val)
             pvt->retry = !!val;
         } else if(pvt->jkey == "local") {
             pvt->local = !!val;
+        } else if(pvt->jkey == "always") {
+            pvt->always = !!val;
         } else if(pvt->debug) {
             printf("pva link parsing unknown integer depth=%u key=\"%s\" value=%s\n",
                    pvt->parseDepth, pvt->jkey.c_str(), val ? "true" : "false");

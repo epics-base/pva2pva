@@ -78,7 +78,7 @@ struct pvaLinkConfig : public jlink
         MSI,
     } ms;
 
-    bool defer, pipeline, time, retry, local;
+    bool defer, pipeline, time, retry, local, always;
     int monorder;
 
     // internals used by jlif parsing
@@ -168,6 +168,7 @@ private:
 
     std::vector<dbCommon*> scan_records;
     std::vector<bool> scan_check_passive;
+    std::vector<epics::pvData::BitSet> scan_changed;
 
     DBManyLock atomic_lock;
 };
@@ -194,6 +195,7 @@ struct pvaLink : public pvaLinkConfig
     epics::pvData::PVStructure::const_shared_pointer fld_display,
                                                      fld_control,
                                                      fld_valueAlarm;
+    epics::pvData::BitSet proc_changed;
 
     // cached snapshot of alarm and  timestamp
     // captured in pvaGetValue().

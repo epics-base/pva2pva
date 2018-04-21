@@ -184,6 +184,7 @@ record(longin, "src") {
         time:false, # set record time during getValue
         monorder:0, # Order of record processing as a result of CP and CPP
         retry:false,# allow Put while disconnected.
+        always:false,# CP/CPP input link process even when .value field hasn't changed
         defer:false # Defer put
     }})
 }
@@ -282,6 +283,12 @@ Put to contain updates to multiple sub-fields.
 
 Allow a Put operation to be queued while the link is disconnected.
 The Put will be executed when the link becomes connected.
+
+@subsubsection qsrv_link_always always: CP/CPP always process
+
+By default (always:false) a subscription update will only cause a CP input link
+to scan if the structure field (cf. field: option) is marked as changed.
+Set to true to override this, and always process the link.
 
 @subsubsection qsrv_link_sem Link semantics/behavior
 

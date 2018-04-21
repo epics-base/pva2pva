@@ -256,6 +256,9 @@ void pvaLinkChannel::run_dbProcess(size_t idx)
     if(scan_check_passive[idx] && precord->scan!=0) {
         return;
 
+    } else if(connected_latched && !op_mon.changed.logical_and(scan_changed[idx])) {
+        return;
+
     } else if (precord->pact) {
         if (precord->tpro)
             printf("%s: Active %s\n",
@@ -327,6 +330,7 @@ void pvaLinkChannel::run()
 
             scan_records.clear();
             scan_check_passive.clear();
+            scan_changed.clear();
 
             for(links_t::iterator it(links.begin()), end(links.end()); it!=end; ++it)
             {
@@ -343,6 +347,7 @@ void pvaLinkChannel::run()
 
                 scan_records.push_back(link->plink->precord);
                 scan_check_passive.push_back(link->pp != pvaLink::CP);
+                scan_changed.push_back(link->proc_changed);
             }
 
             DBManyLock ML(scan_records);
@@ -351,8 +356,6 @@ void pvaLinkChannel::run()
 
             links_changed = false;
         }
-
-        // TODO: if connected_latched.  Option to test op_mon.changed with link::fld_value to only process on value change
     }
 
     if(scan_records.empty()) {
