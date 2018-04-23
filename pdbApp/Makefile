@@ -34,19 +34,24 @@ qsrv_SRCS += pvif.cpp
 qsrv_SRCS += qsrv.cpp
 qsrv_SRCS += pdb.cpp
 qsrv_SRCS += pdbsingle.cpp
-qsrv_SRCS += dbf_copy.cpp
-qsrv_SRCS += pvalink.cpp
-qsrv_SRCS += pvalink_lset.cpp
-qsrv_SRCS += pvalink_jlif.cpp
-qsrv_SRCS += pvalink_link.cpp
-qsrv_SRCS += pvalink_channel.cpp
-qsrv_SRCS += tpool.cpp
 qsrv_SRCS += demo.cpp
 qsrv_SRCS += imagedemo.c
 
 ifdef BASE_3_16
 qsrv_SRCS += pdbgroup.cpp
 qsrv_SRCS += configparse.cpp
+
+qsrv_SRCS += dbf_copy.cpp
+qsrv_SRCS += tpool.cpp
+
+qsrv_SRCS += pvalink.cpp
+qsrv_SRCS += pvalink_lset.cpp
+qsrv_SRCS += pvalink_jlif.cpp
+qsrv_SRCS += pvalink_link.cpp
+qsrv_SRCS += pvalink_channel.cpp
+else
+
+qsrv_SRCS += pvalink_null.cpp
 endif
 
 qsrv_LIBS += pvAccess pvData
@@ -86,3 +91,13 @@ include $(TOP)/configure/RULES
 
 qsrv$(DEP): ../O.Common/pv/qsrvVersionNum.h
 pvalink$(DEP): ../O.Common/pv/qsrvVersionNum.h
+
+ifdef BASE_3_16
+../O.Common/qsrv.dbd: ../qsrv-new.dbd
+	$(CP) $< $@
+else
+../O.Common/qsrv.dbd: ../qsrv-old.dbd
+	$(CP) $< $@
+endif
+
+../O.Common/softIocPVA.dbd: ../O.Common/qsrv.dbd

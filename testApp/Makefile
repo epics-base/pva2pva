@@ -47,13 +47,13 @@ TESTS += testpdb
 PROD_HOST += check_consist
 check_consist_SRCS += check_consist.cpp
 
+ifdef BASE_3_16
 TESTPROD_HOST += testpvalink
 testpvalink_SRCS += testpvalink.cpp
 testpvalink_SRCS += pvaLinkTestIoc_registerRecordDeviceDriver.cpp
 testpvalink_LIBS += qsrv
 TESTS += testpvalink
 
-ifdef BASE_3_16
 TESTPROD_HOST += testgroupconfig
 testgroupconfig_SRCS += testgroupconfig
 testgroupconfig_LIBS += qsrv pvAccess pvData
