@@ -119,6 +119,12 @@ struct pdbRecordIterator {
 #endif
         m_done = false;
     }
+#if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
+    pdbRecordIterator(dbCommon *prec)
+    {
+        dbInitEntryFromRecord(prec, &ent);
+    }
+#endif
     ~pdbRecordIterator()
     {
         dbFinishEntry(&ent);

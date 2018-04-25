@@ -17,6 +17,7 @@
 #include <link.h>
 #include <dbJLink.h>
 #include <epicsUnitTest.h>
+#include <epicsString.h>
 
 #include <epicsStdio.h> /* redirects stdout/stderr */
 
@@ -155,10 +156,145 @@ void testqsrvWaitForLinkEvent(struct link *plink)
     }
 }
 
+extern "C"
+void dbpvar(const char *precordname, int level)
+{
+    try {
+        if(!pvaGlobal) {
+            printf("PVA links not initialized\n");
+            return;
+        }
+
+        if (!precordname || precordname[0] == '\0' || !strcmp(precordname, "*")) {
+            precordname = NULL;
+            printf("PVA links in all records\n\n");
+        } else {
+            printf("PVA links in record named '%s'\n\n", precordname);
+        }
+
+        size_t nchans = 0, nlinks = 0, nconn = 0;
+
+        pvaGlobal_t::channels_t channels;
+        {
+            Guard G(pvaGlobal->lock);
+            channels = pvaGlobal->channels; // copy snapshot
+        }
+
+        for(pvaGlobal_t::channels_t::const_iterator it(channels.begin()), end(channels.end());
+            it != end; ++it)
+        {
+            std::tr1::shared_ptr<pvaLinkChannel> chan(it->second.lock());
+            if(!chan) continue;
+
+            Guard G(chan->lock);
+
+            if(precordname) {
+                // only show links fields of these records
+                bool match = false;
+                for(pvaLinkChannel::links_t::const_iterator it2(chan->links.begin()), end2(chan->links.end());
+                    it2 != end2; ++it2)
+                {
+                    const pvaLink *pval = *it2;
+                    // plink==NULL shouldn't happen, but we are called for debugging, so be paranoid.
+                    if(pval->plink && epicsStrGlobMatch(pval->plink->precord->name, precordname)) {
+                        match = true;
+                        nlinks++;
+                    }
+                }
+                if(!match)
+                    continue;
+            }
+
+            nchans++;
+            if(chan->connected_latched)
+                nconn++;
+
+            if(!precordname)
+                nlinks += chan->links.size();
+
+            if(level<=0)
+                continue;
+
+            if(level>=2 || (!chan->connected_latched && level==1)) {
+                if(chan->key.first.size()<=28) {
+                    printf("%28s ", chan->key.first.c_str());
+                } else {
+                    printf("%s\t", chan->key.first.c_str());
+                }
+
+                printf("conn=%c %zu disconnects, %zu type changes",
+                       chan->connected_latched?'T':'F',
+                       chan->num_disconnect,
+                       chan->num_type_change);
+
+                if(level>=3) {
+                    printf(", provider '%s'", chan->providerName.c_str());
+                }
+                printf("\n");
+                // level 4 reserved for channel/provider details
+
+                if(level>=5) {
+                    for(pvaLinkChannel::links_t::const_iterator it2(chan->links.begin()), end2(chan->links.end());
+                        it2 != end2; ++it2)
+                    {
+                        const pvaLink *pval = *it2;
+
+                        if(!pval->plink)
+                            continue;
+                        else if(precordname && !epicsStrGlobMatch(pval->plink->precord->name, precordname))
+                            continue;
+
+                        const char *fldname = "???";
+                        pdbRecordIterator rec(pval->plink->precord);
+                        for(bool done = !!dbFirstField(&rec.ent, 0); !done; done = !!dbNextField(&rec.ent, 0))
+                        {
+                            if(rec.ent.pfield == (void*)pval->plink) {
+                                fldname = rec.ent.pflddes->name;
+                                break;
+                            }
+                        }
+
+                        printf("%*s%s.%s", 30, "", pval->plink ? pval->plink->precord->name : "<NULL>", fldname);
+
+                        switch(pval->pp) {
+                        case pvaLinkConfig::NPP: printf(" NPP"); break;
+                        case pvaLinkConfig::Default: printf(" Def"); break;
+                        case pvaLinkConfig::PP: printf(" PP"); break;
+                        case pvaLinkConfig::CP: printf(" CP"); break;
+                        case pvaLinkConfig::CPP: printf(" CPP"); break;
+                        }
+                        switch(pval->ms) {
+                        case pvaLinkConfig::NMS: printf(" NMS"); break;
+                        case pvaLinkConfig::MS:  printf(" MS"); break;
+                        case pvaLinkConfig::MSI: printf(" MSI"); break;
+                        }
+
+                        printf(" Q=%u pipe=%c defer=%c time=%c retry=%c morder=%d\n",
+                               unsigned(pval->queueSize),
+                               pval->pipeline ? 'T' : 'F',
+                               pval->defer ? 'T' : 'F',
+                               pval->time ? 'T' : 'F',
+                               pval->retry ? 'T' : 'F',
+                               pval->monorder);
+                    }
+                    printf("\n");
+                }
+            }
+        }
+
+        printf("  %zu/%zu channels connected used by %zu links\n",
+               nconn, nchans, nlinks);
+
+    } catch(std::exception& e) {
+        fprintf(stderr, "Error: %s\n", e.what());
+    }
+}
+
 static
 void installPVAAddLinkHook()
 {
     initHookRegister(&initPVALink);
+    epics::iocshRegister<const char*, int, &dbpvar>("dbpvar", "record name", "level");
     epics::registerRefCounter("pvaLinkChannel", &pvaLinkChannel::num_instances);
     epics::registerRefCounter("pvaLink", &pvaLink::num_instances);
 }
