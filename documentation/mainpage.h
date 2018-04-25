@@ -12,6 +12,8 @@ within.
 
 Documentation of @ref qsrv_config including @ref qsrv_group_def.
 
+- @ref release_notes
+
 @subsection qsrv_build Building
 
 To build the latest from version control
