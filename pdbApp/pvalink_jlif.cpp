@@ -10,7 +10,7 @@
 namespace pvalink {
 pvaLinkConfig::pvaLinkConfig()
     :queueSize(4)
-    ,pp(NPP)
+    ,pp(Default)
     ,ms(NMS)
     ,defer(false)
     ,pipeline(false)
@@ -274,6 +274,9 @@ void pva_report(const jlink *rpjlink, int lvl, int indent)
             Guard G(pval->lchan->lock);
 
             printf(" conn=%c", pval->lchan->connected ? 'T' : 'F');
+            if(pval->lchan->op_put.valid()) {
+                printf(" Put");
+            }
 
             if(lvl>0) {
                 printf(" #disconn=%zu prov=%s", pval->lchan->num_disconnect, pval->lchan->providerName.c_str());

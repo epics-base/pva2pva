@@ -78,7 +78,7 @@ void pvaOpenLink(DBLINK *plink)
             self->lchan.swap(chan); // we are now attached
         } else {
             // TODO: only print duing iocInit()?
-            fprintf(stderr, "%s local:true link to '%s' can't be fulfilled\n",
+            fprintf(stderr, "%s Error: local:true link to '%s' can't be fulfilled\n",
                    plink->precord->name, self->channelName.c_str());
             plink->lset = NULL;
         }
