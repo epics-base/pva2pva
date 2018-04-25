@@ -73,7 +73,11 @@ void pvaLinkChannel::open()
         TRACE(<<"Local "<<key.first);
         providerName = pvaGlobal->provider_local.name();
     } catch(std::exception& e){
-        errlogPrintf("failed to find in QSRV; %s\n", key.first.c_str());
+        // The PDBProvider doesn't have a way to communicate to us
+        // whether this is an invalid record or group name,
+        // or if this is some sort of internal error.
+        // So we are forced to assume it is an invalid name.
+        TRACE(<<"Not local "<<e.what());
     }
     if(!pvaLinkIsolate && !chan) {
         chan = pvaGlobal->provider_remote.connect(key.first);
