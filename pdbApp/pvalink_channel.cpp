@@ -105,8 +105,6 @@ pvd::StructureConstPtr putRequestType = pvd::getFieldCreate()->createFieldBuilde
 // call with channel lock held
 void pvaLinkChannel::put(bool force)
 {
-    if(!connected) return;
-
     pvd::PVStructurePtr pvReq(pvd::getPVDataCreate()->createPVStructure(putRequestType));
     pvReq->getSubFieldT<pvd::PVBoolean>("record._options.block")->put(false); // TODO: some way to expose completion...
 
@@ -147,7 +145,7 @@ void pvaLinkChannel::put(bool force)
      * TODO: per field granularity?
      */
     const char *proc = "passive";
-    if(reqProcess&2) {
+    if((reqProcess&2) || force) {
         proc = "true";
     } else if(reqProcess&1) {
         proc = "false";
