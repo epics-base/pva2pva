@@ -130,7 +130,7 @@ will split the nanoseconds value stored in the associated record.
 The least significant # bits are stored in the 'timeStamp.userTag' field.
 While the remaining 32-# bits are stored in 'timeStamp.nanoseconds' (without shifting).
 
-For example, in the following situation 16 bits are split off.
+For example, in the following situation 20 bits are split off into userTag.
 If the nanoseconds part of the record timestamp is 0x12345678,
 then the PVD structure would include "timeStamp.nanoseconds=0x12300000"
 and "timeStamp.userTag=0x45678".
@@ -146,6 +146,8 @@ record(ai, "...") {
 When built against Base >= 3.16.1, support is enabled for PVAccess links,
 which are analogous to Channel Access (CA) links.  However, the syntax
 for PVA links is quite different.
+
+@note The "dbjlr" and "dbpvar" IOC shell command provide information about PVA links in a running IOC.
 
 @warning The PVA Link syntax shown below is provisional and subject to change.
 

@@ -49,3 +49,26 @@ record(longin, "$(P)track2") {
                     }})
     field(TSE, "-2")
 }
+
+
+# local output link
+record(longout, "$(P)out1") {
+    field(OUT , {pva:{pv:"$(P)out:tgt"}})
+    field(TPRO, "1")
+}
+record(longout, "$(P)out:tgt") {
+    field(TPRO, "1")
+}
+
+# remote output link
+record(longout, "$(P)out2") {
+    field(OUT , {pva:{pv:"$(P)out:rmt"}})
+    field(TPRO, "1")
+}
+
+# remote output link w/ retry (queue put while disconnected)
+record(longout, "$(P)out3") {
+    field(OUT , {pva:{pv:"$(P)out:rmt", retry:true}})
+    field(TPRO, "1")
+    #info(base:lsetDebug, "YES")
+}
