@@ -41,6 +41,9 @@ extern "C" {
 #  define TRACE(X) do {} while(0)
 #endif
 
+// pvaLink and pvaLinkChannel have ->debug
+#define DEBUG(OBJ, X) do{ if((OBJ)->debug) std::cout X<<"\n"; }while(0)
+
 namespace pvalink {
 
 namespace pvd = epics::pvData;
@@ -133,6 +136,7 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     bool connected_latched; // connection status at the run()
     bool isatomic;
     bool queued; // added to WorkQueue
+    bool debug; // set if any jlink::debug is set
     std::tr1::shared_ptr<const void> previous_root;
 
     struct LinkSort {

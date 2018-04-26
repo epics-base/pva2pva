@@ -72,7 +72,6 @@ MAIN(testpvalink)
 
     // Disable PVA client provider, use local/QSRV provider
     pvaLinkIsolate = 1;
-    pvaLinkDebug = 5;
 
     try {
         TestIOC IOC;

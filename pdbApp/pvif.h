@@ -123,6 +123,7 @@ struct pdbRecordIterator {
     pdbRecordIterator(dbCommon *prec)
     {
         dbInitEntryFromRecord(prec, &ent);
+        m_done = false;
     }
 #endif
     ~pdbRecordIterator()

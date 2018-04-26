@@ -4,6 +4,8 @@
 #include <recGbl.h>
 #include <epicsStdio.h> // redirect stdout/stderr
 
+#include <pv/current_function.h>
+
 #define epicsExportSharedSymbols
 #include <shareLib.h>
 
@@ -15,16 +17,27 @@ namespace {
 using namespace pvalink;
 
 #define TRY pvaLink *self = static_cast<pvaLink*>(plink->value.json.jlink); assert(self->alive); try
-#define CATCH(LOC) catch(std::exception& e) { \
-    errlogPrintf("pvaLink " #LOC " fails %s: %s\n", plink->precord->name, e.what()); \
+#define CATCH() catch(std::exception& e) { \
+    errlogPrintf("pvaLink %s fails %s: %s\n", CURRENT_FUNCTION, plink->precord->name, e.what()); \
 }
+
+#define CHECK_VALID() if(!self->valid()) { DEBUG(self, <<CURRENT_FUNCTION<<" "<<self->channelName<<" !valid"); return -1;}
 
 void pvaOpenLink(DBLINK *plink)
 {
     try {
         pvaLink* self((pvaLink*)plink->value.json.jlink);
 
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
+        // workaround for Base not propagating info(base:lsetDebug to us
+        {
+            pdbRecordIterator rec(plink->precord);
+
+            if(epicsStrCaseCmp(rec.info("base:lsetDebug", "NO"), "YES")==0) {
+                self->debug = 1;
+            }
+        }
+
+        DEBUG(self, <<plink->precord->name<<" OPEN "<<self->channelName);
 
         // still single threaded at this point.
         // also, no pvaLinkChannel::lock yet
@@ -76,6 +89,8 @@ void pvaOpenLink(DBLINK *plink)
             chan->links_changed = true;
 
             self->lchan.swap(chan); // we are now attached
+
+            self->lchan->debug |= !!self->debug;
         } else {
             // TODO: only print duing iocInit()?
             fprintf(stderr, "%s Error: local:true link to '%s' can't be fulfilled\n",
@@ -84,7 +99,7 @@ void pvaOpenLink(DBLINK *plink)
         }
 
         return;
-    }CATCH(pvaOpenLink)
+    }CATCH()
     // on error, prevent any further calls to our lset functions
     plink->lset = NULL;
 }
@@ -93,31 +108,30 @@ void pvaRemoveLink(struct dbLocker *locker, DBLINK *plink)
 {
     try {
         p2p::auto_ptr<pvaLink> self((pvaLink*)plink->value.json.jlink);
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName);
         assert(self->alive);
-        Guard G(self->lchan->lock);
 
-    }CATCH(pvaRemoteLink)
+    }CATCH()
 }
 
 int pvaIsConnected(const DBLINK *plink)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
 
-        return self->valid();
+        bool ret = self->valid();
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<ret);
+        return ret;
 
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return 0;
 }
 
 int pvaGetDBFtype(const DBLINK *plink)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
+        CHECK_VALID();
 
         // if fieldName is empty, use top struct value
         // if fieldName not empty
@@ -134,31 +148,37 @@ int pvaGetDBFtype(const DBLINK *plink)
         else if(value->getField()->getType()==pvd::scalarArray)
             ftype = static_cast<const pvd::ScalarArray*>(value->getField().get())->getElementType();
 
+        int ret;
         switch(ftype) {
-#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: return DBF_##DBFTYPE;
+#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: ret = DBF_##DBFTYPE;
 #define CASE_REAL_INT64
 #include "pv/typemap.h"
 #undef CASE_REAL_INT64
 #undef CASE
-        case pvd::pvString: return DBF_STRING; // TODO: long string?
+        case pvd::pvString: ret = DBF_STRING; // TODO: long string?
         }
 
-    }CATCH(pvaIsConnected)
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<dbGetFieldTypeString(ret));
+        return ret;
+
+    }CATCH()
     return -1;
 }
 
 long pvaGetElements(const DBLINK *plink, long *nelements)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
+        CHECK_VALID();
 
+        long ret = 0;
         if(self->fld_value && self->fld_value->getField()->getType()==pvd::scalarArray)
-            return static_cast<const pvd::PVScalarArray*>(self->fld_value.get())->getLength();
-        else
-            return 0;
-    }CATCH(pvaIsConnected)
+            ret = static_cast<const pvd::PVScalarArray*>(self->fld_value.get())->getLength();
+
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<ret);
+
+        return ret;
+    }CATCH()
     return -1;
 }
 
@@ -167,8 +187,6 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
 {
     TRY {
         Guard G(self->lchan->lock);
-
-        TRACE(<<plink->precord->name<<" "<<self->channelName<<" conn="<<(self->valid()?"T":"F"));
 
         if(!self->valid()) {
             // disconnected
@@ -180,12 +198,16 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             if(self->time) {
                 plink->precord->time = self->snap_time;
             }
+            DEBUG(self, <<CURRENT_FUNCTION<<" "<<self->channelName<<" !valid");
             return -1;
         }
 
         if(self->fld_value) {
             long status = copyPVD2DBF(self->fld_value, pbuffer, dbrType, pnRequest);
-            if(status) return status;
+            if(status) {
+                DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<status);
+                return status;
+            }
         }
 
         if(self->fld_seconds) {
@@ -216,17 +238,17 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             plink->precord->time = self->snap_time;
         }
 
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" OK");
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
 long pvaGetControlLimits(const DBLINK *plink, double *lo, double *hi)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
+        CHECK_VALID();
 
         if(self->fld_control) {
             pvd::PVScalar::const_shared_pointer value;
@@ -241,17 +263,17 @@ long pvaGetControlLimits(const DBLINK *plink, double *lo, double *hi)
         } else {
             *lo = *hi = 0.0;
         }
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<(lo ? *lo : 0)<<" "<<(hi ? *hi : 0));
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
 long pvaGetGraphicLimits(const DBLINK *plink, double *lo, double *hi)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
+        CHECK_VALID();
 
         if(self->fld_display) {
             pvd::PVScalar::const_shared_pointer value;
@@ -266,8 +288,9 @@ long pvaGetGraphicLimits(const DBLINK *plink, double *lo, double *hi)
         } else {
             *lo = *hi = 0.0;
         }
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<(lo ? *lo : 0)<<" "<<(hi ? *hi : 0));
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
@@ -275,35 +298,34 @@ long pvaGetAlarmLimits(const DBLINK *plink, double *lolo, double *lo,
         double *hi, double *hihi)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
-        if(!self->valid()) return -1;
         //Guard G(self->lchan->lock);
+        //CHECK_VALID();
         *lolo = *lo = *hi = *hihi = 0.0;
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<(lolo ? *lolo : 0)<<" "<<(lo ? *lo : 0)<<" "<<(hi ? *hi : 0)<<" "<<(hihi ? *hihi : 0));
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
 long pvaGetPrecision(const DBLINK *plink, short *precision)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
-        if(!self->valid()) return -1;
         //Guard G(self->lchan->lock);
+        //CHECK_VALID();
 
         // No sane way to recover precision from display.format string.
         *precision = 0;
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<precision);
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
 long pvaGetUnits(const DBLINK *plink, char *units, int unitsSize)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
+        CHECK_VALID();
 
         if(unitsSize==0) return 0;
 
@@ -317,8 +339,9 @@ long pvaGetUnits(const DBLINK *plink, char *units, int unitsSize)
             units[0] = '\0';
         }
         units[unitsSize-1] = '\0';
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<units);
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
@@ -326,9 +349,8 @@ long pvaGetAlarm(const DBLINK *plink, epicsEnum16 *status,
         epicsEnum16 *severity)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
-        if(!self->valid()) return -1;
+        CHECK_VALID();
 
         if(severity) {
             *severity = self->snap_severity;
@@ -337,24 +359,25 @@ long pvaGetAlarm(const DBLINK *plink, epicsEnum16 *status,
             *status = self->snap_severity ? LINK_ALARM : NO_ALARM;
         }
 
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<(severity ? *severity : 0)<<" "<<(status ? *status : 0));
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
 long pvaGetTimeStamp(const DBLINK *plink, epicsTimeStamp *pstamp)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
-        if(!self->valid()) return -1;
         Guard G(self->lchan->lock);
+        CHECK_VALID();
 
         if(pstamp) {
             *pstamp = self->snap_time;
         }
 
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<(pstamp ? pstamp->secPastEpoch : 0)<<":"<<(pstamp ? pstamp->nsec: 0));
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
@@ -380,11 +403,10 @@ long pvaPutValue(DBLINK *plink, short dbrType,
         (void)self;
         Guard G(self->lchan->lock);
 
-        TRACE(<<plink->precord->name<<" "<<self->channelName<<" nReq="<<nRequest<<" conn="<<(self->valid()?"T":"F"));
-
         if(nRequest < 0) return -1;
 
         if(!self->retry && !self->valid()) {
+            DEBUG(self, <<CURRENT_FUNCTION<<" "<<self->channelName<<" !valid");
             return -1;
         }
 
@@ -416,15 +438,15 @@ long pvaPutValue(DBLINK *plink, short dbrType,
 
         if(!self->defer) self->lchan->put();
 
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->op_put.valid());
         return 0;
-    }CATCH(pvaIsConnected)
+    }CATCH()
     return -1;
 }
 
 void pvaScanForward(DBLINK *plink)
 {
     TRY {
-        TRACE(<<plink->precord->name<<" "<<self->channelName);
         Guard G(self->lchan->lock);
 
         if(!self->retry && !self->valid()) {
@@ -433,7 +455,9 @@ void pvaScanForward(DBLINK *plink)
 
         // FWD_LINK is never deferred, and always results in a Put
         self->lchan->put(true);
-    }CATCH(pvaIsConnected)
+
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->op_put.valid());
+    }CATCH()
 }
 
 #undef TRY

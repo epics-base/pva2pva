@@ -49,6 +49,7 @@ pvaLinkChannel::pvaLinkChannel(const pvaGlobal_t::channels_key_t &key, const pvd
     ,connected_latched(false)
     ,isatomic(false)
     ,queued(false)
+    ,debug(false)
     ,links_changed(false)
 {}
 
@@ -70,18 +71,18 @@ void pvaLinkChannel::open()
 
     try {
         chan = pvaGlobal->provider_local.connect(key.first);
-        TRACE(<<"Local "<<key.first);
+        DEBUG(this, <<key.first<<" OPEN Local");
         providerName = pvaGlobal->provider_local.name();
     } catch(std::exception& e){
         // The PDBProvider doesn't have a way to communicate to us
         // whether this is an invalid record or group name,
         // or if this is some sort of internal error.
         // So we are forced to assume it is an invalid name.
-        TRACE(<<"Not local "<<e.what());
+        DEBUG(this, <<key.first<<" OPEN Not local "<<e.what());
     }
     if(!pvaLinkIsolate && !chan) {
         chan = pvaGlobal->provider_remote.connect(key.first);
-        TRACE(<<"Remote "<<key.first);
+        DEBUG(this, <<key.first<<" OPEN Remote ");
         providerName = pvaGlobal->provider_remote.name();
     }
 
@@ -152,8 +153,8 @@ void pvaLinkChannel::put(bool force)
     }
     pvReq->getSubFieldT<pvd::PVString>("record._options.process")->put(proc);
 
+    DEBUG(this, <<key.first<<"Start put "<<doit);
     if(doit) {
-        TRACE(<<"start");
         // start net Put, cancels in-progress put
         op_put = chan.put(this, pvReq);
     }
@@ -161,7 +162,6 @@ void pvaLinkChannel::put(bool force)
 
 void pvaLinkChannel::putBuild(const epics::pvData::StructureConstPtr& build, pvac::ClientChannel::PutCallback::Args& args)
 {
-    TRACE();
     Guard G(lock);
 
     pvd::PVStructurePtr top(pvaGlobal->create->createPVStructure(build));
@@ -181,36 +181,34 @@ void pvaLinkChannel::putBuild(const epics::pvData::StructureConstPtr& build, pva
                 value.swap(sub);
         }
 
-        if(!value) return; // TODO: how to signal error?
+        if(!value) continue; // TODO: how to signal error?
 
         pvd::PVStringArray::const_svector choices; // TODO populate from op_mon
 
-        TRACE(<<"store "<<value->getFullName());
+        DEBUG(this, <<key.first<<" <- "<<value->getFullName());
         copyDBF2PVD(link->put_queue, value, args.tosend, choices);
 
         link->put_queue.clear();
     }
+    DEBUG(this, <<key.first<<" Put built");
 
     args.root = top;
 }
 
 void pvaLinkChannel::putDone(const pvac::PutEvent& evt)
 {
-    TRACE(<<evt.event<<" "<<evt.message);
-
     if(evt.event==pvac::PutEvent::Fail) {
         errlogPrintf("%s PVA link put ERROR: %s\n", key.first.c_str(), evt.message.c_str());
     }
 
     Guard G(lock);
 
+    DEBUG(this, <<key.first<<" Put result "<<evt.event);
+
     op_put = pvac::Operation();
 
-    if(evt.event!=pvac::PutEvent::Success) {
-        TRACE(<<"skip");
-
-    } else {
-        TRACE(<<"repeat");
+    if(evt.event==pvac::PutEvent::Success) {
+        // see if we need start a queue'd put
         put();
     }
 }
@@ -220,7 +218,7 @@ void pvaLinkChannel::monitorEvent(const pvac::MonitorEvent& evt)
     bool queue = false;
 
     {
-        TRACE(<<evt.event);
+        DEBUG(this, <<key.first<<" EVENT "<<evt.event);
         Guard G(lock);
 
         switch(evt.event) {
@@ -285,12 +283,12 @@ void pvaLinkChannel::run()
         // pop next update from monitor queue.
         // still under lock to safeguard concurrent calls to lset functions
         if(connected && !op_mon.poll()) {
-            TRACE(<<"empty");
+            DEBUG(this, <<key.first<<" RUN "<<"empty");
             run_done.signal();
             return; // monitor queue is empty, nothing more to do here
         }
 
-        TRACE(<<(connected_latched?"connected":"disconnected"));
+        DEBUG(this, <<key.first<<" RUN "<<(connected_latched?"connected":"disconnected"));
 
         assert(!connected || !!op_mon.root);
 

@@ -34,6 +34,19 @@ pvaLink::~pvaLink()
 
         lchan->links.erase(this);
         lchan->links_changed = true;
+
+        bool new_debug = false;
+        for(pvaLinkChannel::links_t::const_iterator it(lchan->links.begin()), end(lchan->links.end())
+            ; it!=end; ++it)
+        {
+            const pvaLink *pval = *it;
+            if(pval->debug) {
+                new_debug = true;
+                break;
+            }
+        }
+
+        lchan->debug = new_debug;
     }
 
     REFTRACE_DECREMENT(num_instances);
@@ -96,7 +109,7 @@ pvd::PVField::const_shared_pointer pvaLink::getSubField(const char *name)
 // call with channel lock held
 void pvaLink::onDisconnect()
 {
-    TRACE(<<"");
+    DEBUG(this,<<plink->precord->name<<" disconnect");
     // TODO: option to remain queue'd while disconnected
 
     used_queue = used_scratch = false;
@@ -104,7 +117,8 @@ void pvaLink::onDisconnect()
 
 void pvaLink::onTypeChange()
 {
-    TRACE(<<"");
+    DEBUG(this,<<plink->precord->name<<" type change");
+
     assert(lchan->connected_latched && !!lchan->op_mon.root); // we should only be called when connected
 
     fld_value = getSubField("value");
