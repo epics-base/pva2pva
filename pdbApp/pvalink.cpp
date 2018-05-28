@@ -115,6 +115,18 @@ void initPVALink(initHookState state)
         // after epicsExit(exitDatabase)
         // so hook registered here will be run before iocShutdown()
         epicsAtExit(stopPVAPool, NULL);
+
+        Guard G(pvaGlobal->lock);
+        pvaGlobal->running = true;
+
+        for(pvaGlobal_t::channels_t::iterator it(pvaGlobal->channels.begin()), end(pvaGlobal->channels.end());
+            it != end; ++it)
+        {
+            std::tr1::shared_ptr<pvaLinkChannel> chan(it->second.lock());
+            if(!chan) continue;
+
+            chan->open();
+        }
     }
 }
 

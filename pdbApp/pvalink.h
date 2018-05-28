@@ -101,6 +101,8 @@ struct pvaGlobal_t {
 
     pvd::Mutex lock;
 
+    bool running; // set after dbEvent is initialized and safe to use
+
     // a tuple of channel name and printed pvRequest (or Monitor)
     typedef std::pair<std::string, std::string> channels_key_t;
     // pvaLinkChannel dtor prunes dead entires

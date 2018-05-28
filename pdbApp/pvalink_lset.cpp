@@ -76,6 +76,8 @@ void pvaOpenLink(DBLINK *plink)
                 pvaGlobal->channels.insert(std::make_pair(key, chan));
                 doOpen = true;
             }
+
+            doOpen &= pvaGlobal->running; // if not running, then open from initHook
         }
 
         if(doOpen) {

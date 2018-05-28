@@ -20,6 +20,7 @@ pvaGlobal_t::pvaGlobal_t()
     ,provider_remote("pva")
     ,create(pvd::getPVDataCreate())
     ,queue("PVAL")
+    ,running(false)
 {
     // worker should be above PVA worker priority?
     queue.start(std::max(1, pvaLinkNWorkers), epicsThreadPriorityMedium);
