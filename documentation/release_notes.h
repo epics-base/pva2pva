@@ -16,8 +16,11 @@ Release 1.1.0 (UNRELEASED)
  - Correctly handle empty "scalar" case of NELM=1, NORD=0.
 - Additions
  - QSRV implement channelList() (aka. 'pvlist') with list of record and group names.
+ - @ref qsrv_link type (requires Base >= 3.16.1)
 
 Release 1.0.0 (Dec 2017)
 ========================
 
 Initial Release
+
+*/
