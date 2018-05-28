@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <deque>
 #include <vector>
+#include <string>
 
 #include <errlog.h>
 #include <epicsThread.h>

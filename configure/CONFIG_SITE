@@ -38,5 +38,8 @@ CHECK_RELEASE = YES
 # we don't actually use 'rset' explicitly, but quiet some warnings
 USR_CPPFLAGS += -DUSE_TYPED_RSET
 
+# we use std::min()/max() and don't want conflicting MSVC defs
+USR_CPPFLAGS_WIN32 += -DNOMINMAX
+
 -include $(TOP)/../CONFIG_SITE.local
 -include $(TOP)/configure/CONFIG_SITE.local
