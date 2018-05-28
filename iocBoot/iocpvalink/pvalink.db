@@ -72,3 +72,23 @@ record(longout, "$(P)out3") {
     field(TPRO, "1")
     #info(base:lsetDebug, "YES")
 }
+
+
+# output link to waveform
+record(aao, "$(P)out4:wf") {
+    field(FTVL, "DOUBLE")
+    field(NELM, "10")
+    field(OUT , {pva:{pv:"$(P)target:wf"}})
+}
+
+# input link to waveform
+record(aao, "$(P)target:wf") {
+    field(FTVL, "DOUBLE")
+    field(NELM, "10")
+}
+
+record(aai, "$(P)inp5:wf") {
+    field(FTVL, "DOUBLE")
+    field(NELM, "10")
+    field(INP , {pva:{pv:"$(P)target:wf"}})
+}
