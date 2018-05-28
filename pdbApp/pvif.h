@@ -149,7 +149,7 @@ struct pdbRecordIterator {
         return m_done ? NULL : (dbCommon*)ent.precnode->precord;
     }
     const char *name() const {
-        return m_done ? NULL : ((dbCommon*)ent.precnode->precord)->name;
+        return m_done ? NULL : ent.precnode->recordname;
     }
     const char *info(const char *key, const char *def =0)
     {

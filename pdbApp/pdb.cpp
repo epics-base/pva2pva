@@ -199,9 +199,9 @@ struct PDBProcessor
                 GroupConfig conf;
                 GroupConfig::parse(json, conf);
                 if(!conf.warning.empty())
-                    fprintf(stderr, "%s: warning(s) from info(Q:group, ...\n%s", rec.record()->name, conf.warning.c_str());
+                    fprintf(stderr, "%s: warning(s) from info(Q:group, ...\n%s", rec.name(), conf.warning.c_str());
 
-                recbase = rec.record()->name;
+                recbase = rec.name();
                 recbase += ".";
 
                 for(GroupConfig::groups_t::const_iterator git=conf.groups.begin(), gend=conf.groups.end();

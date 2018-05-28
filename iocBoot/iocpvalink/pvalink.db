@@ -3,6 +3,7 @@ record(ai, "$(P)target") {}
 # local input link shorthand
 record(longin, "$(P)inp1") {
     field(INP , {pva:"$(P)target"})
+    alias("$(P)inp1:alias")
 }
 
 # local input link longhand
