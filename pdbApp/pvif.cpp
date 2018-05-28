@@ -606,8 +606,11 @@ struct PVIFScalarNumeric : public PVIF
     virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc) OVERRIDE FINAL
     {
         pvd::Status ret;
-        if(mask.logical_and(pvmeta.maskVALUEPut)) {
+        bool newval = mask.logical_and(pvmeta.maskVALUEPut);
+        if(newval) {
             getValue(pvmeta.chan, pvmeta.value.get());
+        }
+        if(newval || proc==PVIF::ProcForce) {
             ret = PVIF::get(mask, proc);
         }
         return ret;
@@ -775,8 +778,11 @@ struct PVIFPlain : public PVIF
     virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
     {
         pvd::Status ret;
-        if(mask.get(fieldOffset)) {
+        bool newval = mask.get(fieldOffset);
+        if(newval) {
             getValue(channel, field.get());
+        }
+        if(newval || proc==PVIF::ProcForce) {
             ret = PVIF::get(mask, proc);
         }
         return ret;
