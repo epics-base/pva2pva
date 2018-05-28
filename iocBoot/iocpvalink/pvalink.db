@@ -92,3 +92,14 @@ record(aai, "$(P)inp5:wf") {
     field(NELM, "10")
     field(INP , {pva:{pv:"$(P)target:wf"}})
 }
+
+
+# test forward link
+record(calc, "$(P)fcnt1") {
+    field(CALC, "VAL+1")
+    field(FLNK, {pva:{pv:"$(P)fcnt2"}})
+    info(base:lsetDebug, "YES")
+}
+record(calc, "$(P)fcnt2") {
+    field(CALC, "VAL+1")
+}
