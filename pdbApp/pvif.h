@@ -29,8 +29,18 @@
 #  define USE_MULTILOCK
 #endif
 
-epics::pvData::ScalarType DBR2PVD(short dbr);
 short PVD2DBR(epics::pvData::ScalarType pvt);
+
+// copy from PVField (.value sub-field) to DBF buffer
+epicsShareExtern
+long copyPVD2DBF(const epics::pvData::PVField::const_shared_pointer& in,
+                 void *outbuf, short outdbf, long *outnReq);
+// copy from DBF buffer to PVField (.value sub-field)
+epicsShareExtern
+long copyDBF2PVD(const epics::pvData::shared_vector<const void>& buf,
+                 const epics::pvData::PVField::shared_pointer& out,
+                 epics::pvData::BitSet &changed,
+                 const epics::pvData::PVStringArray::const_svector& choices);
 
 union dbrbuf {
         epicsInt8		dbf_CHAR;
@@ -109,6 +119,13 @@ struct pdbRecordIterator {
 #endif
         m_done = false;
     }
+#if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
+    pdbRecordIterator(dbCommon *prec)
+    {
+        dbInitEntryFromRecord(prec, &ent);
+        m_done = false;
+    }
+#endif
     ~pdbRecordIterator()
     {
         dbFinishEntry(&ent);
@@ -229,7 +246,7 @@ struct DBManyLock
 {
     dbLocker *plock;
     DBManyLock() :plock(NULL) {}
-    DBManyLock(const std::vector<dbCommon*>& recs, unsigned flags)
+    DBManyLock(const std::vector<dbCommon*>& recs, unsigned flags=0)
         :plock(dbLockerAlloc((dbCommon**)&recs[0], recs.size(), flags))
     {
         if(!plock) throw std::invalid_argument("Failed to create locker");

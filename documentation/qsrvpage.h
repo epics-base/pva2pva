@@ -130,7 +130,7 @@ will split the nanoseconds value stored in the associated record.
 The least significant # bits are stored in the 'timeStamp.userTag' field.
 While the remaining 32-# bits are stored in 'timeStamp.nanoseconds' (without shifting).
 
-For example, in the following situation 16 bits are split off.
+For example, in the following situation 20 bits are split off into userTag.
 If the nanoseconds part of the record timestamp is 0x12345678,
 then the PVD structure would include "timeStamp.nanoseconds=0x12300000"
 and "timeStamp.userTag=0x45678".
@@ -140,5 +140,173 @@ record(ai, "...") {
   info(Q:time:tag, "nsec:lsb:20")
 }
 @endcode
+
+@subsection qsrv_link PVAccess Links
+
+When built against Base >= 3.16.1, support is enabled for PVAccess links,
+which are analogous to Channel Access (CA) links.  However, the syntax
+for PVA links is quite different.
+
+@note The "dbjlr" and "dbpvar" IOC shell command provide information about PVA links in a running IOC.
+
+@warning The PVA Link syntax shown below is provisional and subject to change.
+
+A simple configuration using defaults is
+
+@code
+record(longin, "tgt") {}
+record(longin, "src") {
+    field(INP, {pva:"tgt"})
+}
+@endcode
+
+This is a shorthand for
+
+@code
+record(longin, "tgt") {}
+record(longin, "src") {
+    field(INP, {pva:{pv:"tgt"}})
+}
+@endcode
+
+Some additional keys (beyond "pv") may be used.
+Defaults are shown below:
+
+@code
+record(longin, "tgt") {}
+record(longin, "src") {
+    field(INP, {pva:{
+        pv:"tgt",
+        field:"",   # may be a sub-field
+        local:false,# Require local PV
+        Q:4,        # monitor queue depth
+        pipeline:false, # require that server uses monitor flow control protocol
+        proc:none,  # Request record processing (side-effects).
+        sevr:false, # Maximize severity.
+        time:false, # set record time during getValue
+        monorder:0, # Order of record processing as a result of CP and CPP
+        retry:false,# allow Put while disconnected.
+        always:false,# CP/CPP input link process even when .value field hasn't changed
+        defer:false # Defer put
+    }})
+}
+@endcode
+
+@subsubsection qsrv_link_pv pv: Target PV name
+
+The PV name to search for.
+This is the same name which could be used with 'pvget' or other client tools.
+
+@subsubsection qsrv_link_field field: Structure field name
+
+The name of a sub-field of the remotely provided Structure.
+By default, an empty string "" uses the top-level Structure.
+
+If the top level structure, or a sub-structure is selected, then
+it is expeccted to conform to NTScalar, NTScalarArray, or NTEnum
+to extract value and meta-data.
+
+If the sub-field is an PVScalar or PVScalarArray, then a value
+will be taken from it, but not meta-data will be available.
+
+@todo Ability to traverse through unions and into structure arrays (as with group mappings).
+
+@subsubsection qsrv_link_local local: Require local PV
+
+When true, link will not connect unless the named PV is provided by the local (QSRV) data provider.
+
+@subsubsection qsrv_link_Q Q: Monitor queue depth
+
+Requests a certain monitor queue depth.
+The server may, or may not, take this into consideration when selecting
+a queue depth.
+
+@subsubsection qsrv_link_pipeline pipeline: Monitor flow control
+
+Expect that the server supports PVA monitor flow control.
+If not, then the subscription will stall (ick.)
+
+@subsubsection qsrv_link_proc proc: Request record processing (side-effects)
+
+The meaning of this option depends on the direction of the link.
+
+For output links, this option allows a request for remote processing (side-effects).
+
+@li none (default) - Make no special request.  Uses a server specific default.
+@li false, "NPP" - Request to skip processing.
+@li true, "PP" - Request to force processing.
+@li "CP", "CPP" - For output links, an alias for "PP".
+
+For input links, this option controls whether the record containing
+the PVA link will be processed when subscription events are received.
+
+@li none (default), false, "NPP" - Do not process on subscription updates.
+@li true, "CP" - Always process on subscription updates.
+@li "PP", "CPP" - Process on subscription updates if SCAN=Passive
+
+@subsubsection qsrv_link_sevr sevr: Alarm propagation
+
+This option controls whether reading a value from an input PVA link
+has the addition effect of propagating any alarm via the Maximize
+Severity process.
+
+@li false - Do not maximize severity.
+@li true - Maximize alarm severity
+@li "MSI" - Maximize only if the remote severity is INVALID.
+
+@subsubsection qsrv_link_time time: Time propagation
+
+Somewhat analogous to sevr: applied to timestamp.
+When true, the record TIME field is updated when the link value is read.
+
+@warning TSEL must be set to -2 for time:true to have an effect.
+
+@subsubsection qsrv_link_monorder monorder: Monitor processing order
+
+When multiple record target the same target PV, and request processing
+on subscription updates.  This option allows the order of processing
+to be specified.
+
+Record are processed in increasing order.
+monorder=-1 is processed before monorder=0.
+Both are processed before monorder=1.
+
+@subsubsection qsrv_link_defer defer: Defer put
+
+By default (defer=false) an output link will immediately
+start a PVA Put operation.  defer=true will store the
+new value in an internal cache, but not start a PVA Put.
+
+This option, in combination with field: allows a single
+Put to contain updates to multiple sub-fields.
+
+
+@subsubsection qsrv_link_retry retry: Put while disconnected
+
+Allow a Put operation to be queued while the link is disconnected.
+The Put will be executed when the link becomes connected.
+
+@subsubsection qsrv_link_always always: CP/CPP always process
+
+By default (always:false) a subscription update will only cause a CP input link
+to scan if the structure field (cf. field: option) is marked as changed.
+Set to true to override this, and always process the link.
+
+@subsubsection qsrv_link_sem Link semantics/behavior
+
+This section attempts to answer some questions about how links behave in certain situations.
+
+Links are evaluated in three basic contexts.
+
+@li dbPutLink()/dbScanFwdLink()
+@li dbGetLink() of non-CP link
+@li dbGetLink() during a scan resulting from a CP link.
+
+An input link can bring in a Value as well as meta-data, alarm, time, and display/control info.
+For input links, the PVA link engine attempts to always maintain consistency between Value, alarm, and time.
+However, consistency between these, and the display/control info is only ensured during a CP scan.
+
+
+
 
 */

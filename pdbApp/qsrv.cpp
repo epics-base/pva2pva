@@ -20,6 +20,7 @@
 
 #define epicsExportSharedSymbols
 
+#include "pv/qsrv.h"
 #include "pvahelper.h"
 #include "pvif.h"
 #include "pdb.h"
@@ -92,6 +93,16 @@ void QSRVRegistrar()
 }
 
 } // namespace
+
+unsigned qsrvVersion(void)
+{
+    return QSRV_VERSION_INT;
+}
+
+unsigned qsrvABIVersion(void)
+{
+    return QSRV_ABI_VERSION_INT;
+}
 
 extern "C" {
     epicsExportRegistrar(QSRVRegistrar);

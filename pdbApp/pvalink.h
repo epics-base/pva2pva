@@ -16,19 +16,33 @@
 #include <alarm.h>
 #include <epicsExit.h>
 #include <epicsAtomic.h>
-#include <epicsThreadPool.h>
 #include <link.h>
 #include <dbJLink.h>
 
-#include <pv/pvAccess.h>
-#include <pv/clientFactory.h>
+#include <pva/client.h>
+#include <pv/anyscalar.h>
+#include <pv/thread.h>
+#include <pv/lock.h>
+#include <pv/iocshelper.h>
 
 #include "helper.h"
-#include "iocshelper.h"
 #include "pvif.h"
+#include "tpool.h"
 
-extern int pvaLinkDebug;
-extern int pvaLinkIsolate;
+extern "C" {
+    epicsShareExtern int pvaLinkDebug;
+    epicsShareExtern int pvaLinkIsolate;
+    epicsShareExtern int pvaLinkNWorkers;
+}
+
+#if 0
+#  define TRACE(X) std::cerr<<"PVAL "<<__func__<<" " X <<"\n"
+#else
+#  define TRACE(X) do {} while(0)
+#endif
+
+// pvaLink and pvaLinkChannel have ->debug
+#define DEBUG(OBJ, X) do{ if((OBJ)->debug) std::cout X<<"\n"; }while(0)
 
 namespace pvalink {
 
@@ -41,289 +55,173 @@ typedef epicsGuardRelease<pvd::Mutex> UnGuard;
 struct pvaLink;
 struct pvaLinkChannel;
 
-struct pvaGlobal_t {
-    pva::ChannelProvider::shared_pointer provider;
+extern lset pva_lset;
+extern jlif lsetPVA;
 
-    pvd::StructureConstPtr reqtype;
-    pvd::PVDataCreatePtr create;
+struct pvaLinkConfig : public jlink
+{
+    // configuration, output of jlif parsing
+    //! Channel (aka PV) name string
+    std::string channelName;
+    //! sub-field within addressed PVStructure
+    std::string fieldName;
+
+    size_t queueSize;
+
+    enum pp_t {
+        NPP,
+        Default, // for put() only.  For monitor, treated as NPP
+        PP,      // for put() only,  For monitor, treated as NPP
+        CP,      // for monitor only, put treats as pp
+        CPP,     // for monitor only, put treats as pp
+    } pp;
+    enum ms_t {
+        NMS,
+        MS,
+        MSI,
+    } ms;
+
+    bool defer, pipeline, time, retry, local, always;
+    int monorder;
+
+    // internals used by jlif parsing
+    std::string jkey;
+
+    pvaLinkConfig();
+    virtual ~pvaLinkConfig();
+};
+
+struct pvaGlobal_t {
+    pvac::ClientProvider provider_local,
+                         provider_remote;
+
+    const pvd::PVDataCreatePtr create;
+
+    WorkQueue queue;
 
     pvd::Mutex lock;
 
-    struct Scan {
-        // the PVA channel which triggered this scan
-        std::tr1::weak_ptr<pvaLinkChannel> chan;
-        bool usecached;
-        Scan() :usecached(false) {}
-    };
+    bool running; // set after dbEvent is initialized and safe to use
 
-    epicsThreadPrivate<Scan> scanmagic;
-    epicsThreadPool *scanpool;
-
-    typedef std::map<std::string, std::tr1::shared_ptr<pvaLinkChannel> > channels_t;
+    // a tuple of channel name and printed pvRequest (or Monitor)
+    typedef std::pair<std::string, std::string> channels_key_t;
+    // pvaLinkChannel dtor prunes dead entires
+    typedef std::map<channels_key_t, std::tr1::weak_ptr<pvaLinkChannel> > channels_t;
+    // Cache of active Channels (really about caching Monitor)
     channels_t channels;
 
-    std::tr1::shared_ptr<pvaLinkChannel> connect(const char *name);
-
     pvaGlobal_t();
-    ~pvaGlobal_t()
-    {
-        provider->destroy();
-        epicsThreadPoolDestroy(scanpool);
-    }
+    ~pvaGlobal_t();
 };
 extern pvaGlobal_t *pvaGlobal;
 
-struct pvaLinkChannel : public pva::ChannelRequester, pva::MonitorRequester,
-        std::tr1::enable_shared_from_this<pvaLinkChannel>
+struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
+                        public pvac::ClientChannel::PutCallback,
+                        public epicsThreadRunable,
+                        public std::tr1::enable_shared_from_this<pvaLinkChannel>
 {
-    const std::string name;
+    const pvaGlobal_t::channels_key_t key; // tuple of (channelName, pvRequest key)
+    const pvd::PVStructure::const_shared_pointer pvRequest; // used with monitor
 
-    static size_t refs;
-
-    typedef std::set<pvaLink*> links_t;
-    links_t links;
+    static size_t num_instances;
 
     pvd::Mutex lock;
+    epicsEvent run_done; // used by testing code
 
-    pva::Channel::shared_pointer chan;
+    pvac::ClientChannel chan;
+    pvac::Monitor op_mon;
+    pvac::Operation op_put;
 
-    pva::Monitor::shared_pointer chanmon;
-    //pva::ChannelPut::shared_pointer chanput;
+    std::string providerName;
+    size_t num_disconnect, num_type_change;
+    bool connected;
+    bool connected_latched; // connection status at the run()
+    bool isatomic;
+    bool queued; // added to WorkQueue
+    bool debug; // set if any jlink::debug is set
+    std::tr1::shared_ptr<const void> previous_root;
 
-    pvd::PVStructurePtr lastval;
-    pvd::PVScalarPtr isatomic;
+    struct LinkSort {
+        bool operator()(const pvaLink *L, const pvaLink *R) const;
+    };
 
-    epicsJob *scanjob;
-    std::tr1::shared_ptr<pvaLinkChannel> scanself; // create ref loop while scan is queued
-    bool scanatomic;
+    typedef std::set<pvaLink*, LinkSort> links_t;
 
-    pvaLinkChannel(const char *name)
-        :name(name)
-        ,scanjob(epicsJobCreate(pvaGlobal->scanpool, &pvaLinkChannel::scan, this))
-        ,scanatomic(false)
-    {
-        if(!scanjob)
-            throw std::runtime_error("failed to create job for pvaLink");
-        epics::atomic::increment(refs);
-    }
-    virtual ~pvaLinkChannel() {
-        Guard G(lock);
-        assert(links.empty());
-        epicsJobDestroy(scanjob);
-        scanjob = NULL;
-        epics::atomic::decrement(refs);
-        std::cerr<<"pvaLinkChannel: destroy "<<name<<"\n";
-    }
+    // list of currently attached links.  maintained by pvaLink ctor/dtor
+    // TODO: sort by PHAS
+    links_t links;
 
-    void doConnect() {
-        // TODO: local PVA?
-        Guard G(lock);
-        chan = pvaGlobal->provider->createChannel(name, shared_from_this());
-        channelStateChange(chan, chan->getConnectionState());
-    }
-    void doClose() {
-        Guard G(lock);
-        errlogPrintf("pvaLink closing %s\n", name.c_str());
-        channelStateChange(chan, pva::Channel::DESTROYED);
-        chan->destroy();
-        chan.reset();
-        std::cerr<<"pvaLink: channel destroy "<<name<<"\n";
-    }
+    // set when 'links' is modified to trigger re-compute of record scan list
+    bool links_changed;
 
-    void triggerProc(bool atomic=false, bool force=false);
+    pvaLinkChannel(const pvaGlobal_t::channels_key_t& key, const epics::pvData::PVStructure::const_shared_pointer &pvRequest);
+    virtual ~pvaLinkChannel();
 
-    static void scan(void* arg, epicsJobMode mode);
+    void open();
+    void put(bool force=false); // begin Put op.
 
-    virtual std::string getRequesterName() { return "pvaLink"; }
-    virtual void message(std::string const & message, pva::MessageType messageType)
-    {
-        errlogPrintf("%s pvaLink \"%s\": %s\n",
-                     pvd::getMessageTypeName(messageType).c_str(),
-                     name.c_str(),
-                     message.c_str());
-    }
+    // pvac::ClientChanel::MonitorCallback
+    virtual void monitorEvent(const pvac::MonitorEvent& evt) OVERRIDE FINAL;
 
-    virtual void channelCreated(const epics::pvData::Status& status, pva::Channel::shared_pointer const & channel)
-    {
-        if(!status.isSuccess()) {
-            errlogPrintf("pvaLink create fails %s: %s\n", name.c_str(), status.getMessage().c_str());
-            return;
-        }
-        Guard G(lock);
-        //assert(chan==channel); // may be called before createChannel() returns
-        chan = channel;
-    }
+    // pvac::ClientChanel::PutCallback
+    virtual void putBuild(const epics::pvData::StructureConstPtr& build, pvac::ClientChannel::PutCallback::Args& args) OVERRIDE FINAL;
+    virtual void putDone(const pvac::PutEvent& evt) OVERRIDE FINAL;
+private:
+    virtual void run() OVERRIDE FINAL;
+    void run_dbProcess(size_t idx); // idx is index in scan_records
 
-    virtual void channelStateChange(pva::Channel::shared_pointer const & channel, pva::Channel::ConnectionState connectionState);
+    // ==== Treat remaining as local to run()
 
-    virtual void monitorConnect(pvd::Status const & status,
-                                pva::Monitor::shared_pointer const & monitor,
-                                pvd::StructureConstPtr const & structure);
+    std::vector<dbCommon*> scan_records;
+    std::vector<bool> scan_check_passive;
+    std::vector<epics::pvData::BitSet> scan_changed;
 
-    virtual void monitorEvent(pva::Monitor::shared_pointer const & monitor);
-
-    virtual void unlisten(pva::Monitor::shared_pointer const & monitor)
-    {
-        // what to do??
-    }
-
+    DBManyLock atomic_lock;
 };
 
-struct pvaLink : public jlink
+struct pvaLink : public pvaLinkConfig
 {
-    static size_t refs;
+    static size_t num_instances;
+
+    bool alive; // attempt to catch some use after free
 
     DBLINK * plink; // may be NULL
-    unsigned linkmods;
-    unsigned parse_level;
-
-    std::string name, field;
-    const pva::Channel::shared_pointer chan;
-    bool alive; // attempt to catch some use after free
 
     std::tr1::shared_ptr<pvaLinkChannel> lchan;
 
-    pvd::PVScalarPtr valueS;
-    pvd::PVScalarArray::shared_pointer valueA;
-    pvd::PVScalar::shared_pointer sevr, sec, nsec;
-    pvd::ScalarType etype;
+    bool used_scratch, used_queue;
+    pvd::shared_vector<const void> put_scratch, put_queue;
 
-    struct Value {
-        bool valid;
-        bool scalar;
-        pvd::ScalarType etype;
-        pvd::shared_vector<const void> valueA;
-        dbrbuf valueS;
-        epicsUInt16 sevr;
-        epicsTimeStamp time;
-        Value() :valid(false) {}
-        void clear() {
-            valid = false;
-            valueA.clear();
-        }
-    };
+    // cached fields from channel op_mon
+    // updated in onTypeChange()
+    epics::pvData::PVField::const_shared_pointer fld_value;
+    epics::pvData::PVScalar::const_shared_pointer fld_severity,
+                                                  fld_seconds,
+                                                  fld_nanoseconds;
+    epics::pvData::PVStructure::const_shared_pointer fld_display,
+                                                     fld_control,
+                                                     fld_valueAlarm;
+    epics::pvData::BitSet proc_changed;
 
-    Value atomcache;
+    // cached snapshot of alarm and  timestamp
+    // captured in pvaGetValue().
+    // we choose not to ensure consistency with display/control meta-data
+    epicsTimeStamp snap_time;
+    short snap_severity;
 
-    pvaLink()
-        :plink(0)
-        ,linkmods(0)
-        ,parse_level(0)
-        ,alive(true)
-    {
-        epics::atomic::increment(refs);
-        //TODO: valgrind tells me these aren't initialized by Base, but probably should be.
-        parseDepth = 0;
-        parent = 0;
-    }
+    pvaLink();
+    virtual ~pvaLink();
 
-    void open()
-    {
-        if(this->name.empty())
-            throw std::logic_error("open() w/o target PV name");
-        this->name = name;
-        //TODO: how to distinguish "record.FLD" from pva "channel.subfield"?
-        size_t dot = this->name.find_first_of('.');
-        if(dot!=this->name.npos) {
-            field = this->name.substr(dot+1);
-            this->name = this->name.substr(0, dot);
-        }
-        lchan = pvaGlobal->connect(this->name.c_str());
-        Guard G(lchan->lock);
-        lchan->links.insert(this);
-        if(lchan->lastval)
-            attach();
-    }
-    ~pvaLink()
-    {
-        alive = false;
-        if(lchan) { // may be NULL if parsing fails
-            Guard G(lchan->lock);
-            detach();
-            lchan->links.erase(this);
-            if(lchan->links.empty()) {
-                pvaGlobal->channels.erase(lchan->name);
-                lchan->doClose();
-            }
-        }
-        epics::atomic::decrement(refs);
-    }
+    // returns pvRequest to be used with monitor
+    pvd::PVStructurePtr makeRequest();
 
-    void detach()
-    {
-        valueS.reset();
-        valueA.reset();
-        sevr.reset();
-        sec.reset();
-        nsec.reset();
-    }
+    bool valid() const;
 
-    bool attach()
-    {
-        pvd::PVStructurePtr base(lchan->lastval);
+    // fetch a sub-sub-field of the top monitored field.
+    pvd::PVField::const_shared_pointer getSubField(const char *name);
 
-        if(!field.empty())
-            base = base->getSubField<pvd::PVStructure>(field);
-        if(!base) {
-            errlogPrintf("pvaLink not %s%c%s\n", name.c_str(), field.empty() ? ' ' : '.', field.c_str());
-            return false;
-        }
-
-        pvd::PVFieldPtr value(base->getSubField("value"));
-        switch(value->getField()->getType())
-        {
-        case pvd::scalar:
-            valueS = std::tr1::static_pointer_cast<pvd::PVScalar>(value);
-            etype = valueS->getScalar()->getScalarType();
-            break;
-        case pvd::scalarArray:
-            valueA = std::tr1::static_pointer_cast<pvd::PVScalarArray>(value);
-            etype = valueA->getScalarArray()->getElementType();
-            break;
-        default:
-            errlogPrintf("pvaLink not .value : %s%c%s\n", name.c_str(), field.empty() ? ' ' : '.', field.c_str());
-            return false;
-        }
-
-        sevr = base->getSubField<pvd::PVScalar>("alarm.severity");
-        sec = base->getSubField<pvd::PVScalar>("timeStamp.secondsPastEpoch");
-        nsec = base->getSubField<pvd::PVScalar>("timeStamp.nanoseconds");
-        return true;
-    }
-
-    void get(Value& v)
-    {
-        if(valueA) {
-            valueA->getAs<const void>(v.valueA);
-            v.etype = v.valueA.original_type();
-            v.scalar = false;
-
-        } else if(valueS) {
-
-            switch(etype) {
-#define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv ## PVACODE: v.valueS.dbf_##DBFTYPE = valueS->getAs<PVATYPE>(); break;
-#define CASE_SQUEEZE_INT64
-#include "pvatypemap.h"
-#undef CASE_SQUEEZE_INT64
-#undef CASE
-            case pvd::pvString: {
-                strncpy(v.valueS.dbf_STRING, valueS->getAs<std::string>().c_str(), sizeof(v.valueS.dbf_STRING));
-                v.valueS.dbf_STRING[sizeof(v.valueS.dbf_STRING)-1] = '\0';
-            }
-                break;
-            default:
-                throw std::runtime_error("putValue unsupported DBR code");
-            }
-
-            v.etype = etype;
-            v.scalar = true;
-        }
-
-        v.sevr = sevr->getAs<epicsUInt16>();
-        v.time.secPastEpoch = sec->getAs<epicsUInt32>()-POSIX_TIME_AT_EPICS_EPOCH;
-        v.time.nsec = nsec->getAs<epicsUInt32>();
-        v.valid = true;
-    }
+    void onDisconnect();
+    void onTypeChange();
 };
 
 

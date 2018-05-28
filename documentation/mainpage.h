@@ -1,6 +1,7 @@
 /**
 @mainpage pva2pva Home of QSRV and pvAccess 2 pvAccess gateway
 
+- [Source](https://github.com/epics-base/pva2pva)
 - [Download](https://sourceforge.net/projects/epics-pvdata/files/)
 
 @section qsrv QSRV
@@ -10,7 +11,8 @@ runs inside an EPICS IOC process and allows clients
 to make requests to access the Process Variables (PVs)
 within.
 
-Documentation of @ref qsrv_config including @ref qsrv_group_def.
+Documentation of @ref qsrv_config including @ref qsrv_group_def
+and @ref qsrv_link configuration.
 
 - @ref release_notes
 
