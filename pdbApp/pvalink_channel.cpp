@@ -16,9 +16,7 @@ pvaGlobal_t *pvaGlobal;
 
 
 pvaGlobal_t::pvaGlobal_t()
-    :provider_local("server:QSRV")
-    ,provider_remote("pva")
-    ,create(pvd::getPVDataCreate())
+    :create(pvd::getPVDataCreate())
     ,queue("PVAL")
     ,running(false)
 {

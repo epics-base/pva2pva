@@ -90,13 +90,24 @@ static void finalizePVA(void*)
 
 bool atexitInstalled;
 
+/* The Initialization game...
+ *
+ * #   Parse links during dbPutString()  (calls our jlif*)
+ * # announce initHookAfterCaLinkInit
+ * #   dbChannelInit() (needed for QSRV to work)
+ * #   Re-parse links (calls to our jlif*)
+ * #   Open links.  Calls jlif::get_lset() and then lset::openLink()
+ * # announce initHookAfterInitDatabase
+ * #   ... scan threads start ...
+ * # announce initHookAfterIocBuilt
+ */
 void initPVALink(initHookState state)
 {
-    if(state==initHookAfterCaLinkInit) {
-        // before epicsExit(exitDatabase)
-        // so hook registered here will be run after iocShutdown()
-        // which closes links
-        try {
+    try {
+        if(state==initHookAfterCaLinkInit) {
+            // before epicsExit(exitDatabase),
+            // so hook registered here will be run after iocShutdown()
+            // which closes links
             if(pvaGlobal) {
                 cantProceed("# Missing call to testqsrvShutdownOk() and/or testqsrvCleanup()");
             }
@@ -107,26 +118,31 @@ void initPVALink(initHookState state)
                 atexitInstalled = true;
             }
 
-        }catch(std::exception& e){
-            cantProceed("Error initializing pva link handling : %s\n", e.what());
+        } else if(state==initHookAfterInitDatabase) {
+            pvac::ClientProvider local("server:QSRV"),
+                                 remote("pva");
+            pvaGlobal->provider_local = local;
+            pvaGlobal->provider_remote = remote;
+
+        } else if(state==initHookAfterIocBuilt) {
+            // after epicsExit(exitDatabase)
+            // so hook registered here will be run before iocShutdown()
+            epicsAtExit(stopPVAPool, NULL);
+
+            Guard G(pvaGlobal->lock);
+            pvaGlobal->running = true;
+
+            for(pvaGlobal_t::channels_t::iterator it(pvaGlobal->channels.begin()), end(pvaGlobal->channels.end());
+                it != end; ++it)
+            {
+                std::tr1::shared_ptr<pvaLinkChannel> chan(it->second.lock());
+                if(!chan) continue;
+
+                chan->open();
+            }
         }
-
-    } else if(state==initHookAfterIocBuilt) {
-        // after epicsExit(exitDatabase)
-        // so hook registered here will be run before iocShutdown()
-        epicsAtExit(stopPVAPool, NULL);
-
-        Guard G(pvaGlobal->lock);
-        pvaGlobal->running = true;
-
-        for(pvaGlobal_t::channels_t::iterator it(pvaGlobal->channels.begin()), end(pvaGlobal->channels.end());
-            it != end; ++it)
-        {
-            std::tr1::shared_ptr<pvaLinkChannel> chan(it->second.lock());
-            if(!chan) continue;
-
-            chan->open();
-        }
+    }catch(std::exception& e){
+        cantProceed("Error initializing pva link handling : %s\n", e.what());
     }
 }
 
