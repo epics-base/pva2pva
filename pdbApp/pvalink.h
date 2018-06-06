@@ -4,6 +4,11 @@
 #include <set>
 #include <map>
 
+#ifdef epicsExportSharedSymbols
+#   define pvalinkEpicsExportSharedSymbols
+#   undef epicsExportSharedSymbols
+#endif
+
 #define EPICS_DBCA_PRIVATE_API
 #include <epicsGuard.h>
 #include <dbAccess.h>
@@ -24,6 +29,11 @@
 #include <pv/thread.h>
 #include <pv/lock.h>
 #include <pv/iocshelper.h>
+
+#ifdef pvalinkEpicsExportSharedSymbols
+#   define epicsExportSharedSymbols
+#	undef pvalinkEpicsExportSharedSymbols
+#endif
 
 #include "helper.h"
 #include "pvif.h"
