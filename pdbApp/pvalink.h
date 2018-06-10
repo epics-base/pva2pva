@@ -15,7 +15,6 @@
 #include <dbCommon.h>
 #include <dbLink.h>
 #include <dbScan.h>
-#include <epicsExport.h>
 #include <errlog.h>
 #include <initHooks.h>
 #include <alarm.h>
