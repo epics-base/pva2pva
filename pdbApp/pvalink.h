@@ -22,12 +22,27 @@
 #include <epicsAtomic.h>
 #include <link.h>
 #include <dbJLink.h>
+#include <errlog.h>
+#include <epicsThread.h>
+#include <epicsMutex.h>
+#include <epicsEvent.h>
+#include <dbChannel.h>
+#include <dbStaticLib.h>
+#include <dbLock.h>
+#include <dbEvent.h>
+#include <epicsVersion.h>
+
+#include <pv/status.h>
+#include <pv/bitSet.h>
+#include <pv/pvData.h>
 
 #include <pva/client.h>
 #include <pv/anyscalar.h>
 #include <pv/thread.h>
 #include <pv/lock.h>
 #include <pv/iocshelper.h>
+
+#include <pv/sharedPtr.h>
 
 #ifdef pvalinkEpicsExportSharedSymbols
 #   define epicsExportSharedSymbols
