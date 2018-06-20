@@ -1,3 +1,5 @@
+See main [documentation](https://epics-base.github.io/pva2pva/) page.
+
 This repository contains two distinct pieces of software.
 
 QSRV
@@ -23,8 +25,13 @@ Dependencies
 ------------
 
 - [epics-base](http://www.aps.anl.gov/epics/) >= 3.15.3
+- and
 - [pvDataCPP](http://epics-pvdata.sourceforge.net/)
 - [pvAccessCPP](http://epics-pvdata.sourceforge.net/)
+
+or bundled with
+
+- [epics-base](http://www.aps.anl.gov/epics/) >= 7.0.1
 
 Building
 --------
@@ -32,15 +39,8 @@ Building
 To build all dependencies from source:
 
 ```sh
-git clone https://github.com/epics-base/epics-base.git
-git clone https://github.com/epics-base/pvDataCPP.git
-git clone https://github.com/epics-base/pvAccessCPP.git
-git clone https://github.com/mdavidsaver/pva2pva.git
-
+git clone --recursive https://github.com/epics-base/epics-base.git
 make -C epics-base
-make -C pvDataCPP
-make -C pvAccessCPP
-make -C pva2pva
 ```
 
 Running QSRV
