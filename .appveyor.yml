@@ -1,0 +1,22 @@
+
+init:
+  - git config --global core.autocrlf true
+
+clone_depth: 10
+
+configuration:
+  - dynamic
+
+environment:
+  matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    TOOLCHAIN: 2017
+
+platform:
+  - x64
+
+install:
+  - cmd: .ci/appveyor-prepare.bat
+
+build_script:
+  - cmd: .ci/appveyor-build.bat
