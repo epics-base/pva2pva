@@ -123,12 +123,12 @@ template<typename input_t, typename output_t>
 void testDBR2PVD_scalar(const input_t& input,
                         const output_t& expect)
 {
-    pvd::ScalarType IN = (pvd::ScalarType)pvd::ScalarTypeID<input_t>::value,
-                   OUT = (pvd::ScalarType)pvd::ScalarTypeID<output_t>::value;
-    testDiag("testDBR2PVD_scalar(%s, %s)", pvd::ScalarTypeFunc::name(IN), pvd::ScalarTypeFunc::name(OUT));
+    pvd::ScalarType  in = (pvd::ScalarType)pvd::ScalarTypeID<input_t>::value;
+    pvd::ScalarType out = (pvd::ScalarType)pvd::ScalarTypeID<output_t>::value;
+    testDiag("testDBR2PVD_scalar(%s, %s)", pvd::ScalarTypeFunc::name(in), pvd::ScalarTypeFunc::name(out));
 
     pvd::PVStructure::shared_pointer top(pvd::getPVDataCreate()->createPVStructure(pvd::getFieldCreate()->createFieldBuilder()
-                                                                                   ->add("value", OUT) // initially zero or ""
+                                                                                   ->add("value", out) // initially zero or ""
                                                                                    ->createStructure()));
     pvd::PVStringArray::const_svector choices;
     pvd::BitSet changed;
