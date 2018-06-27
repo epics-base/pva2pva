@@ -119,13 +119,12 @@ void testPVD2DBR_array()
     }
 }
 
-template<pvd::ScalarType IN, pvd::ScalarType OUT>
-void testDBR2PVD_scalar(typename pvd::meta::arg_type<typename pvd::ScalarTypeTraits<IN>::type>::type input,
-                        typename pvd::meta::arg_type<typename pvd::ScalarTypeTraits<OUT>::type>::type expect)
+template<typename input_t, typename output_t>
+void testDBR2PVD_scalar(const input_t& input,
+                        const output_t& expect)
 {
-    typedef typename pvd::ScalarTypeTraits<IN>::type input_t;
-    typedef typename pvd::ScalarTypeTraits<OUT>::type output_t;
-
+    pvd::ScalarType IN = (pvd::ScalarType)pvd::ScalarTypeID<input_t>::value,
+                   OUT = (pvd::ScalarType)pvd::ScalarTypeID<output_t>::value;
     testDiag("testDBR2PVD_scalar(%s, %s)", pvd::ScalarTypeFunc::name(IN), pvd::ScalarTypeFunc::name(OUT));
 
     pvd::PVStructure::shared_pointer top(pvd::getPVDataCreate()->createPVStructure(pvd::getFieldCreate()->createFieldBuilder()
@@ -251,12 +250,12 @@ MAIN(testdbf_copy)
 
         testPVD2DBR_array();
 
-        testDBR2PVD_scalar<pvd::pvDouble, pvd::pvDouble>(42.2, 42.2);
-        testDBR2PVD_scalar<pvd::pvUShort, pvd::pvDouble>(42u, 42.0);
-        testDBR2PVD_scalar<pvd::pvInt, pvd::pvInt>(-41, -41);
-        testDBR2PVD_scalar<pvd::pvString, pvd::pvInt>("-41", -41);
-        testDBR2PVD_scalar<pvd::pvString, pvd::pvString>("hello", "hello");
-        testDBR2PVD_scalar<pvd::pvInt, pvd::pvString>(-42, "-42");
+        testDBR2PVD_scalar<double, double>(42.2, 42.2);
+        testDBR2PVD_scalar<pvd::uint16, double>(42u, 42.0);
+        testDBR2PVD_scalar<pvd::int32, pvd::int32>(-41, -41);
+        testDBR2PVD_scalar<std::string, pvd::int32>("-41", -41);
+        testDBR2PVD_scalar<std::string, std::string>("hello", "hello");
+        testDBR2PVD_scalar<pvd::int32, std::string>(-42, "-42");
 
         testDBR2PVD_enum<pvd::uint32>(2, 2);
         testDBR2PVD_enum<std::string>("two", 2);
