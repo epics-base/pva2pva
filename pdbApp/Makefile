@@ -99,5 +99,8 @@ else
 ../O.Common/qsrv.dbd: ../qsrv-old.dbd
 	$(CP) $< $@
 endif
+qsrv.dbd$(DEP):
+	@$(RM) $@
+	@echo "$(COMMONDEP_TARGET): ../Makefile" > $@
 
 ../O.Common/softIocPVA.dbd: ../O.Common/qsrv.dbd
