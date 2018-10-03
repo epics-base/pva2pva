@@ -13,6 +13,7 @@
 #include <epicsGetopt.h>
 #include <iocsh.h>
 #include <epicsTimer.h>
+#include <libComRegister.h>
 
 #include <pv/json.h>
 
@@ -25,14 +26,18 @@
 #include <pv/iocshelper.h>
 
 #include "server.h"
+#include "pva2pva.h"
 
 namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
+
+extern int p2pReadOnly;
 
 namespace {
 
 pvd::StructureConstPtr schema(pvd::getFieldCreate()->createFieldBuilder()
                               ->add("version", pvd::pvUInt)
+                              ->add("readOnly", pvd::pvBoolean)
                               ->addNestedStructureArray("clients")
                                  ->add("name", pvd::pvString)
                                  ->add("provider", pvd::pvString)
@@ -94,6 +99,12 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
     arg.conf = pvd::getPVDataCreate()->createPVStructure(schema);
     std::ifstream strm(argv[optind]);
     pvd::parseJSON(strm, arg.conf);
+
+    {
+        pvd::PVScalarPtr V(arg.conf->getSubField<pvd::PVScalar>("readOnly"));
+        if(V)
+            p2pReadOnly = V->getAs<pvd::boolean>();
+    }
 
     unsigned version = arg.conf->getSubFieldT<pvd::PVUInt>("version")->get();
     if(version==0) {
@@ -222,6 +233,8 @@ int main(int argc, char *argv[])
         epics::iocshRegister<int, const char*, &gwsr>("gwsr", "level", "channel");
         epics::iocshRegister<int, const char*, const char*, &gwcr>("gwcr", "level", "client", "channel");
 
+        libComRegister();
+        registerReadOnly();
         epics::registerRefCounter("ChannelCacheEntry", &ChannelCacheEntry::num_instances);
         epics::registerRefCounter("ChannelCacheEntry::CRequester", &ChannelCacheEntry::CRequester::num_instances);
         epics::registerRefCounter("GWChannel", &GWChannel::num_instances);

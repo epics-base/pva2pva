@@ -10,9 +10,9 @@
 typedef epicsGuard<epicsMutex> Guard;
 typedef epicsGuardRelease<epicsMutex> UnGuard;
 
-epicsShareExtern void registerGWClientIocsh();
-epicsShareExtern void gwServerShutdown();
-epicsShareExtern void gwClientShutdown();
-epicsShareExtern void registerReadOnly();
+void registerGWClientIocsh();
+void gwServerShutdown();
+void gwClientShutdown();
+void registerReadOnly();
 
 #endif // PVA2PVA_H
