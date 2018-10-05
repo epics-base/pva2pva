@@ -24,6 +24,7 @@
 #include <pv/reftrack.h>
 #include <pv/iocreftrack.h>
 #include <pv/iocshelper.h>
+#include <pv/logger.h>
 
 #include "server.h"
 #include "pva2pva.h"
@@ -50,6 +51,8 @@ pvd::StructureConstPtr schema(pvd::getFieldCreate()->createFieldBuilder()
                                  ->add("name", pvd::pvString)
                                  ->addArray("clients", pvd::pvString)
                                  ->add("interface", pvd::pvString)
+                                 ->add("addrlist", pvd::pvString)
+                                 ->add("autoaddrlist", pvd::pvBoolean)
                                  ->add("serverport", pvd::pvUShort)
                                  ->add("bcastport", pvd::pvUShort)
                                  ->add("control_prefix", pvd::pvString)
@@ -67,9 +70,12 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
     int opt;
     bool checkonly = false;
 
-    while( (opt=getopt(argc, argv, "vhiIC"))!=-1)
+    while( (opt=getopt(argc, argv, "qvhiIC"))!=-1)
     {
         switch(opt) {
+        case 'q':
+            arg.debug--;
+            break;
         case 'v':
             arg.debug++;
             break;
@@ -100,11 +106,7 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
     std::ifstream strm(argv[optind]);
     pvd::parseJSON(strm, arg.conf);
 
-    {
-        pvd::PVScalarPtr V(arg.conf->getSubField<pvd::PVScalar>("readOnly"));
-        if(V)
-            p2pReadOnly = V->getAs<pvd::boolean>();
-    }
+    p2pReadOnly = arg.conf->getSubFieldT<pvd::PVScalar>("readOnly")->getAs<pvd::boolean>();
 
     unsigned version = arg.conf->getSubFieldT<pvd::PVUInt>("version")->get();
     if(version==0) {
@@ -128,15 +130,19 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
     }
 }
 
-GWServerChannelProvider::shared_pointer configure_client(const pvd::PVStructurePtr& conf)
+GWServerChannelProvider::shared_pointer configure_client(ServerConfig& arg, const pvd::PVStructurePtr& conf)
 {
+    std::string name(conf->getSubFieldT<pvd::PVString>("name")->get());
     std::string provider(conf->getSubFieldT<pvd::PVString>("provider")->get());
+
+    LOG(pva::logLevelInfo, "Configure client '%s' with provider '%s'", name.c_str(), provider.c_str());
 
     pva::Configuration::shared_pointer C(pva::ConfigurationBuilder()
                                          .add("EPICS_PVA_ADDR_LIST", conf->getSubFieldT<pvd::PVString>("addrlist")->get())
                                          .add("EPICS_PVA_AUTO_ADDR_LIST", conf->getSubFieldT<pvd::PVBoolean>("autoaddrlist")->get())
                                          .add("EPICS_PVA_SERVER_PORT", conf->getSubFieldT<pvd::PVScalar>("serverport")->getAs<pvd::uint16>())
                                          .add("EPICS_PVA_BROADCAST_PORT", conf->getSubFieldT<pvd::PVScalar>("bcastport")->getAs<pvd::uint16>())
+                                         .add("EPICS_PVA_DEBUG", arg.debug>=5 ? 5 : 0)
                                          .push_map()
                                          .build());
 
@@ -150,10 +156,17 @@ GWServerChannelProvider::shared_pointer configure_client(const pvd::PVStructureP
 
 pva::ServerContext::shared_pointer configure_server(ServerConfig& arg, const pvd::PVStructurePtr& conf)
 {
+    std::string name(conf->getSubFieldT<pvd::PVString>("name")->get());
+
+    LOG(pva::logLevelInfo, "Configure server '%s'", name.c_str());
+
     pva::Configuration::shared_pointer C(pva::ConfigurationBuilder()
                                          .add("EPICS_PVAS_INTF_ADDR_LIST", conf->getSubFieldT<pvd::PVString>("interface")->get())
+                                         .add("EPICS_PVAS_BEACON_ADDR_LIST", conf->getSubFieldT<pvd::PVString>("addrlist")->get())
+                                         .add("EPICS_PVAS_AUTO_BEACON_ADDR_LIST", conf->getSubFieldT<pvd::PVBoolean>("autoaddrlist")->get())
                                          .add("EPICS_PVAS_SERVER_PORT", conf->getSubFieldT<pvd::PVScalar>("serverport")->getAs<pvd::uint16>())
                                          .add("EPICS_PVAS_BROADCAST_PORT", conf->getSubFieldT<pvd::PVScalar>("bcastport")->getAs<pvd::uint16>())
+                                         .add("EPICS_PVA_DEBUG", arg.debug>=5 ? 5 : 0)
                                          .push_map()
                                          .build());
 
@@ -245,6 +258,21 @@ int main(int argc, char *argv[])
         theserver = &arg;
         getargs(arg, argc, argv);
 
+        pva::pvAccessLogLevel lvl;
+        if(arg.debug<0)
+            lvl = pva::logLevelError;
+        else if(arg.debug==0)
+            lvl = pva::logLevelWarn;
+        else if(arg.debug==1)
+            lvl = pva::logLevelInfo;
+        else if(arg.debug==2)
+            lvl = pva::logLevelDebug;
+        else if(arg.debug==3)
+            lvl = pva::logLevelTrace;
+        else if(arg.debug>=4)
+            lvl = pva::logLevelAll;
+        SET_LOG_LEVEL(lvl);
+
         pva::ClientFactory::start();
 
         pvd::PVStructureArray::const_svector arr;
@@ -263,7 +291,7 @@ int main(int argc, char *argv[])
             if(it!=arg.clients.end())
                 throw std::runtime_error(std::string("Duplicate client name not allowed : ")+name);
 
-            arg.clients[name] = configure_client(client);
+            arg.clients[name] = configure_client(arg, client);
         }
 
         arr = arg.conf->getSubFieldT<pvd::PVStructureArray>("servers")->view();

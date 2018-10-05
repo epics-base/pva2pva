@@ -48,7 +48,7 @@ struct ServerConfig {
     typedef std::map<std::string, epics::pvAccess::ServerContext::shared_pointer> servers_t;
     servers_t servers;
 
-    ServerConfig() :debug(0), interactive(true) {}
+    ServerConfig() :debug(1), interactive(true) {}
 
     void drop(const char *client, const char *channel);
     void status_server(int lvl, const char *server);
