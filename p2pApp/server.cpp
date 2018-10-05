@@ -4,6 +4,7 @@
 #include <epicsString.h>
 #include <epicsTimer.h>
 
+#include <pv/logger.h>
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/epicsException.h>
 #include <pv/serverContext.h>
@@ -40,14 +41,8 @@ GWServerChannelProvider::channelFind(std::string const & channelName,
 
     if(!channelName.empty())
     {
-        std::string newName;
-
-        // rewrite name
-        newName = channelName;
-        //newName[0] = 'y';
-
-
-        ChannelCacheEntry::shared_pointer ent(cache.lookup(newName));
+        LOG(pva::logLevelDebug, "Searching for '%s'", channelName.c_str());
+        ChannelCacheEntry::shared_pointer ent(cache.lookup(channelName));
         if(ent) {
             found = true;
             ret = shared_from_this();
