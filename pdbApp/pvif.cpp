@@ -11,6 +11,7 @@
 #include <alarm.h>
 #include <errSymTbl.h>
 #include <epicsVersion.h>
+#include <errlog.h>
 
 #include <pv/status.h>
 #include <pv/bitSet.h>
@@ -31,10 +32,6 @@
 #    define CASE_REAL_INT64
 #  endif
 #endif
-
-extern "C" {
-int qsrvDisableFormat = 1;
-}
 
 namespace pvd = epics::pvData;
 
@@ -94,7 +91,8 @@ struct pvCommon : public pvTimeAlarm {
     pvd::BitSet maskVALUE, maskPROPERTY, maskVALUEPut;
 
     pvd::PVDoublePtr displayLow, displayHigh, controlLow, controlHigh;
-    pvd::PVStringPtr egu, desc, prec;
+    pvd::PVStringPtr egu, desc;
+    pvd::PVIntPtr fmt, prec;
 
     pvd::PVScalarPtr warnLow, warnHigh, alarmLow, alarmHigh;
 
@@ -175,9 +173,32 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
 #undef FMAP
 }
 
+static
+pvd::shared_vector<const std::string> buildFormats()
+{
+    pvd::shared_vector<std::string> fmt;
+    fmt.push_back("Default");
+    fmt.push_back("String");
+    fmt.push_back("Binary");
+    fmt.push_back("Decimal");
+    fmt.push_back("Hex");
+    fmt.push_back("Exponential");
+    fmt.push_back("Engineering");
+    return pvd::freeze(fmt);
+}
+
+static const
+pvd::shared_vector<const std::string> displayForms(buildFormats());
+
 // lookup fields and populate pvCommon.  Non-existant fields will be NULL.
 void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
 {
+    {
+        pvd::PVStructurePtr fmt(pv->getSubField<pvd::PVStructure>("display.form"));
+        if(fmt) {
+            fmt->getSubFieldT<pvd::PVStringArray>("choices")->replace(displayForms);
+        }
+    }
     attachTime(pvm, pv);
 #define FMAP(MNAME, PVT, FNAME, DBE) pvm.MNAME = pv->getSubField<pvd::PVT>(FNAME); \
         if(pvm.MNAME) pvm.mask ## DBE.set(pvm.MNAME->getFieldOffset())
@@ -187,7 +208,8 @@ void attachMeta(pvCommon& pvm, const pvd::PVStructurePtr& pv)
     FMAP(controlLow, PVDouble, "control.limitLow", PROPERTY);
     FMAP(egu, PVString, "display.units", PROPERTY);
     FMAP(desc, PVString, "display.description", PROPERTY);
-    FMAP(prec,  PVString, "display.format", PROPERTY);
+    FMAP(prec, PVInt, "display.precision", PROPERTY);
+    FMAP(fmt,  PVInt, "display.form.index", PROPERTY);
     FMAP(warnHigh, PVScalar, "valueAlarm.highWarningLimit", PROPERTY);
     FMAP(warnLow,  PVScalar, "valueAlarm.lowWarningLimit", PROPERTY);
     FMAP(alarmHigh, PVScalar, "valueAlarm.highAlarmLimit", PROPERTY);
@@ -443,61 +465,12 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
         FMAP(DBR_CTRL_DOUBLE, controlLow, lower_ctrl_limit);
         FMAP(DBR_GR_DOUBLE, egu, units);
 #undef FMAP
-        if(META::mask&DBR_PRECISION && pv.prec && !qsrvDisableFormat) {
-            // construct printf() style format.
-            // Widths based on epicsTypes.h
-            char buf[8];
-            char *pos = &buf[8]; // build string in reverse order
-            bool ok = true;
-
-            *--pos = '\0'; // buf[7] = '\0'
-
-            switch(dbChannelFinalFieldType(pv.chan)) {
-#ifdef USE_INT64
-            case DBF_UINT64:
-                *--pos = 'l';
-                *--pos = 'l';
-#endif
-            case DBF_UCHAR:
-            case DBF_USHORT:
-            case DBF_ULONG:
-                *--pos = 'u';
-                break;
-#ifdef USE_INT64
-            case DBF_INT64:
-                *--pos = 'l';
-                *--pos = 'l';
-#endif
-            case DBF_CHAR:
-            case DBF_SHORT:
-            case DBF_LONG:
-                *--pos = 'd';
-                break;
-            case DBF_DOUBLE:
-            case DBF_FLOAT:
-                *--pos = 'g'; // either decimal or scientific
-                break;
-            case DBF_STRING:
-                *--pos = 's';
-                break;
-            default:
-                ok = false;
-            }
-
-            if(ok) {
-                long dp = meta.precision.dp;
-                if(dp<0) dp = 0;
-                else if(dp>=99) dp = 99;
-                for(;dp;dp = dp/10u) {
-                    *--pos = '0'+(dp%10u);
-                }
-                *--pos = '%';
-            }
-            pv.prec->put(pos);
+        if(META::mask&DBR_PRECISION && pv.prec) {
+            pv.prec->put(pvd::int32(meta.precision.dp));
         }
 #define FMAP(MASK, MNAME, FNAME) if(META::mask&(MASK) && pv.MNAME) pv.MNAME->putFrom(meta.FNAME)
         // not handling precision until I get a better idea of what 'format' is supposed to be...
-        //FMAP(prec,  PVScalar, "display.format", PROPERTY);
+        //FMAP(prec,  PVScalar, "display.form", PROPERTY);
         FMAP(DBR_AL_DOUBLE, warnHigh, upper_warning_limit);
         FMAP(DBR_AL_DOUBLE, warnLow,  lower_warning_limit);
         FMAP(DBR_AL_DOUBLE, alarmHigh, upper_alarm_limit);
@@ -528,16 +501,15 @@ void putAll(const PVC &pv, unsigned dbe, db_field_log *pfl)
     }
 }
 
-void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStructurePtr& pvalue)
+void findNSMask(pvTimeAlarm& pvmeta, pdbRecordIterator& info, const epics::pvData::PVStructurePtr& pvalue)
 {
-    pdbRecordIterator info(chan);
     const char *UT = info.info("Q:time:tag");
     if(UT && strncmp(UT, "nsec:lsb:", 9)==0) {
         try{
             pvmeta.nsecMask = epics::pvData::castUnsafe<pvd::uint32>(std::string(&UT[9]));
         }catch(std::exception& e){
             pvmeta.nsecMask = 0;
-            std::cerr<<dbChannelRecord(chan)->name<<" : Q:time:tag nsec:lsb: requires a number not '"<<UT[9]<<"'\n";
+            std::cerr<<info.name()<<" : Q:time:tag nsec:lsb: requires a number not '"<<UT[9]<<"'\n";
         }
     }
     if(pvmeta.nsecMask>0 && pvmeta.nsecMask<=32) {
@@ -552,6 +524,25 @@ void findNSMask(pvTimeAlarm& pvmeta, dbChannel *chan, const epics::pvData::PVStr
     } else
         pvmeta.nsecMask = 0;
 }
+
+void findFormat(pvTimeAlarm& pvmeta, pdbRecordIterator& info, const epics::pvData::PVStructurePtr& pvalue)
+{
+    const char *FMT = info.info("Q:form");
+    if(FMT) {
+        pvd::PVScalarPtr fmt(pvalue->getSubField<pvd::PVScalar>("display.form.index"));
+        if(fmt) {
+            bool found = false;
+            for(size_t i=0; !found && i<displayForms.size(); i++) {
+                if((found=(displayForms[i]==FMT)))
+                    fmt->putFrom<pvd::uint32>(i);
+            }
+            if(!found) {
+                fmt->putFrom<pvd::uint32>(0); // Default
+            }
+        }
+    }
+}
+
 
 template<typename PVX, typename META>
 struct PVIFScalarNumeric : public PVIF
@@ -583,7 +574,9 @@ struct PVIFScalarNumeric : public PVIF
             pvmeta.maskVALUEPut.set(0);
             pvmeta.maskVALUEPut.set(bit);
         }
-        findNSMask(pvmeta, chan, pvalue);
+        pdbRecordIterator info(chan);
+        findNSMask(pvmeta, info, pvalue);
+        findFormat(pvmeta, info, pvalue);
     }
     virtual ~PVIFScalarNumeric() {}
 
@@ -679,19 +672,45 @@ ScalarBuilder::dtype(dbChannel *channel)
     if(maxelem!=1 && dbr==DBR_ENUM)
         dbr = DBF_SHORT;
 
+    pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
+    pvd::StandardFieldPtr standard(pvd::getStandardField());
+
     if(dbr==DBR_ENUM)
-        return pvd::getStandardField()->enumerated("alarm,timeStamp");
-
-    std::string options;
-    if(dbr!=DBR_STRING)
-        options = "alarm,timeStamp,display,control,valueAlarm";
+        builder = builder->setId("epics:nt/NTEnum:1.0")
+                         ->addNestedStructure("value")
+                            ->add("index", pvd::pvInt)
+                            ->addArray("choices", pvd::pvString)
+                         ->endNested();
+    else if(maxelem==1)
+        builder = builder->setId("epics:nt/NTScalar:1.0")
+                         ->add("value", pvt);
     else
-        options = "alarm,timeStamp,display,control";
+        builder = builder->setId("epics:nt/NTScalarArray:1.0")
+                         ->addArray("value", pvt);
 
-    if(maxelem==1)
-        return pvd::getStandardField()->scalar(pvt, options);
-    else
-        return pvd::getStandardField()->scalarArray(pvt, options);
+    builder = builder->add("alarm", standard->alarm())
+                     ->add("timeStamp", standard->timeStamp());
+
+    if(dbr!=DBR_ENUM) {
+        builder = builder->addNestedStructure("display")
+                            ->add("limitLow", pvd::pvDouble)
+                            ->add("limitHigh", pvd::pvDouble)
+                            ->add("description", pvd::pvString)
+                            ->add("units", pvd::pvString)
+                            ->add("precision", pvd::pvInt)
+                            ->addNestedStructure("form")
+                                ->setId("enum_t")
+                                ->add("index", pvd::pvInt)
+                                ->addArray("choices", pvd::pvString)
+                            ->endNested()
+                         ->endNested()
+                         ->add("control", standard->control());
+
+        if(dbr!=DBR_STRING)
+            builder = builder->add("valueAlarm", standard->doubleAlarm());
+    }
+
+    return builder->createStructure();
 }
 
 PVIF*
@@ -704,7 +723,6 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& r
 
     const short dbr = dbChannelFinalFieldType(channel);
     const long maxelem = dbChannelFinalElements(channel);
-    //const pvd::ScalarType pvt = DBR2PVD(dbr);
 
     if(maxelem==1) {
         switch(dbr) {
@@ -904,8 +922,10 @@ struct PVIFMeta : public PVIF
         if(!field)
             throw std::logic_error("PVIFMeta attached type mis-match");
         meta.chan = channel;
+        pdbRecordIterator info(chan);
         attachTime(meta, field);
-        findNSMask(meta, channel, field);
+        findNSMask(meta, info, field);
+        findFormat(meta, info, field);
         if(enclosing) {
             meta.maskALWAYS.clear();
             meta.maskALWAYS.set(enclosing->getFieldOffset());
@@ -1093,8 +1113,4 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type)
         return new ProcBuilder;
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
-}
-
-extern "C" {
-    epicsExportAddress(int, qsrvDisableFormat);
 }

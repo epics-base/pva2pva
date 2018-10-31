@@ -5,6 +5,7 @@ record(longin, "test:li") {
   field(EGU, "arb")
   field(HOPR, "100")
   field(LOPR, "10")
+  info(Q:form, "Hex")
 }
 record(ai, "test:ai") {
   field(VAL, "42.2")

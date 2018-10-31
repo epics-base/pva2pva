@@ -107,6 +107,8 @@ void testScalar()
     p2p::auto_ptr<PVIF> pvif_ai_rval(builder.attach(chan_ai_rval, root, FieldName("ai_rval")));
     p2p::auto_ptr<PVIF> pvif_mbbi(builder.attach(chan_mbbi, root, FieldName("mbbi")));
 
+    testShow()<<"Entire structure\n"<<root;
+
     pvd::BitSet mask;
 
     dbScanLock((dbCommon*)prec_li);
@@ -123,18 +125,19 @@ void testScalar()
               .set(OFF("li.alarm.message"))
               .set(OFF("li.timeStamp.secondsPastEpoch"))
               .set(OFF("li.timeStamp.nanoseconds"))
-              //.set(OFF("li.timeStamp.userTag"))
               .set(OFF("li.display.limitHigh"))
               .set(OFF("li.display.limitLow"))
               .set(OFF("li.display.description"))
-              .set(OFF("li.display.format"))
               .set(OFF("li.display.units"))
+              .set(OFF("li.display.precision"))
+              .set(OFF("li.display.form.index"))
               .set(OFF("li.control.limitHigh"))
               .set(OFF("li.control.limitLow"))
               .set(OFF("li.valueAlarm.highWarningLimit"))
               .set(OFF("li.valueAlarm.lowWarningLimit"))
               .set(OFF("li.valueAlarm.highAlarmLimit"))
-              .set(OFF("li.valueAlarm.lowAlarmLimit")));
+              .set(OFF("li.valueAlarm.lowAlarmLimit")))
+            <<" li changes\n"<<root->stream().show(mask);
 #undef OFF
     mask.clear();
 
@@ -158,7 +161,8 @@ void testScalar()
               .set(OFF("i64.display.limitLow"))
               .set(OFF("i64.display.description"))
               .set(OFF("i64.display.units"))
-              .set(OFF("i64.display.format"))
+              .set(OFF("i64.display.precision"))
+              .set(OFF("i64.display.form.index"))
               .set(OFF("i64.control.limitHigh"))
               .set(OFF("i64.control.limitLow"))
               .set(OFF("i64.valueAlarm.highWarningLimit"))
@@ -189,10 +193,12 @@ void testScalar()
               .set(OFF("si.display.limitHigh"))
               .set(OFF("si.display.limitLow"))
               .set(OFF("si.display.description"))
-              .set(OFF("si.display.format"))
               .set(OFF("si.display.units"))
+              .set(OFF("si.display.precision"))
+              .set(OFF("si.display.form.index"))
               .set(OFF("si.control.limitHigh"))
-              .set(OFF("si.control.limitLow")));
+              .set(OFF("si.control.limitLow")))
+            <<" si changes\n"<<root->stream().show(mask);
 #undef OFF
     mask.clear();
 
@@ -215,7 +221,8 @@ void testScalar()
               .set(OFF("ai.display.limitHigh"))
               .set(OFF("ai.display.limitLow"))
               .set(OFF("ai.display.description"))
-              .set(OFF("ai.display.format"))
+              .set(OFF("ai.display.precision"))
+              .set(OFF("ai.display.form.index"))
               .set(OFF("ai.display.units"))
               .set(OFF("ai.control.limitHigh"))
               .set(OFF("ai.control.limitLow"))
@@ -233,15 +240,17 @@ void testScalar()
               .set(OFF("ai_rval.display.limitHigh"))
               .set(OFF("ai_rval.display.limitLow"))
               .set(OFF("ai_rval.display.description"))
-              .set(OFF("ai_rval.display.format"))
               .set(OFF("ai_rval.display.units"))
+              .set(OFF("ai_rval.display.precision"))
+              .set(OFF("ai_rval.display.form.index"))
               .set(OFF("ai_rval.control.limitHigh"))
               .set(OFF("ai_rval.control.limitLow"))
               .set(OFF("ai_rval.valueAlarm.highWarningLimit"))
               .set(OFF("ai_rval.valueAlarm.lowWarningLimit"))
               .set(OFF("ai_rval.valueAlarm.highAlarmLimit"))
               .set(OFF("ai_rval.valueAlarm.lowAlarmLimit"))
-              );
+              )
+            <<" ai changes\n"<<root->stream().show(mask);
 #undef OFF
     mask.clear();
 
@@ -260,7 +269,8 @@ void testScalar()
               .set(OFF("mbbi.alarm.message"))
               .set(OFF("mbbi.timeStamp.secondsPastEpoch"))
               .set(OFF("mbbi.timeStamp.nanoseconds"))
-              .set(OFF("mbbi.timeStamp.userTag")));
+              .set(OFF("mbbi.timeStamp.userTag")))
+            <<" mbbi changes\n"<<root->stream().show(mask);
 #undef OFF
     mask.clear();
 
@@ -272,6 +282,8 @@ void testScalar()
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitHigh", 100.0);
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitLow", 10.0);
     testFieldEqual<pvd::PVString>(root, "li.display.units", "arb");
+    testFieldEqual<pvd::PVInt>(root, "li.display.precision", 0);
+    testFieldEqual<pvd::PVInt>(root, "li.display.form.index", 4); // "Hex"
 
 #ifdef USE_INT64
     testFieldEqual<pvd::PVLong>(root, "i64.value", 0x7fffffffffffffffLL);
@@ -284,6 +296,7 @@ void testScalar()
     testTodoBegin("Bug in int64inRecord get_units()");
     testFieldEqual<pvd::PVString>(root, "i64.display.units", "arb");
     testTodoEnd();
+    testFieldEqual<pvd::PVInt>(root, "i64.display.precision", 0);
 #endif
 
     testFieldEqual<pvd::PVString>(root, "si.value", "hello");
@@ -298,8 +311,9 @@ void testScalar()
     testFieldEqual<pvd::PVInt>(root, "ai.timeStamp.nanoseconds", 12345678);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitHigh", 200.0);
     testFieldEqual<pvd::PVDouble>(root, "ai.display.limitLow", 20.0);
-    testFieldEqual<pvd::PVString>(root, "ai.display.format", "");
+    testFieldEqual<pvd::PVInt>(root, "ai.display.precision", 2);
     testFieldEqual<pvd::PVString>(root, "ai.display.units", "foo");
+    testFieldEqual<pvd::PVInt>(root, "ai.display.form.index", 0);
 
     testFieldEqual<pvd::PVInt>(root, "ai_rval.value", 1234);
     testFieldEqual<pvd::PVInt>(root, "ai_rval.alarm.severity", 2);
@@ -308,8 +322,9 @@ void testScalar()
     testFieldEqual<pvd::PVInt>(root, "ai_rval.timeStamp.userTag", 0);
     testFieldEqual<pvd::PVDouble>(root, "ai_rval.display.limitHigh", 2147483647.0);
     testFieldEqual<pvd::PVDouble>(root, "ai_rval.display.limitLow", -2147483648.0);
-    testFieldEqual<pvd::PVString>(root, "ai_rval.display.format", "");
+    testFieldEqual<pvd::PVInt>(root, "ai_rval.display.precision", 0);
     testFieldEqual<pvd::PVString>(root, "ai_rval.display.units", "");
+    testFieldEqual<pvd::PVInt>(root, "ai_rval.display.form.index", 0);
 
     testFieldEqual<pvd::PVInt>(root, "mbbi.value.index", 1);
     testFieldEqual<pvd::PVInt>(root, "mbbi.alarm.severity", 0);
@@ -339,6 +354,15 @@ void testScalar()
     pvif_li->get(mask);
     testEqual(prec_li->val, 102043);
     dbScanUnlock((dbCommon*)prec_li);
+
+#ifdef USE_INT64
+    dbScanLock((dbCommon*)prec_i64);
+    mask.clear();
+    mask.set(root->getSubFieldT("i64.value")->getFieldOffset());
+    pvif_i64->get(mask);
+    testEqual(prec_i64->val, epicsInt64(-0x8000000000000000LL));
+    dbScanUnlock((dbCommon*)prec_i64);
+#endif
 
 #ifdef USE_INT64
     dbScanLock((dbCommon*)prec_i64);
@@ -501,9 +525,9 @@ void testPlain()
 
 MAIN(testpvif)
 {
-    testPlan(71
+    testPlan(75
 #ifdef USE_INT64
-             +11
+             +13
 #endif
              );
 #ifdef USE_INT64
