@@ -2,12 +2,12 @@
 
 @page release_notes Release Notes
 
-Release 1.1.0 (UNRELEASED)
+Release 1.1.0 (Nov 2018)
 ==========================
 
 - Incompatible changes
- - Requires pvDataCPP >= 7.1.0-pre1
- - Requires pvAccessCPP >= 6.1.0-pre1
+ - Requires pvDataCPP >= 7.1.0
+ - Requires pvAccessCPP >= 6.1.0
 - Removals
  - Drop the broken ioccircle and ioccircle2 examples.
 - Fixes
