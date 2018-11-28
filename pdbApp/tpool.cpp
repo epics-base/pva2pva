@@ -2,7 +2,9 @@
 #include <typeinfo>
 #include <stdexcept>
 
+#include <epicsEvent.h>
 #include <epicsGuard.h>
+#include <epicsThread.h>
 #include <errlog.h>
 
 #include <pv/sharedPtr.h>
