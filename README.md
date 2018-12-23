@@ -109,9 +109,7 @@ At present each pva2pva process can act as a uni-directional proxy,
 presenting a pvAccess server on one interface,
 and a client on other(s).
 
-The file [example.cmd](example.cmd) provides a starting point.
-Adjust *EPICS_PVAS_INTF_ADDR_LIST* and *EPICS_PVA_ADDR_LIST*
-according to the host computer's network configuration.
+The file [loopback.conf](loopback.conf) provides a starting point.
 
 At present there are no safe guard against creating loops
 where a gateway client side connects to its own server side.
@@ -121,5 +119,5 @@ the interface used for the server (either directly, or included in a broadcast d
 
 ```
 cd pva2pva
-./bin/linux-x86_64/pva2pva example.cmd
+./bin/linux-x86_64/pva2pva loopback.conf
 ```
