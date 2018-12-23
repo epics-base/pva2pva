@@ -537,7 +537,11 @@ void findFormat(pvTimeAlarm& pvmeta, pdbRecordIterator& info, const epics::pvDat
                     fmt->putFrom<pvd::uint32>(i);
             }
             if(!found) {
-                fmt->putFrom<pvd::uint32>(0); // Default
+                try {
+                    fmt->putFrom(std::string(FMT)); // attempt to parse as number
+                }catch(std::exception& e){
+                    errlogPrintf("%s: info(Q:form, \"%s\") is not known format: %s\n", info.name(), FMT, e.what());
+                }
             }
         }
     }
