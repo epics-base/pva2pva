@@ -7,6 +7,14 @@
 #include <aiRecord.h>
 #include <mbbiRecord.h>
 #include <stringinRecord.h>
+#include <epicsVersion.h>
+
+#ifdef EPICS_VERSION_INT
+#  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
+#    define USE_INT64
+#    include <int64inRecord.h>
+#  endif
+#endif
 
 #include "helper.h"
 #include "pvif.h"
@@ -28,11 +36,17 @@ void testScalar()
     testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
     p2pTestIoc_registerRecordDeviceDriver(pdbbase);
     testdbReadDatabase("testpvif.db", NULL, NULL);
+#ifdef USE_INT64
+    testdbReadDatabase("testpvif64.db", NULL, NULL);
+#endif
 
     longinRecord *prec_li = (longinRecord*)testdbRecordPtr("test:li");
     stringinRecord *prec_si = (stringinRecord*)testdbRecordPtr("test:si");
     aiRecord *prec_ai = (aiRecord*)testdbRecordPtr("test:ai");
     mbbiRecord *prec_mbbi = (mbbiRecord*)testdbRecordPtr("test:mbbi");
+#ifdef USE_INT64
+    int64inRecord *prec_i64 = (int64inRecord*)testdbRecordPtr("test:i64");
+#endif
 
     IOC.init();
 
@@ -44,6 +58,9 @@ void testScalar()
     DBCH chan_ai("test:ai");
     DBCH chan_ai_rval("test:ai.RVAL");
     DBCH chan_mbbi("test:mbbi");
+#ifdef USE_INT64
+    DBCH chan_i64("test:i64");
+#endif
     testEqual(dbChannelFieldType(chan_li), DBR_LONG);
     testEqual(dbChannelFieldType(chan_si), DBR_STRING);
     testEqual(dbChannelFieldType(chan_ai), DBR_DOUBLE);
@@ -53,10 +70,16 @@ void testScalar()
     testEqual(dbChannelFinalFieldType(chan_ai), DBR_DOUBLE);
     testEqual(dbChannelFinalFieldType(chan_ai_rval), DBR_LONG);
     testEqual(dbChannelFinalFieldType(chan_mbbi), DBR_ENUM);
+#ifdef USE_INT64
+    testEqual(dbChannelFinalFieldType(chan_i64), DBR_INT64);
+#endif
 
     ScalarBuilder builder;
 
     pvd::FieldConstPtr dtype_li(builder.dtype(chan_li));
+#ifdef USE_INT64
+    pvd::FieldConstPtr dtype_i64(builder.dtype(chan_i64));
+#endif
     pvd::FieldConstPtr dtype_si(builder.dtype(chan_si));
     pvd::FieldConstPtr dtype_ai(builder.dtype(chan_ai));
     pvd::FieldConstPtr dtype_ai_rval(builder.dtype(chan_ai_rval));
@@ -64,6 +87,9 @@ void testScalar()
 
     pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                       ->add("li", dtype_li)
+#ifdef USE_INT64
+                                      ->add("i64", dtype_i64)
+#endif
                                       ->add("si", dtype_si)
                                       ->add("ai", dtype_ai)
                                       ->add("ai_rval", dtype_ai_rval)
@@ -73,6 +99,9 @@ void testScalar()
     pvd::PVStructurePtr root(pvd::getPVDataCreate()->createPVStructure(dtype_root));
 
     p2p::auto_ptr<PVIF> pvif_li(builder.attach(chan_li, root, FieldName("li")));
+#ifdef USE_INT64
+    p2p::auto_ptr<PVIF> pvif_i64(builder.attach(chan_i64, root, FieldName("i64")));
+#endif
     p2p::auto_ptr<PVIF> pvif_si(builder.attach(chan_si, root, FieldName("si")));
     p2p::auto_ptr<PVIF> pvif_ai(builder.attach(chan_ai, root, FieldName("ai")));
     p2p::auto_ptr<PVIF> pvif_ai_rval(builder.attach(chan_ai_rval, root, FieldName("ai_rval")));
@@ -108,6 +137,39 @@ void testScalar()
               .set(OFF("li.valueAlarm.lowAlarmLimit")));
 #undef OFF
     mask.clear();
+
+#ifdef USE_INT64
+
+    dbScanLock((dbCommon*)prec_i64);
+    prec_i64->time.secPastEpoch = 0x12345678;
+    prec_i64->time.nsec = 12345678;
+    pvif_i64->put(mask, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+    dbScanUnlock((dbCommon*)prec_i64);
+
+#define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
+    testEqual(mask, pvd::BitSet()
+              .set(OFF("i64.value"))
+              .set(OFF("i64.alarm.severity"))
+              .set(OFF("i64.alarm.status"))
+              .set(OFF("i64.alarm.message"))
+              .set(OFF("i64.timeStamp.secondsPastEpoch"))
+              .set(OFF("i64.timeStamp.nanoseconds"))
+              .set(OFF("i64.display.limitHigh"))
+              .set(OFF("i64.display.limitLow"))
+              .set(OFF("i64.display.description"))
+              .set(OFF("i64.display.units"))
+              .set(OFF("i64.display.format"))
+              .set(OFF("i64.control.limitHigh"))
+              .set(OFF("i64.control.limitLow"))
+              .set(OFF("i64.valueAlarm.highWarningLimit"))
+              .set(OFF("i64.valueAlarm.lowWarningLimit"))
+              .set(OFF("i64.valueAlarm.highAlarmLimit"))
+              .set(OFF("i64.valueAlarm.lowAlarmLimit")))
+            <<" i64 changes\n"<<root->stream().show(mask);
+#undef OFF
+    mask.clear();
+
+#endif
 
     dbScanLock((dbCommon*)prec_si);
     prec_si->time.secPastEpoch = 0x12345678;
@@ -211,6 +273,19 @@ void testScalar()
     testFieldEqual<pvd::PVDouble>(root, "li.display.limitLow", 10.0);
     testFieldEqual<pvd::PVString>(root, "li.display.units", "arb");
 
+#ifdef USE_INT64
+    testFieldEqual<pvd::PVLong>(root, "i64.value", 0x7fffffffffffffffLL);
+    testFieldEqual<pvd::PVInt>(root, "i64.alarm.severity", 1);
+    testFieldEqual<pvd::PVInt>(root, "i64.alarm.status", 1);
+    testFieldEqual<pvd::PVLong>(root, "i64.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
+    testFieldEqual<pvd::PVInt>(root, "i64.timeStamp.nanoseconds", 12345678);
+    testFieldEqual<pvd::PVDouble>(root, "i64.display.limitHigh", 100.0);
+    testFieldEqual<pvd::PVDouble>(root, "i64.display.limitLow", 10.0);
+    testTodoBegin("Bug in int64inRecord get_units()");
+    testFieldEqual<pvd::PVString>(root, "i64.display.units", "arb");
+    testTodoEnd();
+#endif
+
     testFieldEqual<pvd::PVString>(root, "si.value", "hello");
     testFieldEqual<pvd::PVInt>(root, "si.alarm.severity", 0);
     testFieldEqual<pvd::PVLong>(root, "si.timeStamp.secondsPastEpoch", 0x12345678+POSIX_TIME_AT_EPICS_EPOCH);
@@ -250,6 +325,9 @@ void testScalar()
     }
 
     root->getSubFieldT<pvd::PVInt>("li.value")->put(102043);
+#ifdef USE_INT64
+    root->getSubFieldT<pvd::PVLong>("i64.value")->put(-0x8000000000000000LL);
+#endif
     root->getSubFieldT<pvd::PVString>("si.value")->put("world");
     root->getSubFieldT<pvd::PVDouble>("ai.value")->put(44.4);
     root->getSubFieldT<pvd::PVInt>("ai_rval.value")->put(2143);
@@ -261,6 +339,15 @@ void testScalar()
     pvif_li->get(mask);
     testEqual(prec_li->val, 102043);
     dbScanUnlock((dbCommon*)prec_li);
+
+#ifdef USE_INT64
+    dbScanLock((dbCommon*)prec_i64);
+    mask.clear();
+    mask.set(root->getSubFieldT("i64.value")->getFieldOffset());
+    pvif_i64->get(mask);
+    testEqual(prec_i64->val, epicsInt64(-0x8000000000000000LL));
+    dbScanUnlock((dbCommon*)prec_i64);
+#endif
 
     dbScanLock((dbCommon*)prec_si);
     mask.clear();
@@ -414,7 +501,16 @@ void testPlain()
 
 MAIN(testpvif)
 {
-    testPlan(71);
+    testPlan(71
+#ifdef USE_INT64
+             +11
+#endif
+             );
+#ifdef USE_INT64
+    testDiag("Testing of 64-bit field access");
+#else
+    testDiag("64-bit field access not supported");
+#endif
     testScalar();
     testPlain();
     return testDone();
