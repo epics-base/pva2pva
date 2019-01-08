@@ -15,31 +15,31 @@ void testGet()
 {
     testDiag("==== testGet ====");
 
-    longinRecord *li1 = (longinRecord*)testdbRecordPtr("src:li1");
+    longinRecord *li1 = (longinRecord*)testdbRecordPtr("src:i1");
 
     while(!dbIsLinkConnected(&li1->inp))
         testqsrvWaitForLinkEvent(&li1->inp);
 
-    testdbGetFieldEqual("target:li.VAL", DBF_LONG, 42);
+    testdbGetFieldEqual("target:i.VAL", DBF_INT64, 42);
 
-    testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 0); // value before first process
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 0); // value before first process
 
-    testdbGetFieldEqual("src:li1.INP", DBF_STRING, "{\"pva\":\"target:li\"}");
+    testdbGetFieldEqual("src:i1.INP", DBF_STRING, "{\"pva\":\"target:i\"}");
 
-    testdbPutFieldOk("src:li1.PROC", DBF_LONG, 1);
+    testdbPutFieldOk("src:i1.PROC", DBF_INT64, 1);
 
-    testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 42);
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42);
 
-    testdbPutFieldOk("src:li1.INP", DBF_STRING, "{\"pva\":\"target:ai\"}");
+    testdbPutFieldOk("src:i1.INP", DBF_STRING, "{\"pva\":\"target:ai\"}");
 
     while(!dbIsLinkConnected(&li1->inp))
         testqsrvWaitForLinkEvent(&li1->inp);
 
-    testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 42); // changing link doesn't automatically process
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42); // changing link doesn't automatically process
 
-    testdbPutFieldOk("src:li1.PROC", DBF_LONG, 1);
+    testdbPutFieldOk("src:i1.PROC", DBF_INT64, 1);
 
-    testdbGetFieldEqual("src:li1.VAL", DBF_LONG, 4); // now it's changed
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 4); // now it's changed
 }
 
 void testPut()
@@ -51,14 +51,14 @@ void testPut()
     while(!dbIsLinkConnected(&lo2->out))
         testqsrvWaitForLinkEvent(&lo2->out);
 
-    testdbGetFieldEqual("target:li2.VAL", DBF_LONG, 43);
-    testdbGetFieldEqual("src:lo2.VAL", DBF_LONG, 0);
-    testdbGetFieldEqual("src:lo2.OUT", DBF_STRING, "{\"pva\":\"target:li2\"}");
+    testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 43);
+    testdbGetFieldEqual("src:lo2.VAL", DBF_INT64, 0);
+    testdbGetFieldEqual("src:lo2.OUT", DBF_STRING, "{\"pva\":\"target:i2\"}");
 
-    testdbPutFieldOk("src:lo2.VAL", DBF_LONG, 14);
+    testdbPutFieldOk("src:lo2.VAL", DBF_INT64, 14);
 
-    testdbGetFieldEqual("target:li2.VAL", DBF_LONG, 14);
-    testdbGetFieldEqual("src:lo2.VAL", DBF_LONG, 14);
+    testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 14);
+    testdbGetFieldEqual("src:lo2.VAL", DBF_INT64, 14);
 }
 
 } // namespace

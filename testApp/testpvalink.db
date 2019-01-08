@@ -1,21 +1,21 @@
 
 # used by testGet()
-record(longin, "target:li") {
+record(int64in, "target:i") {
     field(VAL, "42")
 }
 record(ai, "target:ai") {
     field(VAL, "4.0")
 }
 
-record(longin, "src:li1") {
-    field(INP, {pva:"target:li"})
+record(int64in, "src:i1") {
+    field(INP, {pva:"target:i"})
 }
 
 # used by testPut()
-record(longin, "target:li2") {
+record(int64in, "target:i2") {
     field(VAL, "43")
 }
 
-record(longout, "src:lo2") {
-    field(OUT, {pva:"target:li2"})
+record(int64out, "src:lo2") {
+    field(OUT, {pva:"target:i2"})
 }

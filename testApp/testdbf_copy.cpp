@@ -230,13 +230,16 @@ void testDBR2PVD_array()
 
 MAIN(testdbf_copy)
 {
-    testPlan(51);
+    testPlan(53);
     try{
         testPVD2DBR_scalar<pvd::pvDouble, double>(DBF_DOUBLE, 42.2, 42.2);
         testPVD2DBR_scalar<pvd::pvDouble, pvd::uint16>(DBF_USHORT, 42.2, 42u);
 
         testPVD2DBR_scalar<pvd::pvInt, pvd::int32>(DBF_LONG, 42, 42);
         testPVD2DBR_scalar<pvd::pvInt, char[MAX_STRING_SIZE]>(DBF_STRING, 42, std::string("42"));
+
+        testPVD2DBR_scalar<pvd::pvLong, pvd::int64>(DBF_INT64, 42, 42);
+        testPVD2DBR_scalar<pvd::pvLong, char[MAX_STRING_SIZE]>(DBF_STRING, 42, std::string("42"));
 
         testPVD2DBR_scalar<pvd::pvUShort, pvd::uint16>(DBF_USHORT, 41u, 41);
         testPVD2DBR_scalar<pvd::pvByte, pvd::int8>(DBF_CHAR, 41, 41);
