@@ -27,6 +27,8 @@
 #ifdef EPICS_VERSION_INT
 #  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
 #    define USE_INT64
+     // effects all uses of pv/typemap.h
+#    define CASE_REAL_INT64
 #  endif
 #endif
 
@@ -651,15 +653,11 @@ short PVD2DBR(pvd::ScalarType pvt)
 {
     switch(pvt) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case pvd::pv##PVACODE: return DBR_##DBFTYPE;
-#ifdef USE_INT64
-#  define CASE_REAL_INT64
-#else
+#ifndef USE_INT64
 #  define CASE_SQUEEZE_INT64
 #endif
 #include "pv/typemap.h"
-#ifdef USE_INT64
-#  undef CASE_REAL_INT64
-#else
+#ifndef USE_INT64
 #  undef CASE_SQUEEZE_INT64
 #endif
 #undef CASE
@@ -716,6 +714,10 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& r
         case DBR_USHORT:
         case DBR_LONG:
         case DBR_ULONG:
+#ifdef USE_INT64
+        case DBR_INT64:
+        case DBR_UINT64:
+#endif
             return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, fld, enclosing);
         case DBR_FLOAT:
         case DBR_DOUBLE:
@@ -736,6 +738,10 @@ ScalarBuilder::attach(dbChannel *channel, const epics::pvData::PVStructurePtr& r
         case DBR_ULONG:
         case DBR_STRING:
         case DBR_FLOAT:
+#ifdef USE_INT64
+        case DBR_INT64:
+        case DBR_UINT64:
+#endif
         case DBR_DOUBLE:
             return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
         }

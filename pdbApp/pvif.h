@@ -52,6 +52,13 @@ union dbrbuf {
         epicsUInt32		dbf_ULONG;
         epicsFloat32	dbf_FLOAT;
         epicsFloat64    dbf_DOUBLE;
+
+#ifdef EPICS_VERSION_INT
+#  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
+        epicsInt64      dbf_INT64;
+        epicsUInt64     dbf_UINT64;
+#  endif
+#endif
         char		dbf_STRING[MAX_STRING_SIZE];
 };
 
