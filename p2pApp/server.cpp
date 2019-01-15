@@ -64,19 +64,13 @@ GWServerChannelProvider::createChannel(std::string const & channelName,
                                        short priority, std::string const & addressx)
 {
     GWChannel::shared_pointer ret;
-    std::string newName;
     std::string address = channelRequester->getRequesterName();
 
     if(!channelName.empty())
     {
-
-        // rewrite name
-        newName = channelName;
-        //newName[0] = 'y';
-
         Guard G(cache.cacheLock);
 
-        ChannelCacheEntry::shared_pointer ent(cache.lookup(newName)); // recursively locks cacheLock
+        ChannelCacheEntry::shared_pointer ent(cache.lookup(channelName)); // recursively locks cacheLock
 
         if(ent)
         {
