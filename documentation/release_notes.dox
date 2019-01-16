@@ -2,6 +2,15 @@
 
 @page release_notes Release Notes
 
+Release 1.2.0 (UNRELEASED)
+==========================
+
+- Incompatible changes
+ - The field 'display.format' is replaced with 'display.form' and 'display.precision'.
+   https://github.com/epics-base/pva2pva/issues/19
+- Additions
+ - Use @code info(Q:form, "...") @endcode to set 'display.form'.  See @ref qsrv_form
+
 Release 1.1.0 (Nov 2018)
 ==========================
 

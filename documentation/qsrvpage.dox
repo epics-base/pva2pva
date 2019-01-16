@@ -141,6 +141,27 @@ record(ai, "...") {
 }
 @endcode
 
+@subsection qsrv_form QSRV Display Form Option
+
+The value of the OPI display form hint ('display.form') can be set set with the "Q:form" info() tag.
+This hint, along with 'display.precision', is used by some OPI clients to control how values are rendered.
+
+The text value of the tag must be one of the following choices.
+
+@li Default
+@li String
+@li Binary
+@li Decimal
+@li Hex
+@li Exponential
+@li Engineering
+
+@code
+record(ai, "...") {
+  info(Q:form, "Default") # implied default
+}
+@endcode
+
 @subsection qsrv_link PVAccess Links
 
 When built against Base >= 3.16.1, support is enabled for PVAccess links,
