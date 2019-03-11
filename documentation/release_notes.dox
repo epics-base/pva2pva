@@ -10,6 +10,8 @@ Release 1.2.0 (UNRELEASED)
    https://github.com/epics-base/pva2pva/issues/19
 - Additions
  - Use @code info(Q:form, "...") @endcode to set 'display.form'.  See @ref qsrv_form
+- Fixes
+ - Correct handling of 64-bit integer fields.
 
 Release 1.1.0 (Nov 2018)
 ==========================
