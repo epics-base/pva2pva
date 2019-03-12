@@ -73,6 +73,11 @@ softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
 DBD += softIocPVA.dbd
 DBD += qsrv.dbd
 
+ifneq ($(FINAL_LOCATION),$(EPICS_BASE))
+# Copy from Base if we won't be installed there
+DB_INSTALLS += $(EPICS_BASE)/db/softIocExit.db
+endif
+
 softIocPVA_DBD += softIoc.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
