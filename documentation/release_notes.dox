@@ -2,8 +2,8 @@
 
 @page release_notes Release Notes
 
-Release 1.2.0 (UNRELEASED)
-==========================
+Release 1.2.0 (Mar 2019)
+========================
 
 - Incompatible changes
  - The field 'display.format' is replaced with 'display.form' and 'display.precision'.
@@ -12,6 +12,7 @@ Release 1.2.0 (UNRELEASED)
  - Use @code info(Q:form, "...") @endcode to set 'display.form'.  See @ref qsrv_form
 - Fixes
  - Correct handling of 64-bit integer fields.
+ - Install a copy of softIocExit.db for standalone builds
 
 Release 1.1.0 (Nov 2018)
 ==========================
