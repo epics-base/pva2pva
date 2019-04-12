@@ -92,7 +92,7 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
             std::cerr<<"Unknown argument -"<<char(opt)<<"\n";
         case 'h':
             usage(argv[0]);
-            exit(1);
+            exit(0);
         }
     }
 
