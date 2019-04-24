@@ -139,6 +139,15 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                     const pva::ChannelRequester::shared_pointer& req)
 {
     PDBGroupChannel::shared_pointer ret(new PDBGroupChannel(shared_from_this(), prov, req));
+
+    ret->cred.update(req);
+
+    ret->aspvt.resize(members.size());
+    for(size_t i=0, N=members.size(); i<N; i++)
+    {
+        ret->aspvt[i].add(members[i].chan, ret->cred);
+    }
+
     return ret;
 }
 
@@ -341,6 +350,7 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     // assume value may be a different struct each time... lot of wasted prep work
     const size_t npvs = channel->pv->members.size();
     std::vector<std::tr1::shared_ptr<PVIF> > putpvif(npvs);
+    pvd::Status ret;
 
     for(size_t i=0; i<npvs; i++)
     {
@@ -350,8 +360,10 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
         putpvif[i].reset(info.builder->attach(info.chan, value, info.attachment));
     }
 
-    pvd::Status ret;
-    if(atomic) {
+    if(!ret.isOK()) {
+        // no access
+
+    } else if(atomic) {
         DBManyLocker L(channel->pv->locker);
         for(size_t i=0; ret && i<npvs; i++) {
             if(!putpvif[i].get()) continue;
@@ -368,7 +380,9 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
 
             DBScanLocker L(dbChannelRecord(info.chan));
 
-            ret |= putpvif[i]->get(*changed, info.allowProc ? doProc : PVIF::ProcInhibit);
+            ret |= putpvif[i]->get(*changed,
+                                   info.allowProc ? doProc : PVIF::ProcInhibit,
+                                   channel->aspvt[i].canWrite());
         }
     }
 

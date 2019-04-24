@@ -139,6 +139,9 @@ struct epicsShareClass PDBGroupChannel : public BaseChannel,
     POINTER_DEFINITIONS(PDBGroupChannel);
 
     PDBGroupPV::shared_pointer pv;
+    std::vector<ASCLIENT> aspvt;
+    // storage referenced from aspvt
+    ASCred cred;
 
     static size_t num_instances;
 
