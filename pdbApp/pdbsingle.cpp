@@ -145,7 +145,7 @@ void PDBSinglePV::addMonitor(PDBSingleMonitor* mon)
         db_post_single_event(evt_VALUE.subscript);
         db_post_single_event(evt_PROPERTY.subscript);
 
-    } if(hadevent_VALUE && hadevent_PROPERTY) {
+    } else if(hadevent_VALUE && hadevent_PROPERTY) {
         // new subscriber and already had initial update
         mon->post(G);
     } // else new subscriber, but no initial update.  so just wait
