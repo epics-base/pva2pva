@@ -16,6 +16,6 @@ record(int64in, "target:i2") {
     field(VAL, "43")
 }
 
-record(int64out, "src:lo2") {
+record(int64out, "src:o2") {
     field(OUT, {pva:"target:i2"})
 }

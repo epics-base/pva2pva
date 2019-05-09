@@ -1,8 +1,8 @@
 
 #include <dbUnitTest.h>
 #include <testMain.h>
-#include <longinRecord.h>
-#include <longoutRecord.h>
+#include <int64inRecord.h>
+#include <int64outRecord.h>
 
 #include <pv/qsrv.h>
 #include "utilities.h"
@@ -15,10 +15,10 @@ void testGet()
 {
     testDiag("==== testGet ====");
 
-    longinRecord *li1 = (longinRecord*)testdbRecordPtr("src:i1");
+    int64inRecord *i1 = (int64inRecord*)testdbRecordPtr("src:i1");
 
-    while(!dbIsLinkConnected(&li1->inp))
-        testqsrvWaitForLinkEvent(&li1->inp);
+    while(!dbIsLinkConnected(&i1->inp))
+        testqsrvWaitForLinkEvent(&i1->inp);
 
     testdbGetFieldEqual("target:i.VAL", DBF_INT64, 42);
 
@@ -32,8 +32,8 @@ void testGet()
 
     testdbPutFieldOk("src:i1.INP", DBF_STRING, "{\"pva\":\"target:ai\"}");
 
-    while(!dbIsLinkConnected(&li1->inp))
-        testqsrvWaitForLinkEvent(&li1->inp);
+    while(!dbIsLinkConnected(&i1->inp))
+        testqsrvWaitForLinkEvent(&i1->inp);
 
     testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42); // changing link doesn't automatically process
 
@@ -46,19 +46,19 @@ void testPut()
 {
     testDiag("==== testPut ====");
 
-    longoutRecord *lo2 = (longoutRecord*)testdbRecordPtr("src:lo2");
+    int64outRecord *o2 = (int64outRecord*)testdbRecordPtr("src:o2");
 
-    while(!dbIsLinkConnected(&lo2->out))
-        testqsrvWaitForLinkEvent(&lo2->out);
+    while(!dbIsLinkConnected(&o2->out))
+        testqsrvWaitForLinkEvent(&o2->out);
 
     testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 43);
-    testdbGetFieldEqual("src:lo2.VAL", DBF_INT64, 0);
-    testdbGetFieldEqual("src:lo2.OUT", DBF_STRING, "{\"pva\":\"target:i2\"}");
+    testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 0);
+    testdbGetFieldEqual("src:o2.OUT", DBF_STRING, "{\"pva\":\"target:i2\"}");
 
-    testdbPutFieldOk("src:lo2.VAL", DBF_INT64, 14);
+    testdbPutFieldOk("src:o2.VAL", DBF_INT64, 14);
 
     testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 14);
-    testdbGetFieldEqual("src:lo2.VAL", DBF_INT64, 14);
+    testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 14);
 }
 
 } // namespace
