@@ -20,26 +20,26 @@ void testGet()
     while(!dbIsLinkConnected(&i1->inp))
         testqsrvWaitForLinkEvent(&i1->inp);
 
-    testdbGetFieldEqual("target:i.VAL", DBF_INT64, 42);
+    testdbGetFieldEqual("target:i.VAL", DBF_INT64, 42LL);
 
-    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 0); // value before first process
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 0LL); // value before first process
 
     testdbGetFieldEqual("src:i1.INP", DBF_STRING, "{\"pva\":\"target:i\"}");
 
-    testdbPutFieldOk("src:i1.PROC", DBF_INT64, 1);
+    testdbPutFieldOk("src:i1.PROC", DBF_INT64, 1LL);
 
-    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42);
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42LL);
 
     testdbPutFieldOk("src:i1.INP", DBF_STRING, "{\"pva\":\"target:ai\"}");
 
     while(!dbIsLinkConnected(&i1->inp))
         testqsrvWaitForLinkEvent(&i1->inp);
 
-    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42); // changing link doesn't automatically process
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 42LL); // changing link doesn't automatically process
 
-    testdbPutFieldOk("src:i1.PROC", DBF_INT64, 1);
+    testdbPutFieldOk("src:i1.PROC", DBF_INT64, 1LL);
 
-    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 4); // now it's changed
+    testdbGetFieldEqual("src:i1.VAL", DBF_INT64, 4LL); // now it's changed
 }
 
 void testPut()
@@ -51,14 +51,14 @@ void testPut()
     while(!dbIsLinkConnected(&o2->out))
         testqsrvWaitForLinkEvent(&o2->out);
 
-    testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 43);
-    testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 0);
+    testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 43LL);
+    testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 0LL);
     testdbGetFieldEqual("src:o2.OUT", DBF_STRING, "{\"pva\":\"target:i2\"}");
 
-    testdbPutFieldOk("src:o2.VAL", DBF_INT64, 14);
+    testdbPutFieldOk("src:o2.VAL", DBF_INT64, 14LL);
 
-    testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 14);
-    testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 14);
+    testdbGetFieldEqual("target:i2.VAL", DBF_INT64, 14LL);
+    testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 14LL);
 }
 
 } // namespace
