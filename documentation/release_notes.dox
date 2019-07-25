@@ -2,6 +2,12 @@
 
 @page release_notes Release Notes
 
+Release 1.2.1 (July 2019)
+=========================
+
+- Fixes
+ - Fix unittest: testpvalink.  No functional change.
+
 Release 1.2.0 (Mar 2019)
 ========================
 
