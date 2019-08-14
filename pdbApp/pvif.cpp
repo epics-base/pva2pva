@@ -783,6 +783,7 @@ ScalarBuilder::dtype(dbChannel *channel)
     if(dbr==DBR_ENUM)
         builder = builder->setId("epics:nt/NTEnum:1.0")
                          ->addNestedStructure("value")
+                            ->setId("enum_t")
                             ->add("index", pvd::pvInt)
                             ->addArray("choices", pvd::pvString)
                          ->endNested();
