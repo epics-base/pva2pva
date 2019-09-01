@@ -3,6 +3,7 @@
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/standardField.h>
 
+#include <osiSock.h>
 #include <dbAccess.h>
 #include <dbChannel.h>
 #include <dbStaticLib.h>
@@ -18,6 +19,8 @@
 #include <pv/pvData.h>
 #include <pv/anyscalar.h>
 #include <pv/reftrack.h>
+#include <pv/pvAccess.h>
+#include <pv/security.h>
 
 #define epicsExportSharedSymbols
 #include "sb.h"
@@ -34,6 +37,7 @@
 #endif
 
 namespace pvd = epics::pvData;
+namespace pva = epics::pvAccess;
 
 DBCH::DBCH(dbChannel *ch) :chan(ch)
 {
@@ -64,6 +68,97 @@ DBCH::~DBCH()
 void DBCH::swap(DBCH& o)
 {
     std::swap(chan, o.chan);
+}
+
+void ASCred::update(const pva::ChannelRequester::shared_pointer& req)
+{
+    pva::PeerInfo::const_shared_pointer info(req->getPeerInfo());
+    std::string usertemp, hosttemp;
+
+    if(info && info->identified) {
+        hosttemp = info->peer;
+        if(info->authority=="ca") {
+            usertemp = info->account;
+            size_t sep = usertemp.find_last_of('/');
+            if(sep != std::string::npos) {
+                // prevent CA auth from claiming to be eg. "krb/someone.special"
+                usertemp = usertemp.substr(sep+1);
+            }
+
+        } else {
+            usertemp = info->authority + "/" + info->account;
+        }
+
+        static const char role[] = "role/";
+
+        groups.resize(info->roles.size());
+        size_t idx = 0u;
+        for(pva::PeerInfo::roles_t::iterator it(info->roles.begin()), end(info->roles.end()); it!=end; ++it, idx++) {
+            groups[idx].resize((*it).size()+sizeof(role)); // sizeof(role) includes trailing nil
+            std::copy(role,
+                      role+sizeof(role)-1,
+                      groups[idx].begin());
+            std::copy(it->begin(),
+                      it->end(),
+                      groups[idx].begin()+sizeof(role)-1);
+            groups[idx][groups[idx].size()-1] = '\0';
+        }
+
+    } else {
+        // legacy and anonymous
+        hosttemp = req->getRequesterName();
+    }
+
+    // remote names have the form "IP:port"
+    size_t sep = hosttemp.find_first_of(":");
+    if(sep == std::string::npos) {
+        sep = hosttemp.size();
+    }
+    hosttemp.resize(sep);
+
+    host.resize(hosttemp.size()+1);
+    std::copy(hosttemp.begin(),
+              hosttemp.end(),
+              host.begin());
+    host[hosttemp.size()] = '\0';
+
+    user.resize(usertemp.size()+1);
+    std::copy(usertemp.begin(),
+              usertemp.end(),
+              user.begin());
+    user[usertemp.size()] = '\0';
+}
+
+ASCLIENT::~ASCLIENT()
+{
+    asRemoveClient(&aspvt);
+    for(size_t i=0, N=grppvt.size(); i<N; i++) {
+        asRemoveClient(&grppvt[i]);
+    }
+}
+
+void ASCLIENT::add(dbChannel* chan, ASCred& cred)
+{
+    asRemoveClient(&aspvt);
+    /* asAddClient() fails secure to no-permission */
+    (void)asAddClient(&aspvt, dbChannelRecord(chan)->asp, dbChannelFldDes(chan)->as_level, &cred.user[0], &cred.host[0]);
+
+    grppvt.resize(cred.groups.size(), 0);
+
+    for(size_t i=0, N=grppvt.size(); i<N; i++) {
+        asRemoveClient(&grppvt[i]);
+        (void)asAddClient(&grppvt[i], dbChannelRecord(chan)->asp, dbChannelFldDes(chan)->as_level, &cred.groups[i][0], &cred.host[0]);
+    }
+}
+
+bool ASCLIENT::canWrite() {
+    if(!asActive || (aspvt && asCheckPut(aspvt)))
+        return true;
+    for(size_t i=0, N=grppvt.size(); i<N; i++) {
+        if(grppvt[i] && asCheckPut(grppvt[i]))
+            return true;
+    }
+    return false;
 }
 
 PVIF::PVIF(dbChannel *ch)
@@ -602,15 +697,21 @@ struct PVIFScalarNumeric : public PVIF
         }
     }
 
-    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc) OVERRIDE FINAL
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
         pvd::Status ret;
         bool newval = mask.logical_and(pvmeta.maskVALUEPut);
         if(newval) {
-            getValue(pvmeta.chan, pvmeta.value.get());
+            if(permit)
+                getValue(pvmeta.chan, pvmeta.value.get());
+            else
+                ret = pvd::Status::error("Put not permitted");
         }
         if(newval || proc==PVIF::ProcForce) {
-            ret = PVIF::get(mask, proc);
+            if(permit)
+                ret = PVIF::get(mask, proc);
+            else
+                ret = pvd::Status::error("Process not permitted");
         }
         return ret;
     }
@@ -796,7 +897,7 @@ struct PVIFPlain : public PVIF
 
     virtual ~PVIFPlain() {}
 
-    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl)
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
     {
         if(dbe&DBE_VALUE) {
             putValue(channel, field.get(), pfl);
@@ -804,20 +905,26 @@ struct PVIFPlain : public PVIF
         }
     }
 
-    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
         pvd::Status ret;
         bool newval = mask.get(fieldOffset);
         if(newval) {
-            getValue(channel, field.get());
+            if(permit)
+                getValue(channel, field.get());
+            else
+                ret = pvd::Status::error("Put not permitted");
         }
         if(newval || proc==PVIF::ProcForce) {
-            ret = PVIF::get(mask, proc);
+            if(permit)
+                ret = PVIF::get(mask, proc);
+            else
+                ret = pvd::Status::error("Process not permitted");
         }
         return ret;
     }
 
-    virtual unsigned dbe(const epics::pvData::BitSet& mask)
+    virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
         // TODO: figure out how to handle various intermidiate compressed
         //       bitSet and enclosing.
@@ -941,7 +1048,7 @@ struct PVIFMeta : public PVIF
 
     virtual ~PVIFMeta() {}
 
-    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl)
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
     {
         mask |= meta.maskALWAYS;
         if(dbe&DBE_ALARM)
@@ -950,13 +1057,15 @@ struct PVIFMeta : public PVIF
         putTime(meta, dbe, pfl);
     }
 
-    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
         // can't put time/alarm
+        if(mask.logical_and(meta.maskALARM))
+            return pvd::Status::warn("Put to meta field ignored");
         return pvd::Status::Ok;
     }
 
-    virtual unsigned dbe(const epics::pvData::BitSet& mask)
+    virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
         if(mask.logical_and(meta.maskALARM))
             return DBE_ALARM;
@@ -1011,18 +1120,18 @@ struct PVIFProc : public PVIF
 {
     PVIFProc(dbChannel *channel) :PVIF(channel) {}
 
-    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl)
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
     {
         // nothing to get
     }
 
-    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc)
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
-        // always process
-        return PVIF::get(mask, PVIF::ProcForce);
+        // always process (if permitted)
+        return PVIF::get(mask, PVIF::ProcForce, permit);
     }
 
-    virtual unsigned dbe(const epics::pvData::BitSet& mask)
+    virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
     {
         return 0;
     }
@@ -1037,7 +1146,7 @@ struct ProcBuilder : public PVIFBuilder
 
     virtual epics::pvData::FieldBuilderPtr dtype(epics::pvData::FieldBuilderPtr& builder,
                                                  const std::string& fld,
-                                                 dbChannel *channel)
+                                                 dbChannel *channel) OVERRIDE FINAL
     {
         // invisible
         return builder;
@@ -1055,7 +1164,7 @@ struct ProcBuilder : public PVIFBuilder
 
 }//namespace
 
-pvd::Status PVIF::get(const epics::pvData::BitSet& mask, proc_t proc)
+pvd::Status PVIF::get(const epics::pvData::BitSet& mask, proc_t proc, bool permit)
 {
     dbCommon *precord = dbChannelRecord(chan);
 
@@ -1067,7 +1176,10 @@ pvd::Status PVIF::get(const epics::pvData::BitSet& mask, proc_t proc)
     pvd::Status ret;
 
     if (tryproc) {
-        if (precord->pact) {
+        if (!permit) {
+            return pvd::Status::error("Process not permitted");
+
+        } else if (precord->pact) {
             if (precord->tpro)
                 printf("%s: Active %s\n",
                        epicsThreadGetNameSelf(), precord->name);

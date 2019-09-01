@@ -3,6 +3,7 @@
 
 #include <map>
 
+#include <asLib.h>
 #include <dbAccess.h>
 #include <dbChannel.h>
 #include <dbStaticLib.h>
@@ -28,6 +29,12 @@
 #if EPICS_VERSION_INT>=VERSION_INT(3,16,0,2)
 #  define USE_MULTILOCK
 #endif
+
+namespace epics {
+namespace pvAccess {
+class ChannelRequester;
+}
+}
 
 short PVD2DBR(epics::pvData::ScalarType pvt);
 
@@ -79,6 +86,23 @@ private:
     DBCH(const DBCH&);
     DBCH& operator=(const DBCH&);
     void prepare();
+};
+
+struct ASCred {
+    // string storage must be safely mutable.  cf. asAddClient()
+    std::vector<char> user, host;
+    std::vector<std::vector<char> > groups;
+    void update(const std::tr1::shared_ptr<epics::pvAccess::ChannelRequester>& request);
+};
+
+struct ASCLIENT {
+    ASCLIENTPVT aspvt;
+    std::vector<ASCLIENTPVT> grppvt;
+    ASCLIENT() :aspvt(0) {}
+    ~ASCLIENT();
+    // ASCred storage must remain valid
+    void add(dbChannel* chan, ASCred& cred);
+    bool canWrite();
 };
 
 struct pdbRecordInfo {
@@ -343,9 +367,9 @@ struct epicsShareClass PVIF {
     //! Copy from PDB record to pvalue (call dbChannelGet())
     //! caller must lock record
     virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) =0;
-    //! Copy from pvalue to PDB record (call dbChannelPut())
+    //! May copy from pvalue to PDB record (call dbChannelPut())
     //! caller must lock record
-    virtual epics::pvData::Status get(const epics::pvData::BitSet& mask, proc_t proc=ProcInhibit) =0;
+    virtual epics::pvData::Status get(const epics::pvData::BitSet& mask, proc_t proc=ProcInhibit, bool permit=true) =0;
     //! Calculate DBE mask from changed bitset
     virtual unsigned dbe(const epics::pvData::BitSet& mask) =0;
 

@@ -139,6 +139,15 @@ PDBGroupPV::connect(const std::tr1::shared_ptr<PDBProvider>& prov,
                     const pva::ChannelRequester::shared_pointer& req)
 {
     PDBGroupChannel::shared_pointer ret(new PDBGroupChannel(shared_from_this(), prov, req));
+
+    ret->cred.update(req);
+
+    ret->aspvt.resize(members.size());
+    for(size_t i=0, N=members.size(); i<N; i++)
+    {
+        ret->aspvt[i].add(members[i].chan, ret->cred);
+    }
+
     return ret;
 }
 
@@ -368,7 +377,9 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
 
             DBScanLocker L(dbChannelRecord(info.chan));
 
-            ret |= putpvif[i]->get(*changed, info.allowProc ? doProc : PVIF::ProcInhibit);
+            ret |= putpvif[i]->get(*changed,
+                                   info.allowProc ? doProc : PVIF::ProcInhibit,
+                                   channel->aspvt[i].canWrite());
         }
     }
 
