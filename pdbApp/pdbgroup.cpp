@@ -350,7 +350,6 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     // assume value may be a different struct each time... lot of wasted prep work
     const size_t npvs = channel->pv->members.size();
     std::vector<std::tr1::shared_ptr<PVIF> > putpvif(npvs);
-    pvd::Status ret;
 
     for(size_t i=0; i<npvs; i++)
     {
@@ -360,10 +359,8 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
         putpvif[i].reset(info.builder->attach(info.chan, value, info.attachment));
     }
 
-    if(!ret.isOK()) {
-        // no access
-
-    } else if(atomic) {
+    pvd::Status ret;
+    if(atomic) {
         DBManyLocker L(channel->pv->locker);
         for(size_t i=0; ret && i<npvs; i++) {
             if(!putpvif[i].get()) continue;
