@@ -4,11 +4,6 @@
 #include <set>
 #include <map>
 
-#ifdef epicsExportSharedSymbols
-#   define pvalinkEpicsExportSharedSymbols
-#   undef epicsExportSharedSymbols
-#endif
-
 #define EPICS_DBCA_PRIVATE_API
 #include <epicsGuard.h>
 #include <dbAccess.h>
@@ -44,19 +39,14 @@
 
 #include <pv/sharedPtr.h>
 
-#ifdef pvalinkEpicsExportSharedSymbols
-#   define epicsExportSharedSymbols
-#	undef pvalinkEpicsExportSharedSymbols
-#endif
-
 #include "helper.h"
 #include "pvif.h"
 #include "tpool.h"
 
 extern "C" {
-    epicsShareExtern int pvaLinkDebug;
-    epicsShareExtern int pvaLinkIsolate;
-    epicsShareExtern int pvaLinkNWorkers;
+    QSRV_API extern int pvaLinkDebug;
+    QSRV_API extern int pvaLinkIsolate;
+    QSRV_API extern int pvaLinkNWorkers;
 }
 
 #if 0

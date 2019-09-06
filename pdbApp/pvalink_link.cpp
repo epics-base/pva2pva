@@ -1,9 +1,6 @@
 #include <pv/reftrack.h>
 #include <alarm.h>
 
-#define epicsExportSharedSymbols
-#include <shareLib.h>
-
 #include "pvalink.h"
 
 namespace pvalink {

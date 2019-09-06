@@ -26,13 +26,12 @@
 #include <pv/reftrack.h>
 #include <pva/client.h>
 
-#include <epicsExport.h> /* defines epicsExportSharedSymbols */
-
 #include "pv/qsrv.h"
 #include "helper.h"
 #include "pvif.h"
 #include "pvalink.h"
 
+#include <epicsExport.h> /* defines epicsExportSharedSymbols */
 
 int pvaLinkDebug;
 int pvaLinkIsolate;

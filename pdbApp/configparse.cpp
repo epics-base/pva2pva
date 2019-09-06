@@ -14,7 +14,6 @@
 #include <pv/configuration.h>
 #include <pv/json.h>
 
-#define epicsExportSharedSymbols
 #include "pdbgroup.h"
 
 namespace {

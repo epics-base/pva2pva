@@ -30,7 +30,7 @@ struct PDBPV
     virtual void show(int lvl) {}
 };
 
-struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
+struct QSRV_API PDBProvider : public epics::pvAccess::ChannelProvider,
                                      public epics::pvAccess::ChannelFind,
                                      public std::tr1::enable_shared_from_this<PDBProvider>
 {
@@ -67,7 +67,7 @@ struct epicsShareClass PDBProvider : public epics::pvAccess::ChannelProvider,
     static size_t num_instances;
 };
 
-epicsShareFunc
+QSRV_API
 void QSRVRegistrar_counters();
 
 #endif // PDB_H

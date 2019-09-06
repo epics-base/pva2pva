@@ -15,7 +15,6 @@
 #include <pv/security.h>
 #include <pv/configuration.h>
 
-#define epicsExportSharedSymbols
 #include "helper.h"
 #include "pdbsingle.h"
 #include "pdb.h"

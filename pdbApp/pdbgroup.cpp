@@ -13,7 +13,6 @@
 #include <pv/configuration.h>
 #include <pv/epicsException.h>
 
-#define epicsExportSharedSymbols
 #include "helper.h"
 #include "pdbgroup.h"
 #include "pdb.h"

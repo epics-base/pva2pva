@@ -3,9 +3,6 @@
 
 #include <pv/reftrack.h>
 
-#define epicsExportSharedSymbols
-#include <shareLib.h>
-
 #include "pvalink.h"
 
 int pvaLinkNWorkers = 1;

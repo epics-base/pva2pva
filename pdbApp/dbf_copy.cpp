@@ -13,7 +13,6 @@
 #include <pv/pvData.h>
 #include <pv/anyscalar.h>
 
-#define epicsExportSharedSymbols
 #include "pvif.h"
 
 namespace pvd = epics::pvData;

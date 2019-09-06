@@ -19,7 +19,6 @@
 #include <pv/pvAccess.h>
 #include <pv/configuration.h>
 
-#define epicsExportSharedSymbols
 #include "helper.h"
 #include "pdbsingle.h"
 #include "pvif.h"

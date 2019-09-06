@@ -9,7 +9,6 @@
 
 #include <pv/sharedPtr.h>
 
-#define epicsExportSharedSymbols
 #include "helper.h"
 #include "tpool.h"
 

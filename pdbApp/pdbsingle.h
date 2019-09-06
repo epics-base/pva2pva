@@ -20,7 +20,7 @@
 
 struct PDBSingleMonitor;
 
-struct epicsShareClass PDBSinglePV : public PDBPV
+struct QSRV_API PDBSinglePV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBSinglePV);
     weak_pointer weakself;

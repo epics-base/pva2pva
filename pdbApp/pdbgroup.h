@@ -19,9 +19,9 @@
 
 #include <shareLib.h>
 
-struct epicsShareClass GroupConfig
+struct QSRV_API GroupConfig
 {
-    struct epicsShareClass Field {
+    struct QSRV_API Field {
         std::string type, channel, trigger, id;
         int putorder;
 
@@ -36,7 +36,7 @@ struct epicsShareClass GroupConfig
         }
     };
 
-    struct epicsShareClass Group {
+    struct QSRV_API Group {
         typedef std::map<std::string, Field> fields_t;
         fields_t fields;
         bool atomic, atomic_set;
@@ -70,7 +70,7 @@ struct PDBGroupMonitor;
 void pdb_group_event(void *user_arg, struct dbChannel *chan,
                      int eventsRemaining, struct db_field_log *pfl);
 
-struct epicsShareClass PDBGroupPV : public PDBPV
+struct QSRV_API PDBGroupPV : public PDBPV
 {
     POINTER_DEFINITIONS(PDBGroupPV);
     weak_pointer weakself;
@@ -133,7 +133,7 @@ struct epicsShareClass PDBGroupPV : public PDBPV
     virtual void show(int lvl) OVERRIDE;
 };
 
-struct epicsShareClass PDBGroupChannel : public BaseChannel,
+struct QSRV_API PDBGroupChannel : public BaseChannel,
         public std::tr1::enable_shared_from_this<PDBGroupChannel>
 {
     POINTER_DEFINITIONS(PDBGroupChannel);

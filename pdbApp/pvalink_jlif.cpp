@@ -2,9 +2,6 @@
 
 #include <epicsStdio.h> // redirects stdout/stderr
 
-#define epicsExportSharedSymbols
-#include <shareLib.h>
-
 #include "pvalink.h"
 
 namespace pvalink {

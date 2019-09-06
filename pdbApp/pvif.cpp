@@ -22,7 +22,6 @@
 #include <pv/pvAccess.h>
 #include <pv/security.h>
 
-#define epicsExportSharedSymbols
 #include "sb.h"
 #include "pvif.h"
 

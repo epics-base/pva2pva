@@ -6,9 +6,6 @@
 
 #include <pv/current_function.h>
 
-#define epicsExportSharedSymbols
-#include <shareLib.h>
-
 #include "pvalink.h"
 
 

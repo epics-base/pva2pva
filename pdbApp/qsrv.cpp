@@ -18,8 +18,6 @@
 #include <pv/serverContext.h>
 #include <pv/iocshelper.h>
 
-#define epicsExportSharedSymbols
-
 #include "pv/qsrv.h"
 #include "pvahelper.h"
 #include "pvif.h"
