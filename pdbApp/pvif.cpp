@@ -88,11 +88,11 @@ void ASCred::update(const pva::ChannelRequester::shared_pointer& req)
             usertemp = info->authority + "/" + info->account;
         }
 
-        static const char role[] = "role/";
+        const char role[] = "role/";
 
         groups.resize(info->roles.size());
         size_t idx = 0u;
-        for(pva::PeerInfo::roles_t::iterator it(info->roles.begin()), end(info->roles.end()); it!=end; ++it, idx++) {
+        for(pva::PeerInfo::roles_t::const_iterator it(info->roles.begin()), end(info->roles.end()); it!=end; ++it, idx++) {
             groups[idx].resize((*it).size()+sizeof(role)); // sizeof(role) includes trailing nil
             std::copy(role,
                       role+sizeof(role)-1,
@@ -109,7 +109,7 @@ void ASCred::update(const pva::ChannelRequester::shared_pointer& req)
     }
 
     // remote names have the form "IP:port"
-    size_t sep = hosttemp.find_first_of(":");
+    size_t sep = hosttemp.find_first_of(':');
     if(sep == std::string::npos) {
         sep = hosttemp.size();
     }
