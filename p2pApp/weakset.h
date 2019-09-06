@@ -94,7 +94,7 @@ private:
         mutex_type mutex;
         store_t store;
     };
-    std::tr1::shared_ptr<data> m_data;
+    std::tr1::shared_ptr<data> _data;
 
     //! Destroyer for a chained shared_ptr
     //! which holds the unique() real strong
@@ -131,7 +131,7 @@ private:
     };
 public:
     //! Construct a new empty set
-    weak_set() :m_data(new data) {}
+    weak_set() :_data(new data) {}
 
 private:
     //! Not copyable
@@ -143,22 +143,22 @@ public:
     //! exchange the two sets.
     //! @warning Not thread safe (exchanges mutexes as well)
     void swap(weak_set& O) {
-        m_data.swap(O.m_data);
+        _data.swap(O._data);
     }
 
     //! Remove all (weak) entries from the set
     //! @note Thread safe
     void clear() {
-        guard_type G(m_data->mutex);
-        return m_data->store.clear();
+        guard_type G(_data->mutex);
+        return _data->store.clear();
     }
 
     //! Test if set is empty
     //! @note Thread safe
     //! @warning see size()
     bool empty() const {
-        guard_type G(m_data->mutex);
-        return m_data->store.empty();
+        guard_type G(_data->mutex);
+        return _data->store.empty();
     }
 
     //! number of entries in the set at this moment
@@ -166,8 +166,8 @@ public:
     //! @warning May be momentarily inaccurate (larger) due to dead refs.
     //!          which have not yet been removed.
     size_t size() const {
-        guard_type G(m_data->mutex);
-        return m_data->store.size();
+        guard_type G(_data->mutex);
+        return _data->store.size();
     }
 
     //! Insert a new entry into the set
@@ -178,8 +178,8 @@ public:
     //! Remove any (weak) ref to this object from the set
     //! @returns the number of objects removed (0 or 1)
     size_t erase(value_pointer& v) {
-        guard_type G(m_data->mutex);
-        return m_data->store.erase(v);
+        guard_type G(_data->mutex);
+        return _data->store.erase(v);
     }
 
     //! Return a set of strong references to all entries
@@ -197,7 +197,7 @@ public:
     //! for use with batch operations.
     //! @warning Use caution when swap()ing while holding this lock!
     inline epicsMutex& mutex() const {
-        return m_data->mutex;
+        return _data->mutex;
     }
 
     //! an iterator-ish object which also locks the set during iteration
@@ -205,7 +205,7 @@ public:
         weak_set& set;
         epicsGuard<epicsMutex> guard;
         typename store_t::iterator it, end;
-        XIterator(weak_set& S) :set(S), guard(S.mutex()), it(S.m_data->store.begin()), end(S.m_data->store.end()) {}
+        XIterator(weak_set& S) :set(S), guard(S.mutex()), it(S._data->store.begin()), end(S._data->store.end()) {}
         //! yield the next live entry
         value_pointer next() {
             value_pointer ret;
@@ -229,14 +229,14 @@ void weak_set<T>::insert(value_pointer &v)
     if(!v.unique())
         throw std::invalid_argument("Only unique() references may be inserted");
 
-    guard_type G(m_data->mutex);
-    typename store_t::const_iterator it = m_data->store.find(v);
-    if(it==m_data->store.end()) { // new object
+    guard_type G(_data->mutex);
+    typename store_t::const_iterator it = _data->store.find(v);
+    if(it==_data->store.end()) { // new object
 
         // wrapped strong ref. which removes from our map
-        value_pointer chainptr(v.get(), dtor(m_data, v));
+        value_pointer chainptr(v.get(), dtor(_data, v));
 
-        m_data->store.insert(chainptr);
+        _data->store.insert(chainptr);
 
         v.swap(chainptr); // we only keep the chained pointer
     } else {
@@ -253,9 +253,9 @@ typename weak_set<T>::set_type
 weak_set<T>::lock_set() const
 {
     set_type ret;
-    guard_type G(m_data->mutex);
-    for(typename store_t::const_iterator it=m_data->store.begin(),
-        end=m_data->store.end(); it!=end; ++it)
+    guard_type G(_data->mutex);
+    for(typename store_t::const_iterator it=_data->store.begin(),
+        end=_data->store.end(); it!=end; ++it)
     {
         value_pointer P(it->lock());
         if(P) ret.insert(P);
@@ -275,10 +275,10 @@ weak_set<T>::lock_vector() const
 template<typename T>
 void weak_set<T>::lock_vector(vector_type& ret) const
 {
-    guard_type G(m_data->mutex);
-    ret.reserve(m_data->store.size());
-    for(typename store_t::const_iterator it=m_data->store.begin(),
-        end=m_data->store.end(); it!=end; ++it)
+    guard_type G(_data->mutex);
+    ret.reserve(_data->store.size());
+    for(typename store_t::const_iterator it=_data->store.begin(),
+        end=_data->store.end(); it!=end; ++it)
     {
         value_pointer P(it->lock());
         if(P) ret.push_back(P);

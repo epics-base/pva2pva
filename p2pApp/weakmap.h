@@ -75,7 +75,7 @@ private:
         mutex_type mutex;
         store_t store;
     };
-    std::tr1::shared_ptr<data> m_data;
+    std::tr1::shared_ptr<data> _data;
 
     struct dtor {
         std::tr1::weak_ptr<data> container;
@@ -110,7 +110,7 @@ private:
     };
 public:
     //! Construct a new empty set
-    weak_value_map() :m_data(new data) {}
+    weak_value_map() :_data(new data) {}
 
 private:
     //! Not copyable
@@ -122,22 +122,22 @@ public:
     //! exchange the two sets.
     //! @warning Not thread safe (exchanges mutexes as well)
     void swap(weak_value_map& O) {
-        m_data.swap(O.m_data);
+        _data.swap(O._data);
     }
 
     //! Remove all (weak) entries from the set
     //! @note Thread safe
     void clear() {
-        guard_type G(m_data->mutex);
-        return m_data->store.clear();
+        guard_type G(_data->mutex);
+        return _data->store.clear();
     }
 
     //! Test if set is empty at this moment
     //! @note Thread safe
     //! @warning see size()
     bool empty() const {
-        guard_type G(m_data->mutex);
-        return m_data->store.empty();
+        guard_type G(_data->mutex);
+        return _data->store.empty();
     }
 
     //! number of entries in the set at this moment
@@ -145,8 +145,8 @@ public:
     //! @warning May be momentarily inaccurate (larger) due to dead refs.
     //!          which have not yet been removed.
     size_t size() const {
-        guard_type G(m_data->mutex);
-        return m_data->store.size();
+        guard_type G(_data->mutex);
+        return _data->store.size();
     }
 
     //! proxy class for lookup of non-const
@@ -167,8 +167,8 @@ public:
         {
             if(!v.unique())
                 throw std::invalid_argument("Only unique() references may be inserted");
-            value_pointer chainptr(v.get(), dtor(M.m_data, k, v));
-            M.m_data->store[k] = chainptr;
+            value_pointer chainptr(v.get(), dtor(M._data, k, v));
+            M._data->store[k] = chainptr;
             v.swap(chainptr);
             return v;
         }
@@ -215,9 +215,9 @@ public:
     value_pointer find(const K& k) const
     {
         value_pointer ret;
-        guard_type G(m_data->mutex);
-        typename store_t::const_iterator it(m_data->store.find(k));
-        if(it!=m_data->store.end()) {
+        guard_type G(_data->mutex);
+        typename store_t::const_iterator it(_data->store.find(k));
+        if(it!=_data->store.end()) {
             // may be nullptr if we race destruction
             // as ref. count falls to zero before we can remove it
             ret = it->second.lock();
@@ -230,9 +230,9 @@ public:
     value_pointer insert(const K& k, value_pointer& v)
     {
         value_pointer ret;
-        guard_type G(m_data->mutex);
-        typename store_t::const_iterator it = m_data->store.find(k);
-        if(it!=m_data->store.end())
+        guard_type G(_data->mutex);
+        typename store_t::const_iterator it = _data->store.find(k);
+        if(it!=_data->store.end())
             ret = it->second.lock();
         (*this)[k] = v;
         return ret;
@@ -243,9 +243,9 @@ public:
     lock_map_type lock_map() const
     {
         lock_map_type ret;
-        guard_type G(m_data->mutex);
-        for(typename store_t::const_iterator it = m_data->store.begin(),
-            end = m_data->store.end(); it!=end; ++it)
+        guard_type G(_data->mutex);
+        for(typename store_t::const_iterator it = _data->store.begin(),
+            end = _data->store.end(); it!=end; ++it)
         {
             value_pointer P(it->second.lock);
             if(P) ret[it->first] = P;
@@ -259,10 +259,10 @@ public:
     lock_vector_type lock_vector() const
     {
         lock_vector_type ret;
-        guard_type G(m_data->mutex);
-        ret.reserve(m_data->store.size());
-        for(typename store_t::const_iterator it = m_data->store.begin(),
-            end = m_data->store.end(); it!=end; ++it)
+        guard_type G(_data->mutex);
+        ret.reserve(_data->store.size());
+        for(typename store_t::const_iterator it = _data->store.begin(),
+            end = _data->store.end(); it!=end; ++it)
         {
             value_pointer P(it->second.lock());
             if(P) ret.push_back(std::make_pair(it->first, P));
@@ -274,7 +274,7 @@ public:
     //! for use with batch operations.
     //! @warning Use caution when swap()ing while holding this lock!
     inline epicsMutex& mutex() const {
-        return m_data->mutex;
+        return _data->mutex;
     }
 };
 
