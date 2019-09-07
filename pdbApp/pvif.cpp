@@ -3,7 +3,6 @@
 #include <pv/pvIntrospect.h> /* for pvdVersion.h */
 #include <pv/standardField.h>
 
-#include <osiSock.h>
 #include <dbAccess.h>
 #include <dbChannel.h>
 #include <dbStaticLib.h>
@@ -13,6 +12,7 @@
 #include <errSymTbl.h>
 #include <epicsVersion.h>
 #include <errlog.h>
+#include <osiSock.h>
 
 #include <pv/status.h>
 #include <pv/bitSet.h>

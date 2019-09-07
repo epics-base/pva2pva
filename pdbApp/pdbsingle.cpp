@@ -2,13 +2,13 @@
 
 #include <string.h>
 
-#include <osiSock.h>
 #include <dbAccess.h>
 #include <dbChannel.h>
 #include <dbStaticLib.h>
 #include <epicsAtomic.h>
 #include <errlog.h>
 #include <dbNotify.h>
+#include <osiSock.h>
 
 #include <pv/epicsException.h>
 #include <pv/pvAccess.h>
