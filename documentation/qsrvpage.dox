@@ -166,7 +166,7 @@ record(ai, "...") {
 
 QSRV will enforce an optional access control policy file (.acf) loaded by the usual means (cf. asSetFilename() ).
 This policy is applied to both Single and Group PVs.  With Group PVs, restrictions are not defined for the group,
-but rather for the individual member records.  So the same policy will be applied regardess of how a record
+but rather for the individual member records.  The same policy will be applied regardess of how a record
 is accessed (individually, or through a group).
 
 Policy application differs from CA (RSRV) in several ways:
@@ -179,6 +179,16 @@ against the list of groups of which the client username is a member.  Username t
 to QSRV, and depends on IOC host authentication configuration.  Note that this is still based on the client provided
 username string.
 
+@code
+UAG(special) {
+  someone, "role/op"
+}
+@endcode
+
+The "special" UAG will match CA or PVA clients with the username "someone".
+It will also match a PVA client if the client provided username is a member
+of the "op" group (supported on POSIX targets and Windows).
+
 @subsection qsrv_link PVAccess Links
 
 When built against Base >= 3.16.1, support is enabled for PVAccess links,
@@ -186,8 +196,6 @@ which are analogous to Channel Access (CA) links.  However, the syntax
 for PVA links is quite different.
 
 @note The "dbjlr" and "dbpvar" IOC shell command provide information about PVA links in a running IOC.
-
-@warning The PVA Link syntax shown below is provisional and subject to change.
 
 A simple configuration using defaults is
 
