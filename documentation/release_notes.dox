@@ -2,6 +2,13 @@
 
 @page release_notes Release Notes
 
+Release 1.2.2 (Nov 2019)
+========================
+
+- Changes
+ - Enforce Access Security policy.
+ - NTEnum .value field add missing "enum_t" type ID string.
+
 Release 1.2.1 (July 2019)
 =========================
 
