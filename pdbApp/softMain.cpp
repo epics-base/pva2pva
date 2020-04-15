@@ -9,12 +9,12 @@
 
 /* Copyed from EPICS Base 3.16 branch */
 
-/* Author: Andrew Johnson	Date: 2003-04-08 */
+/* Author: Andrew Johnson       Date: 2003-04-08 */
 
 /* Usage:
  *  softIoc [-D softIoc.dbd] [-h] [-S] [-s] [-a ascf]
- *	[-m macro=value,macro2=value2] [-d file.db]
- *	[-x prefix] [st.cmd]
+ *      [-m macro=value,macro2=value2] [-d file.db]
+ *      [-x prefix] [st.cmd]
  *
  *  If used the -D option must come first, and specify the
  *  path to the softIoc.dbd file.  The compile-time install
@@ -114,133 +114,133 @@ int main(int argc, char *argv[])
     char *dbd_file = const_cast<char*>(base_dbd);
     char *macros = NULL;
     char xmacro[PVNAME_STRINGSZ + 4];
-    int startIocsh = 1;	/* default = start shell */
+    int startIocsh = 1; /* default = start shell */
     int loadedDb = 0;
     
     arg0 = strrchr(*argv, '/');
     if (!arg0) {
-	arg0 = *argv;
+        arg0 = *argv;
     } else {
-	++arg0;	/* skip the '/' */
+        ++arg0; /* skip the '/' */
     }
     
     --argc, ++argv;
     
     /* Do this here in case the dbd file not available */
     if (argc>0 && **argv=='-' && (*argv)[1]=='h') {
-	usage(EXIT_SUCCESS);
+        usage(EXIT_SUCCESS);
     }
     
     if (argc>1 && **argv=='-' && (*argv)[1]=='D') {
-	dbd_file = *++argv;
-	argc -= 2;
-	++argv;
+        dbd_file = *++argv;
+        argc -= 2;
+        ++argv;
     }
     
     if (dbLoadDatabase(dbd_file, NULL, NULL)) {
-	epicsExit(EXIT_FAILURE);
+        epicsExit(EXIT_FAILURE);
     }
     
     softIocPVA_registerRecordDeviceDriver(pdbbase);
     registryFunctionAdd("exit", (REGISTRYFUNCTION) exitSubroutine);
 
     while (argc>1 && **argv == '-') {
-	switch ((*argv)[1]) {
-	case 'a':
-	    if (macros) asSetSubstitutions(macros);
-	    asSetFilename(*++argv);
-	    --argc;
-	    break;
-	
-	case 'd':
-	    if (dbLoadRecords(*++argv, macros)) {
-		epicsExit(EXIT_FAILURE);
-	    }
-	    loadedDb = 1;
-	    --argc;
-	    break;
-	
-	case 'h':
-	    usage(EXIT_SUCCESS);
-	
-	case 'm':
-	    macros = *++argv;
-	    --argc;
-	    break;
-	
-	case 'S':
-	    startIocsh = 0;
-	    break;
-	
-	case 's':
-	    break;
-	
-	case 'x':
-	    epicsSnprintf(xmacro, sizeof xmacro, "IOC=%s", *++argv);
-	    if (dbLoadRecords(exit_db, xmacro)) {
-		epicsExit(EXIT_FAILURE);
-	    }
-	    loadedDb = 1;
-	    --argc;
-	    break;
-	
-	default:
-	    printf("%s: option '%s' not recognized\n", arg0, *argv);
-	    usage(EXIT_FAILURE);
-	}
-	--argc;
-	++argv;
+        switch ((*argv)[1]) {
+        case 'a':
+            if (macros) asSetSubstitutions(macros);
+            asSetFilename(*++argv);
+            --argc;
+            break;
+        
+        case 'd':
+            if (dbLoadRecords(*++argv, macros)) {
+                epicsExit(EXIT_FAILURE);
+            }
+            loadedDb = 1;
+            --argc;
+            break;
+        
+        case 'h':
+            usage(EXIT_SUCCESS);
+        
+        case 'm':
+            macros = *++argv;
+            --argc;
+            break;
+        
+        case 'S':
+            startIocsh = 0;
+            break;
+        
+        case 's':
+            break;
+        
+        case 'x':
+            epicsSnprintf(xmacro, sizeof xmacro, "IOC=%s", *++argv);
+            if (dbLoadRecords(exit_db, xmacro)) {
+                epicsExit(EXIT_FAILURE);
+            }
+            loadedDb = 1;
+            --argc;
+            break;
+        
+        default:
+            printf("%s: option '%s' not recognized\n", arg0, *argv);
+            usage(EXIT_FAILURE);
+        }
+        --argc;
+        ++argv;
     }
     
     if (argc>0 && **argv=='-') {
-	switch((*argv)[1]) {
-	case 'a':
-	case 'd':
-	case 'm':
-	case 'x':
-	    printf("%s: missing argument to option '%s'\n", arg0, *argv);
-	    usage(EXIT_FAILURE);
-	
-	case 'h':
-	    usage(EXIT_SUCCESS);
-	
-	case 'S':
-	    startIocsh = 0;
-	    break;
-	
-	case 's':
-	    break;
-	
-	default:
-	    printf("%s: option '%s' not recognized\n", arg0, *argv);
-	    usage(EXIT_FAILURE);
-	}
-	--argc;
-	++argv;
+        switch((*argv)[1]) {
+        case 'a':
+        case 'd':
+        case 'm':
+        case 'x':
+            printf("%s: missing argument to option '%s'\n", arg0, *argv);
+            usage(EXIT_FAILURE);
+        
+        case 'h':
+            usage(EXIT_SUCCESS);
+        
+        case 'S':
+            startIocsh = 0;
+            break;
+        
+        case 's':
+            break;
+        
+        default:
+            printf("%s: option '%s' not recognized\n", arg0, *argv);
+            usage(EXIT_FAILURE);
+        }
+        --argc;
+        ++argv;
     }
     
     if (loadedDb) {
-	iocInit();
-	epicsThreadSleep(0.2);
+        iocInit();
+        epicsThreadSleep(0.2);
     }
     
     /* run user's startup script */
     if (argc>0) {
-	if (iocsh(*argv)) epicsExit(EXIT_FAILURE);
-	epicsThreadSleep(0.2);
-	loadedDb = 1;	/* Give it the benefit of the doubt... */
+        if (iocsh(*argv)) epicsExit(EXIT_FAILURE);
+        epicsThreadSleep(0.2);
+        loadedDb = 1;   /* Give it the benefit of the doubt... */
     }
     
     /* start an interactive shell if it was requested */
     if (startIocsh) {
-	iocsh(NULL);
+        iocsh(NULL);
     } else {
-	if (loadedDb) {
-	    epicsThreadExitMain();
-	} else {
-	    printf("%s: Nothing to do!\n", arg0);
-	    usage(EXIT_FAILURE);
-	}
+        if (loadedDb) {
+            epicsThreadExitMain();
+        } else {
+            printf("%s: Nothing to do!\n", arg0);
+            usage(EXIT_FAILURE);
+        }
     }
     epicsExit(EXIT_SUCCESS);
     /*Note that the following statement will never be executed*/

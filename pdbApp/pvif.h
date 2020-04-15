@@ -50,23 +50,23 @@ long copyDBF2PVD(const epics::pvData::shared_vector<const void>& buf,
                  const epics::pvData::PVStringArray::const_svector& choices);
 
 union dbrbuf {
-        epicsInt8		dbf_CHAR;
-        epicsUInt8		dbf_UCHAR;
-        epicsInt16		dbf_SHORT;
-        epicsUInt16		dbf_USHORT;
-        epicsEnum16		dbf_ENUM;
-        epicsInt32		dbf_LONG;
-        epicsUInt32		dbf_ULONG;
-        epicsFloat32	dbf_FLOAT;
-        epicsFloat64    dbf_DOUBLE;
+    epicsInt8       dbf_CHAR;
+    epicsUInt8      dbf_UCHAR;
+    epicsInt16      dbf_SHORT;
+    epicsUInt16     dbf_USHORT;
+    epicsEnum16     dbf_ENUM;
+    epicsInt32      dbf_LONG;
+    epicsUInt32     dbf_ULONG;
+    epicsFloat32    dbf_FLOAT;
+    epicsFloat64    dbf_DOUBLE;
 
 #ifdef EPICS_VERSION_INT
 #  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
-        epicsInt64      dbf_INT64;
-        epicsUInt64     dbf_UINT64;
+    epicsInt64      dbf_INT64;
+    epicsUInt64     dbf_UINT64;
 #  endif
 #endif
-        char		dbf_STRING[MAX_STRING_SIZE];
+    char            dbf_STRING[MAX_STRING_SIZE];
 };
 
 struct QSRV_API DBCH {
