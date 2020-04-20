@@ -264,6 +264,7 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
     FMAP(message, PVString, "alarm.message", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
+    FMAP(userTag, PVInt, "timeStamp.userTag", ALWAYS);
 #undef FMAP
 }
 
@@ -330,10 +331,13 @@ void attachAll(PVX& pvm, const pvd::PVStructurePtr& pv)
 
 void mapStatus(unsigned code, pvd::PVInt* status, pvd::PVString* message)
 {
-    if(code<ALARM_NSTATUS)
+    if(!message) {
+        // no-op
+    } else if(code<ALARM_NSTATUS) {
         message->put(epicsAlarmConditionStrings[code]);
-    else
+    } else {
         message->put("???");
+    }
 
     // Arbitrary mapping from DB status codes
     unsigned out;
@@ -385,6 +389,8 @@ void putMetaImpl(const pvTimeAlarm& pv, const META& meta)
     if(pv.nsecMask) {
         pv.userTag->put(nsec&pv.nsecMask);
         nsec &= ~pv.nsecMask;
+    } else {
+        pv.userTag->put(meta.utag);
     }
     pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
 }
@@ -400,8 +406,10 @@ void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
 
     putMetaImpl(pv, meta);
     if(dbe&DBE_ALARM) {
-        mapStatus(meta.status, pv.status.get(), pv.message.get());
+        mapStatus(meta.status, pv.status.get(), meta.amsg[0]!='\0' ? NULL : pv.message.get());
         pv.severity->put(meta.severity);
+        if(meta.amsg[0]!='\0')
+            pv.message->put(meta.amsg);
     }
 }
 
@@ -546,8 +554,10 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     putMetaImpl(pv, meta);
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
     if(dbe&DBE_ALARM) {
-        mapStatus(meta.status, pv.status.get(), pv.message.get());
+        mapStatus(meta.status, pv.status.get(), meta.amsg[0]!='\0' ? NULL : pv.message.get());
         FMAP(severity, severity);
+        if(meta.amsg[0]!='\0')
+            pv.message->put(meta.amsg);
     }
     if(dbe&DBE_PROPERTY) {
 #undef FMAP
@@ -607,7 +617,6 @@ void findNSMask(pvTimeAlarm& pvmeta, pdbRecordIterator& info, const epics::pvDat
         }
     }
     if(pvmeta.nsecMask>0 && pvmeta.nsecMask<=32) {
-        pvmeta.userTag = pvalue->getSubField<pvd::PVInt>("timeStamp.userTag");
         if(!pvmeta.userTag) {
             pvmeta.nsecMask = 0; // struct doesn't have userTag
         } else {
