@@ -139,7 +139,7 @@ GWServerChannelProvider::shared_pointer configure_client(ServerConfig& arg, cons
 
     pva::Configuration::shared_pointer C(pva::ConfigurationBuilder()
                                          .add("EPICS_PVA_ADDR_LIST", conf->getSubFieldT<pvd::PVString>("addrlist")->get())
-                                         .add("EPICS_PVA_AUTO_ADDR_LIST", conf->getSubFieldT<pvd::PVBoolean>("autoaddrlist")->get())
+                                         .add("EPICS_PVA_AUTO_ADDR_LIST", conf->getSubFieldT<pvd::PVScalar>("autoaddrlist")->getAs<std::string>())
                                          .add("EPICS_PVA_SERVER_PORT", conf->getSubFieldT<pvd::PVScalar>("serverport")->getAs<pvd::uint16>())
                                          .add("EPICS_PVA_BROADCAST_PORT", conf->getSubFieldT<pvd::PVScalar>("bcastport")->getAs<pvd::uint16>())
                                          .add("EPICS_PVA_DEBUG", arg.debug>=5 ? 5 : 0)
@@ -163,7 +163,7 @@ pva::ServerContext::shared_pointer configure_server(ServerConfig& arg, const pvd
     pva::Configuration::shared_pointer C(pva::ConfigurationBuilder()
                                          .add("EPICS_PVAS_INTF_ADDR_LIST", conf->getSubFieldT<pvd::PVString>("interface")->get())
                                          .add("EPICS_PVAS_BEACON_ADDR_LIST", conf->getSubFieldT<pvd::PVString>("addrlist")->get())
-                                         .add("EPICS_PVAS_AUTO_BEACON_ADDR_LIST", conf->getSubFieldT<pvd::PVBoolean>("autoaddrlist")->get())
+                                         .add("EPICS_PVAS_AUTO_BEACON_ADDR_LIST", conf->getSubFieldT<pvd::PVScalar>("autoaddrlist")->getAs<std::string>())
                                          .add("EPICS_PVAS_SERVER_PORT", conf->getSubFieldT<pvd::PVScalar>("serverport")->getAs<pvd::uint16>())
                                          .add("EPICS_PVAS_BROADCAST_PORT", conf->getSubFieldT<pvd::PVScalar>("bcastport")->getAs<pvd::uint16>())
                                          .add("EPICS_PVA_DEBUG", arg.debug>=5 ? 5 : 0)
