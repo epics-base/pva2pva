@@ -14,3 +14,5 @@ variable(PDBProviderDebug, int)
 # Number of worker threads for handling monitor updates.
 # Default: 1
 variable(pvaLinkNWorkers, int)
+
+include "svectorinRecord.dbd"

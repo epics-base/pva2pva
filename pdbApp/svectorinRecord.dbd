@@ -1,0 +1,74 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+
+include "menuFtype.dbd"
+
+recordtype(svectorin) {
+    include "dbCommon.dbd"
+    %/* Declare Device Support Entry Table */
+    %#include <string>
+    %#include <dbAccess.h>
+    %#include <pv/sharedVector.h>
+    %#include <shareLib.h>
+    %#include <pv/qsrv.h>
+    %#ifdef __cplusplus
+    %extern "C" {
+    %#endif
+    %QSRV_API extern const VFieldType vfSharedVector;
+    %struct VSharedVector {
+    %    const VFieldType* vtype;
+    %    epics::pvData::shared_vector<const void>* value;
+    %};
+    %typedef struct svectorindset {
+    %    dset common; /*init_record returns: (-1,0)=>(failure,success)*/
+    %    long (*read_sharedvector)(struct svectorinRecord *prec); /*returns: (-1,0)=>(failure,success)*/
+    %} svectorindset;
+    %#define HAS_svectorindset
+    %#ifdef __cplusplus
+    %}
+    %#endif
+    field(VAL,DBF_NOACCESS) {
+        prompt("Current Value")
+        promptgroup("40 - Input")
+        asl(ASL0)
+        pp(TRUE)
+        special(SPC_DBADDR)
+        extra("::epics::pvData::shared_vector<const void> val")
+    }
+    field(OVAL,DBF_NOACCESS) {
+        prompt("Previous Value")
+        interest(3)
+        special(SPC_DBADDR)
+        extra("::epics::pvData::shared_vector<const void> oval")
+    }
+    field(INP,DBF_INLINK) {
+        prompt("Input Specification")
+        promptgroup("40 - Input")
+        interest(1)
+    }
+    field(NELM,DBF_ULONG) {
+        prompt("Number of Elements")
+        promptgroup("30 - Action")
+        special(SPC_NOMOD)
+        interest(1)
+        initial("1")
+    }
+    field(FTVL,DBF_MENU) {
+        prompt("Field Type of Value")
+        promptgroup("30 - Action")
+        special(SPC_NOMOD)
+        interest(1)
+        menu(menuFtype)
+    }
+    field(STVL,DBF_NOACCESS) {
+        prompt("ScalarType of Value")
+        special(SPC_NOMOD)
+        interest(5)
+        extra("epics::pvData::ScalarType stvl")
+    }
+}
+
+device(svectorin, CONSTANT, devSVISoft, "Soft Channel")
