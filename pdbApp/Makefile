@@ -22,6 +22,8 @@ USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 INC += pv/qsrv.h
 INC += pv/qsrvVersionNum.h
 
+DBDINC += svectorinRecord
+
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
 EXPANDVARS += EPICS_QSRV_MINOR_VERSION
 EXPANDVARS += EPICS_QSRV_MAINTENANCE_VERSION
@@ -55,6 +57,9 @@ else
 qsrv_SRCS += pvalink_null.cpp
 endif
 
+qsrv_SRCS += svectorinRecord.c
+qsrv_SRCS += devSVInSoft.c
+
 qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
@@ -82,6 +87,7 @@ DB_INSTALLS += $(EPICS_BASE)/db/softIocExit.db
 endif
 
 softIocPVA_DBD += softIoc.dbd
+softIocPVA_DBD += svectorinRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
@@ -90,6 +96,10 @@ softIocPVA_DBD += qsrv.dbd
 include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
+
+# why is this not automatic!
+$(COMMON_DIR)/softIocPVA.dbd: ../svectorinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
 
 # Can't use EXPAND as generated headers must appear
 # in O.Common, but EXPAND emits rules for O.$(T_A)
@@ -101,12 +111,16 @@ qsrv$(DEP): ../O.Common/pv/qsrvVersionNum.h
 pvalink$(DEP): ../O.Common/pv/qsrvVersionNum.h
 
 ifdef BASE_3_16
-../O.Common/qsrv.dbd: ../qsrv-new.dbd
-	$(CP) $< $@
+QSRVDBD = ../qsrv-new.dbd
 else
-../O.Common/qsrv.dbd: ../qsrv-old.dbd
-	$(CP) $< $@
+QSRVDBD = ../qsrv-old.dbd
 endif
+
+$(QSRVDBD) : ../svectorinRecord.dbd
+
+../O.Common/qsrv.dbd: $(QSRVDBD)
+	$(CP) $< $@
+
 qsrv.dbd$(DEP):
 	@$(RM) $@
 	@echo "$(COMMONDEP_TARGET): ../Makefile" > $@
