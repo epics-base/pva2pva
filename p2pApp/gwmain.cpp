@@ -258,6 +258,17 @@ int main(int argc, char *argv[])
         theserver = &arg;
         getargs(arg, argc, argv);
 
+        if(arg.debug>0)
+            std::cout<<"Notice: This p2p gateway prototype has been superceded by the p4p.gw gateway\n"
+                       "        which has exciting new features including granular access control,\n"
+                       "        and status PVs including bandwidth usage reports.\n"
+                       "        p2p is considered deprecated by its author, and will receive\n"
+                       "        minimal maintainance effort going forward.\n"
+                       "        Users are encouraged to migrate to p4p.gw.\n"
+                       "\n"
+                       "        https://mdavidsaver.github.io/p4p/gw.html\n"
+                       "\n";
+
         pva::pvAccessLogLevel lvl;
         if(arg.debug<0)
             lvl = pva::logLevelError;
