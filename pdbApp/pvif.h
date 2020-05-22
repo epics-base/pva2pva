@@ -378,6 +378,18 @@ private:
     PVIF& operator=(const PVIF&);
 };
 
+/** Factory for PVIF instances.
+ *
+ * Caller first passes a mapping type (eg. "scalar") to PVIFBuilder::create()
+ * to obtain a PVIFBuilder which may then by used to create PVIF instances
+ * for specific dbChannel.
+ *
+ * Caller than uses PVIFBuilder::dtype() to obtain (sub)Field descriptions.
+ * eg. more than one of these may be composed into an overall Structure description.
+ *
+ * Caller than creates a PVStructure and uses PVIFBuilder::attach() to
+ * build mappings for each dbChannel in the composed locations.
+ */
 struct QSRV_API PVIFBuilder {
 
     virtual ~PVIFBuilder() {}
@@ -394,6 +406,7 @@ struct QSRV_API PVIFBuilder {
     // must be the root structure
     virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root, const FieldName& fld) =0;
 
+    // entry point for Builder
     static PVIFBuilder* create(const std::string& name);
 protected:
     PVIFBuilder() {}
