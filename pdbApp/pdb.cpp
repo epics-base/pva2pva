@@ -100,8 +100,6 @@ struct PDBProcessor
     typedef std::map<std::string, GroupInfo> groups_t;
     groups_t groups;
 
-    GroupInfo *curgroup;
-
     // validate trigger mappings and process into bit map form
     void resolveTriggers()
     {
@@ -176,7 +174,7 @@ struct PDBProcessor
         }
     }
 
-    PDBProcessor() : curgroup(NULL)
+    PDBProcessor()
     {
         GroupConfig conf;
 
@@ -264,7 +262,8 @@ struct PDBProcessor
                     std::pair<groups_t::iterator, bool> ins(groups.insert(std::make_pair(grpname, GroupInfo(grpname))));
                     it = ins.first;
                 }
-                curgroup = &it->second;
+                GroupInfo *curgroup = &it->second;
+
                 if(!grp.id.empty())
                     curgroup->structID = grp.id;
 
@@ -274,8 +273,7 @@ struct PDBProcessor
                     const std::string& fldname = fit->first;
                     const GroupConfig::Field& fld = fit->second;
 
-                    GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
-                    if(oldgrp!=curgroup->members_map.end()) {
+                    if(curgroup->members_map.find(fldname) != curgroup->members_map.end()) {
                         fprintf(stderr, "%s.%s Warning: ignoring duplicate mapping %s\n",
                                 grpname.c_str(), fldname.c_str(),
                                 fld.channel.c_str());
