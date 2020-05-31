@@ -96,7 +96,7 @@ void pdb_single_event(void *user_arg, struct dbChannel *chan,
 PDBSinglePV::PDBSinglePV(DBCH& chan,
             const PDBProvider::shared_pointer& prov)
     :provider(prov)
-    ,builder(new ScalarBuilder(chan.chan))
+    ,builder(PVIFBuilder::create(std::string(), chan.chan))
     ,interested_iterating(false)
     ,evt_VALUE(this)
     ,evt_PROPERTY(this)
