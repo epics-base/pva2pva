@@ -108,11 +108,11 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
         this->chan2.swap(temp);
     }
     this->chan.swap(chan);
-    fielddesc = std::tr1::static_pointer_cast<const pvd::Structure>(builder->dtype(this->chan));
+    fielddesc = std::tr1::static_pointer_cast<const pvd::Structure>(builder->dtype());
 
     complete = pvd::getPVDataCreate()->createPVStructure(fielddesc);
     FieldName temp;
-    pvif.reset(builder->attach(this->chan, complete, temp));
+    pvif.reset(builder->attach(complete, temp));
 
     epics::atomic::increment(num_instances);
 }
@@ -308,7 +308,7 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     ,requester(requester)
     ,changed(new pvd::BitSet(channel->fielddesc->getNumberFields()))
     ,pvf(pvd::getPVDataCreate()->createPVStructure(channel->fielddesc))
-    ,pvif(channel->pv->builder->attach(channel->pv->chan, pvf, FieldName()))
+    ,pvif(channel->pv->builder->attach(pvf, FieldName()))
     ,notifyBusy(0)
     ,doProc(PVIF::ProcPassive)
     ,doWait(false)
@@ -375,7 +375,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         // TODO: dbNotify doesn't allow us for force processing
 
         // assume value may be a different struct each time
-        p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value, FieldName()));
+        p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(value, FieldName()));
         unsigned mask = putpvif->dbe(*changed);
 
         if(mask!=DBE_VALUE) {
@@ -397,7 +397,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         return; // skip notification
     } else {
         // assume value may be a different struct each time
-        p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value, FieldName()));
+        p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(value, FieldName()));
         try{
             DBScanLocker L(chan);
             ret = putpvif->get(*changed, doProc);

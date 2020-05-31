@@ -450,9 +450,9 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                 std::tr1::shared_ptr<PVIFBuilder> pvifbuilder(PVIFBuilder::create(mem.type, chan.chan));
 
                 if(!parts.empty())
-                    builder = pvifbuilder->dtype(builder, parts.back().name, chan);
+                    builder = pvifbuilder->dtype(builder, parts.back().name);
                 else
-                    builder = pvifbuilder->dtype(builder, "", chan);
+                    builder = pvifbuilder->dtype(builder, "");
 
                 if(!parts.empty()) {
                     for(size_t j=0; j<parts.size()-1; j++)
@@ -561,7 +561,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                 info.evt_VALUE.self = info.evt_PROPERTY.self = pv;
                 assert(info.chan);
 
-                info.pvif.reset(info.builder->attach(info.chan, pv->complete, info.attachment));
+                info.pvif.reset(info.builder->attach(pv->complete, info.attachment));
 
                 // TODO: don't need evt_PROPERTY for PVIF plain
                 dbChannel *pchan = info.chan2.chan ? info.chan2.chan : info.chan.chan;

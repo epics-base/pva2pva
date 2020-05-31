@@ -334,7 +334,7 @@ PDBGroupPut::PDBGroupPut(const PDBGroupChannel::shared_pointer& channel,
     {
         PDBGroupPV::Info& info = channel->pv->members[i];
 
-        pvif[i].reset(info.builder->attach(info.chan, pvf, info.attachment));
+        pvif[i].reset(info.builder->attach(pvf, info.attachment));
     }
 }
 
@@ -355,7 +355,7 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
         PDBGroupPV::Info& info = channel->pv->members[i];
         if(!info.allowProc) continue;
 
-        putpvif[i].reset(info.builder->attach(info.chan, value, info.attachment));
+        putpvif[i].reset(info.builder->attach(value, info.attachment));
     }
 
     pvd::Status ret;

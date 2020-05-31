@@ -93,14 +93,14 @@ void testScalar()
         ScalarBuilder builder_ai_rval(chan_ai_rval);
         ScalarBuilder builder_mbbi(chan_mbbi);
 
-        pvd::FieldConstPtr dtype_li(builder_li.dtype(chan_li));
+        pvd::FieldConstPtr dtype_li(builder_li.dtype());
     #ifdef USE_INT64
-        pvd::FieldConstPtr dtype_i64(builder_i64.dtype(chan_i64));
+        pvd::FieldConstPtr dtype_i64(builder_i64.dtype());
     #endif
-        pvd::FieldConstPtr dtype_si(builder_si.dtype(chan_si));
-        pvd::FieldConstPtr dtype_ai(builder_ai.dtype(chan_ai));
-        pvd::FieldConstPtr dtype_ai_rval(builder_ai_rval.dtype(chan_ai_rval));
-        pvd::FieldConstPtr dtype_mbbi(builder_mbbi.dtype(chan_mbbi));
+        pvd::FieldConstPtr dtype_si(builder_si.dtype());
+        pvd::FieldConstPtr dtype_ai(builder_ai.dtype());
+        pvd::FieldConstPtr dtype_ai_rval(builder_ai_rval.dtype());
+        pvd::FieldConstPtr dtype_mbbi(builder_mbbi.dtype());
 
         pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                           ->add("li", dtype_li)
@@ -115,14 +115,14 @@ void testScalar()
 
         root = pvd::getPVDataCreate()->createPVStructure(dtype_root);
 
-        pvif_li.reset(builder_li.attach(chan_li, root, FieldName("li")));
+        pvif_li.reset(builder_li.attach(root, FieldName("li")));
     #ifdef USE_INT64
-        pvif_i64.reset(builder_i64.attach(chan_i64, root, FieldName("i64")));
+        pvif_i64.reset(builder_i64.attach(root, FieldName("i64")));
     #endif
-        pvif_si.reset(builder_si.attach(chan_si, root, FieldName("si")));
-        pvif_ai.reset(builder_ai.attach(chan_ai, root, FieldName("ai")));
-        pvif_ai_rval.reset(builder_ai_rval.attach(chan_ai_rval, root, FieldName("ai_rval")));
-        pvif_mbbi.reset(builder_mbbi.attach(chan_mbbi, root, FieldName("mbbi")));
+        pvif_si.reset(builder_si.attach(root, FieldName("si")));
+        pvif_ai.reset(builder_ai.attach(root, FieldName("ai")));
+        pvif_ai_rval.reset(builder_ai_rval.attach(root, FieldName("ai_rval")));
+        pvif_mbbi.reset(builder_mbbi.attach(root, FieldName("mbbi")));
     }
 
     testShow()<<"Entire structure\n"<<root;
@@ -453,10 +453,10 @@ void testPlain()
         p2p::auto_ptr<PVIFBuilder> builder_ai(PVIFBuilder::create("plain", chan_ai));
         p2p::auto_ptr<PVIFBuilder> builder_mbbi(PVIFBuilder::create("plain", chan_mbbi));
 
-        pvd::FieldConstPtr dtype_li(builder_li->dtype(chan_li));
-        pvd::FieldConstPtr dtype_si(builder_si->dtype(chan_si));
-        pvd::FieldConstPtr dtype_ai(builder_ai->dtype(chan_ai));
-        pvd::FieldConstPtr dtype_mbbi(builder_mbbi->dtype(chan_mbbi));
+        pvd::FieldConstPtr dtype_li(builder_li->dtype());
+        pvd::FieldConstPtr dtype_si(builder_si->dtype());
+        pvd::FieldConstPtr dtype_ai(builder_ai->dtype());
+        pvd::FieldConstPtr dtype_mbbi(builder_mbbi->dtype());
 
         pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
                                           ->add("li", dtype_li)
@@ -467,10 +467,10 @@ void testPlain()
 
         root = pvd::getPVDataCreate()->createPVStructure(dtype_root);
 
-        pvif_li.reset(builder_li->attach(chan_li, root, FieldName("li")));
-        pvif_si.reset(builder_si->attach(chan_si, root, FieldName("si")));
-        pvif_ai.reset(builder_ai->attach(chan_ai, root, FieldName("ai")));
-        pvif_mbbi.reset(builder_mbbi->attach(chan_mbbi, root, FieldName("mbbi")));
+        pvif_li.reset(builder_li->attach(root, FieldName("li")));
+        pvif_si.reset(builder_si->attach(root, FieldName("si")));
+        pvif_ai.reset(builder_ai->attach(root, FieldName("ai")));
+        pvif_mbbi.reset(builder_mbbi->attach(root, FieldName("mbbi")));
     }
 
     pvd::BitSet mask;
