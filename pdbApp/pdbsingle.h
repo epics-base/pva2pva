@@ -16,8 +16,6 @@
 #include "pvif.h"
 #include "pdb.h"
 
-#include <shareLib.h>
-
 struct PDBSingleMonitor;
 
 struct QSRV_API PDBSinglePV : public PDBPV

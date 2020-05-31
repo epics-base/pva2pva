@@ -8,7 +8,7 @@
 
 #include "weakmap.h"
 
-#include <shareLib.h>
+#include <pv/qsrv.h>
 
 struct PDBProvider;
 

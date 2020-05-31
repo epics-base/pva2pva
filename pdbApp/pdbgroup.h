@@ -17,8 +17,6 @@
 #include "pvif.h"
 #include "pdb.h"
 
-#include <shareLib.h>
-
 struct QSRV_API GroupConfig
 {
     struct QSRV_API Field {

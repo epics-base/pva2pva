@@ -13,8 +13,6 @@
 
 #include <pv/sharedPtr.h>
 
-#include <shareLib.h>
-
 struct WorkQueue : private epicsThreadRunable
 {
     typedef std::tr1::weak_ptr<epicsThreadRunable> value_type;

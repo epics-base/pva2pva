@@ -5,8 +5,6 @@
 
 #include <pv/pvAccess.h>
 
-#include <shareLib.h>
-
 typedef epicsGuard<epicsMutex> Guard;
 typedef epicsGuardRelease<epicsMutex> UnGuard;
 

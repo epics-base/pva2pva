@@ -3,8 +3,6 @@
 
 #include <pv/pvAccess.h>
 
-#include <shareLib.h>
-
 #include "chancache.h"
 
 struct GWChannel : public epics::pvAccess::Channel

@@ -14,8 +14,6 @@
 #include "weakmap.h"
 #include "weakset.h"
 
-#include <shareLib.h>
-
 struct ChannelCache;
 struct ChannelCacheEntry;
 struct MonitorUser;

@@ -6,8 +6,6 @@
 #include "chancache.h"
 #include "channel.h"
 
-#include <shareLib.h>
-
 struct GWServerChannelProvider :
         public epics::pvAccess::ChannelProvider,
         public epics::pvAccess::ChannelFind,

@@ -16,8 +16,6 @@
 #include "weakmap.h"
 #include "weakset.h"
 
-#include <shareLib.h>
-
 struct TestPV;
 struct TestPVChannel;
 struct TestPVMonitor;
