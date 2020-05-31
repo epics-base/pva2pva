@@ -59,16 +59,14 @@ struct Splitter {
 };
 
 struct GroupMemberInfo {
-    // consumes builder
-    GroupMemberInfo(const std::string& a, const std::string& b, const std::tr1::shared_ptr<PVIFBuilder>& builder)
-        :pvname(a), pvfldname(b), builder(builder), putorder(0) {}
+    GroupMemberInfo() :putorder(0) {}
 
     std::string pvname, // aka. name passed to dbChannelOpen()
                 pvfldname; // PVStructure sub-field
     std::string structID; // ID to assign to sub-field
+    std::string type; // mapping type
     typedef std::set<std::string> triggers_t;
     triggers_t triggers; // names in GroupInfo::members_names which are post()d on events from pvfldname
-    std::tr1::shared_ptr<PVIFBuilder> builder; // not actually shared, but allows us to be copyable
     int putorder;
 
     bool operator<(const GroupMemberInfo& o) const {
@@ -280,11 +278,13 @@ struct PDBProcessor
                         continue;
                     }
 
-                    std::tr1::shared_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
-
-                    curgroup->members.push_back(GroupMemberInfo(fld.channel, fldname, builder));
-                    curgroup->members.back().structID = fld.id;
-                    curgroup->members.back().putorder = fld.putorder;
+                    curgroup->members.push_back(GroupMemberInfo());
+                    GroupMemberInfo& info = curgroup->members.back();
+                    info.pvname = fld.channel;
+                    info.pvfldname = fldname;
+                    info.structID = fld.id;
+                    info.putorder = fld.putorder;
+                    info.type = fld.type;
                     curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below
 
                     if(PDBProviderDebug>2) {
@@ -447,10 +447,12 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                     chan.swap(temp);
                 }
 
+                std::tr1::shared_ptr<PVIFBuilder> pvifbuilder(PVIFBuilder::create(mem.type));
+
                 if(!parts.empty())
-                    builder = mem.builder->dtype(builder, parts.back().name, chan);
+                    builder = pvifbuilder->dtype(builder, parts.back().name, chan);
                 else
-                    builder = mem.builder->dtype(builder, "", chan);
+                    builder = pvifbuilder->dtype(builder, "", chan);
 
                 if(!parts.empty()) {
                     for(size_t j=0; j<parts.size()-1; j++)
@@ -468,7 +470,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                     }
 
                     info.allowProc = mem.putorder != std::numeric_limits<int>::min();
-                    info.builder = PTRMOVE(mem.builder);
+                    info.builder = PTRMOVE(pvifbuilder);
                     assert(info.builder.get());
 
                     info.attachment.swap(parts);
