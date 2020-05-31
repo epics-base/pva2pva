@@ -950,6 +950,7 @@ struct PVIFPlain : public PVIF
 
 struct PlainBuilder : public PVIFBuilder
 {
+    explicit PlainBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
     virtual ~PlainBuilder() {}
 
     // fetch the structure description
@@ -990,6 +991,7 @@ struct PlainBuilder : public PVIFBuilder
 
 struct AnyScalarBuilder : public PVIFBuilder
 {
+    explicit AnyScalarBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
     virtual ~AnyScalarBuilder() {}
 
     // fetch the structure description
@@ -1088,6 +1090,7 @@ struct PVIFMeta : public PVIF
 
 struct MetaBuilder : public PVIFBuilder
 {
+    explicit MetaBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
     virtual ~MetaBuilder() {}
 
     // fetch the structure description
@@ -1152,6 +1155,9 @@ struct PVIFProc : public PVIF
 
 struct ProcBuilder : public PVIFBuilder
 {
+    explicit ProcBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
+    virtual ~ProcBuilder() {}
+
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL {
         throw std::logic_error("Don't call me");
@@ -1232,15 +1238,15 @@ PVIFBuilder::dtype(epics::pvData::FieldBuilderPtr& builder,
 PVIFBuilder* PVIFBuilder::create(const std::string& type, dbChannel* chan)
 {
     if(type.empty() || type=="scalar")
-        return new ScalarBuilder;
+        return new ScalarBuilder(chan);
     else if(type=="plain")
-        return new PlainBuilder;
+        return new PlainBuilder(chan);
     else if(type=="any")
-        return new AnyScalarBuilder;
+        return new AnyScalarBuilder(chan);
     else if(type=="meta")
-        return new MetaBuilder;
+        return new MetaBuilder(chan);
     else if(type=="proc")
-        return new ProcBuilder;
+        return new ProcBuilder(chan);
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
 }

@@ -390,7 +390,9 @@ private:
  * Caller than creates a PVStructure and uses PVIFBuilder::attach() to
  * build mappings for each dbChannel in the composed locations.
  */
-struct QSRV_API PVIFBuilder {
+struct QSRV_API PVIFBuilder
+{
+    dbChannel* const channel;
 
     virtual ~PVIFBuilder() {}
 
@@ -409,7 +411,7 @@ struct QSRV_API PVIFBuilder {
     // entry point for Builder
     static PVIFBuilder* create(const std::string& mapname, dbChannel* chan);
 protected:
-    PVIFBuilder() {}
+    explicit PVIFBuilder(dbChannel* chan) : channel(chan) {}
 private:
     PVIFBuilder(const PVIFBuilder&);
     PVIFBuilder& operator=(const PVIFBuilder&);
@@ -417,6 +419,7 @@ private:
 
 struct QSRV_API ScalarBuilder : public PVIFBuilder
 {
+    explicit ScalarBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
     virtual ~ScalarBuilder() {}
 
     virtual epics::pvData::FieldConstPtr dtype(dbChannel *channel) OVERRIDE FINAL;

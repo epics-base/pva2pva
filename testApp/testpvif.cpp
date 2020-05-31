@@ -74,38 +74,56 @@ void testScalar()
     testEqual(dbChannelFinalFieldType(chan_i64), DBR_INT64);
 #endif
 
-    ScalarBuilder builder;
-
-    pvd::FieldConstPtr dtype_li(builder.dtype(chan_li));
+    pvd::PVStructurePtr root;
+    p2p::auto_ptr<PVIF> pvif_li;
 #ifdef USE_INT64
-    pvd::FieldConstPtr dtype_i64(builder.dtype(chan_i64));
+    p2p::auto_ptr<PVIF> pvif_i64;
 #endif
-    pvd::FieldConstPtr dtype_si(builder.dtype(chan_si));
-    pvd::FieldConstPtr dtype_ai(builder.dtype(chan_ai));
-    pvd::FieldConstPtr dtype_ai_rval(builder.dtype(chan_ai_rval));
-    pvd::FieldConstPtr dtype_mbbi(builder.dtype(chan_mbbi));
-
-    pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
-                                      ->add("li", dtype_li)
+    p2p::auto_ptr<PVIF> pvif_si;
+    p2p::auto_ptr<PVIF> pvif_ai;
+    p2p::auto_ptr<PVIF> pvif_ai_rval;
+    p2p::auto_ptr<PVIF> pvif_mbbi;
+    {
+        ScalarBuilder builder_li(chan_li);
 #ifdef USE_INT64
-                                      ->add("i64", dtype_i64)
+        ScalarBuilder builder_i64(chan_i64);
 #endif
-                                      ->add("si", dtype_si)
-                                      ->add("ai", dtype_ai)
-                                      ->add("ai_rval", dtype_ai_rval)
-                                      ->add("mbbi", dtype_mbbi)
-                                      ->createStructure());
+        ScalarBuilder builder_si(chan_si);
+        ScalarBuilder builder_ai(chan_ai);
+        ScalarBuilder builder_ai_rval(chan_ai_rval);
+        ScalarBuilder builder_mbbi(chan_mbbi);
 
-    pvd::PVStructurePtr root(pvd::getPVDataCreate()->createPVStructure(dtype_root));
+        pvd::FieldConstPtr dtype_li(builder_li.dtype(chan_li));
+    #ifdef USE_INT64
+        pvd::FieldConstPtr dtype_i64(builder_i64.dtype(chan_i64));
+    #endif
+        pvd::FieldConstPtr dtype_si(builder_si.dtype(chan_si));
+        pvd::FieldConstPtr dtype_ai(builder_ai.dtype(chan_ai));
+        pvd::FieldConstPtr dtype_ai_rval(builder_ai_rval.dtype(chan_ai_rval));
+        pvd::FieldConstPtr dtype_mbbi(builder_mbbi.dtype(chan_mbbi));
 
-    p2p::auto_ptr<PVIF> pvif_li(builder.attach(chan_li, root, FieldName("li")));
-#ifdef USE_INT64
-    p2p::auto_ptr<PVIF> pvif_i64(builder.attach(chan_i64, root, FieldName("i64")));
-#endif
-    p2p::auto_ptr<PVIF> pvif_si(builder.attach(chan_si, root, FieldName("si")));
-    p2p::auto_ptr<PVIF> pvif_ai(builder.attach(chan_ai, root, FieldName("ai")));
-    p2p::auto_ptr<PVIF> pvif_ai_rval(builder.attach(chan_ai_rval, root, FieldName("ai_rval")));
-    p2p::auto_ptr<PVIF> pvif_mbbi(builder.attach(chan_mbbi, root, FieldName("mbbi")));
+        pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
+                                          ->add("li", dtype_li)
+    #ifdef USE_INT64
+                                          ->add("i64", dtype_i64)
+    #endif
+                                          ->add("si", dtype_si)
+                                          ->add("ai", dtype_ai)
+                                          ->add("ai_rval", dtype_ai_rval)
+                                          ->add("mbbi", dtype_mbbi)
+                                          ->createStructure());
+
+        root = pvd::getPVDataCreate()->createPVStructure(dtype_root);
+
+        pvif_li.reset(builder_li.attach(chan_li, root, FieldName("li")));
+    #ifdef USE_INT64
+        pvif_i64.reset(builder_i64.attach(chan_i64, root, FieldName("i64")));
+    #endif
+        pvif_si.reset(builder_si.attach(chan_si, root, FieldName("si")));
+        pvif_ai.reset(builder_ai.attach(chan_ai, root, FieldName("ai")));
+        pvif_ai_rval.reset(builder_ai_rval.attach(chan_ai_rval, root, FieldName("ai_rval")));
+        pvif_mbbi.reset(builder_mbbi.attach(chan_mbbi, root, FieldName("mbbi")));
+    }
 
     testShow()<<"Entire structure\n"<<root;
 
