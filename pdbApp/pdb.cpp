@@ -178,6 +178,8 @@ struct PDBProcessor
 
     PDBProcessor() : curgroup(NULL)
     {
+        GroupConfig conf;
+
         for(pdbRecordIterator rec; !rec.done(); rec.next())
         {
             const char *json = rec.info("Q:group");
@@ -188,104 +190,107 @@ struct PDBProcessor
                 warned = true;
                 fprintf(stderr, "%s: ignoring info(Q:Group, ...\n", rec.name());
             }
-#else
+#endif
             if(PDBProviderDebug>2) {
                 fprintf(stderr, "%s: info(Q:Group, ...\n", rec.name());
             }
 
             try {
-                GroupConfig conf;
                 GroupConfig::parse(json, rec.name(), conf);
                 if(!conf.warning.empty())
                     fprintf(stderr, "%s: warning(s) from info(Q:group, ...\n%s", rec.name(), conf.warning.c_str());
-
-                for(GroupConfig::groups_t::const_iterator git=conf.groups.begin(), gend=conf.groups.end();
-                    git!=gend; ++git)
-                {
-                    const std::string& grpname = git->first;
-                    const GroupConfig::Group& grp = git->second;
-
-                    if(dbChannelTest(grpname.c_str())==0) {
-                        fprintf(stderr, "%s : Error: Group name conflicts with record name.  Ignoring...\n", grpname.c_str());
-                        continue;
-                    }
-
-                    groups_t::iterator it = groups.find(grpname);
-                    if(it==groups.end()) {
-                        // lazy creation of group
-                        std::pair<groups_t::iterator, bool> ins(groups.insert(std::make_pair(grpname, GroupInfo(grpname))));
-                        it = ins.first;
-                    }
-                    curgroup = &it->second;
-                    if(!grp.id.empty())
-                        curgroup->structID = grp.id;
-
-                    for(GroupConfig::Group::fields_t::const_iterator fit=grp.fields.begin(), fend=grp.fields.end();
-                        fit!=fend; ++fit)
-                    {
-                        const std::string& fldname = fit->first;
-                        const GroupConfig::Field& fld = fit->second;
-
-                        GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
-                        if(oldgrp!=curgroup->members_map.end()) {
-                            fprintf(stderr, "%s.%s Warning: ignoring duplicate mapping %s\n",
-                                    grpname.c_str(), fldname.c_str(),
-                                    fld.channel.c_str());
-                            continue;
-                        }
-
-                        std::tr1::shared_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
-
-                        curgroup->members.push_back(GroupMemberInfo(fld.channel, fldname, builder));
-                        curgroup->members.back().structID = fld.id;
-                        curgroup->members.back().putorder = fld.putorder;
-                        curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below
-
-                        if(PDBProviderDebug>2) {
-                            fprintf(stderr, "  pdb map '%s.%s' <-> '%s'\n",
-                                    curgroup->name.c_str(),
-                                    curgroup->members.back().pvfldname.c_str(),
-                                    curgroup->members.back().pvname.c_str());
-                        }
-
-                        if(!fld.trigger.empty()) {
-                            GroupInfo::triggers_t::iterator it = curgroup->triggers.find(fldname);
-                            if(it==curgroup->triggers.end()) {
-                                std::pair<GroupInfo::triggers_t::iterator, bool> ins(curgroup->triggers.insert(
-                                                                                         std::make_pair(fldname, GroupInfo::triggers_set_t())));
-                                it = ins.first;
-                            }
-
-                            Splitter sep(fld.trigger.c_str(), ',');
-                            std::string target;
-
-                            while(sep.snip(target)) {
-                                curgroup->hastriggers = true;
-                                it->second.insert(target);
-                            }
-                        }
-                    }
-
-                    if(grp.atomic_set) {
-                        GroupInfo::tribool V = grp.atomic ? GroupInfo::True : GroupInfo::False;
-
-                        if(curgroup->atomic!=GroupInfo::Unset && curgroup->atomic!=V)
-                            fprintf(stderr, "%s Warning: pdb atomic setting inconsistent '%s'\n",
-                                    grpname.c_str(), curgroup->name.c_str());
-
-                        curgroup->atomic=V;
-
-                        if(PDBProviderDebug>2)
-                            fprintf(stderr, "  pdb atomic '%s' %s\n",
-                                    curgroup->name.c_str(), curgroup->atomic ? "YES" : "NO");
-                    }
-                }
-
             }catch(std::exception& e){
                 fprintf(stderr, "%s: Error parsing info(\"Q:group\", ... : %s\n",
                         rec.record()->name, e.what());
             }
-#endif // USE_MULTILOCK
+        }
+
+        for(GroupConfig::groups_t::const_iterator git=conf.groups.begin(), gend=conf.groups.end();
+            git!=gend; ++git)
+        {
+            const std::string& grpname = git->first;
+            const GroupConfig::Group& grp = git->second;
+            try {
+
+                if(dbChannelTest(grpname.c_str())==0) {
+                    fprintf(stderr, "%s : Error: Group name conflicts with record name.  Ignoring...\n", grpname.c_str());
+                    continue;
+                }
+
+                groups_t::iterator it = groups.find(grpname);
+                if(it==groups.end()) {
+                    // lazy creation of group
+                    std::pair<groups_t::iterator, bool> ins(groups.insert(std::make_pair(grpname, GroupInfo(grpname))));
+                    it = ins.first;
+                }
+                curgroup = &it->second;
+                if(!grp.id.empty())
+                    curgroup->structID = grp.id;
+
+                for(GroupConfig::Group::fields_t::const_iterator fit=grp.fields.begin(), fend=grp.fields.end();
+                    fit!=fend; ++fit)
+                {
+                    const std::string& fldname = fit->first;
+                    const GroupConfig::Field& fld = fit->second;
+
+                    GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
+                    if(oldgrp!=curgroup->members_map.end()) {
+                        fprintf(stderr, "%s.%s Warning: ignoring duplicate mapping %s\n",
+                                grpname.c_str(), fldname.c_str(),
+                                fld.channel.c_str());
+                        continue;
+                    }
+
+                    std::tr1::shared_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
+
+                    curgroup->members.push_back(GroupMemberInfo(fld.channel, fldname, builder));
+                    curgroup->members.back().structID = fld.id;
+                    curgroup->members.back().putorder = fld.putorder;
+                    curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below
+
+                    if(PDBProviderDebug>2) {
+                        fprintf(stderr, "  pdb map '%s.%s' <-> '%s'\n",
+                                curgroup->name.c_str(),
+                                curgroup->members.back().pvfldname.c_str(),
+                                curgroup->members.back().pvname.c_str());
+                    }
+
+                    if(!fld.trigger.empty()) {
+                        GroupInfo::triggers_t::iterator it = curgroup->triggers.find(fldname);
+                        if(it==curgroup->triggers.end()) {
+                            std::pair<GroupInfo::triggers_t::iterator, bool> ins(curgroup->triggers.insert(
+                                                                                     std::make_pair(fldname, GroupInfo::triggers_set_t())));
+                            it = ins.first;
+                        }
+
+                        Splitter sep(fld.trigger.c_str(), ',');
+                        std::string target;
+
+                        while(sep.snip(target)) {
+                            curgroup->hastriggers = true;
+                            it->second.insert(target);
+                        }
+                    }
+                }
+
+                if(grp.atomic_set) {
+                    GroupInfo::tribool V = grp.atomic ? GroupInfo::True : GroupInfo::False;
+
+                    if(curgroup->atomic!=GroupInfo::Unset && curgroup->atomic!=V)
+                        fprintf(stderr, "%s Warning: pdb atomic setting inconsistent '%s'\n",
+                                grpname.c_str(), curgroup->name.c_str());
+
+                    curgroup->atomic=V;
+
+                    if(PDBProviderDebug>2)
+                        fprintf(stderr, "  pdb atomic '%s' %s\n",
+                                curgroup->name.c_str(), curgroup->atomic ? "YES" : "NO");
+                }
+
+            }catch(std::exception& e){
+                fprintf(stderr, "Error processing Q:group \"%s\" : %s\n",
+                        grpname.c_str(), e.what());
+            }
         }
 
         // re-sort GroupInfo::members to ensure the shorter names appear first
