@@ -1229,7 +1229,7 @@ PVIFBuilder::dtype(epics::pvData::FieldBuilderPtr& builder,
     return builder;
 }
 
-PVIFBuilder* PVIFBuilder::create(const std::string& type)
+PVIFBuilder* PVIFBuilder::create(const std::string& type, dbChannel* chan)
 {
     if(type.empty() || type=="scalar")
         return new ScalarBuilder;

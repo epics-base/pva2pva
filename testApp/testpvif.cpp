@@ -424,29 +424,36 @@ void testPlain()
     DBCH chan_ai("test:ai");
     DBCH chan_mbbi("test:mbbi");
 
-    p2p::auto_ptr<PVIFBuilder> builder;
+    pvd::PVStructurePtr root;
+    p2p::auto_ptr<PVIF> pvif_li;
+    p2p::auto_ptr<PVIF> pvif_si;
+    p2p::auto_ptr<PVIF> pvif_ai;
+    p2p::auto_ptr<PVIF> pvif_mbbi;
     {
-        builder.reset(PVIFBuilder::create("plain"));
+        p2p::auto_ptr<PVIFBuilder> builder_li(PVIFBuilder::create("plain", chan_li));
+        p2p::auto_ptr<PVIFBuilder> builder_si(PVIFBuilder::create("plain", chan_si));
+        p2p::auto_ptr<PVIFBuilder> builder_ai(PVIFBuilder::create("plain", chan_ai));
+        p2p::auto_ptr<PVIFBuilder> builder_mbbi(PVIFBuilder::create("plain", chan_mbbi));
+
+        pvd::FieldConstPtr dtype_li(builder_li->dtype(chan_li));
+        pvd::FieldConstPtr dtype_si(builder_si->dtype(chan_si));
+        pvd::FieldConstPtr dtype_ai(builder_ai->dtype(chan_ai));
+        pvd::FieldConstPtr dtype_mbbi(builder_mbbi->dtype(chan_mbbi));
+
+        pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
+                                          ->add("li", dtype_li)
+                                          ->add("si", dtype_si)
+                                          ->add("ai", dtype_ai)
+                                          ->add("mbbi", dtype_mbbi)
+                                          ->createStructure());
+
+        root = pvd::getPVDataCreate()->createPVStructure(dtype_root);
+
+        pvif_li.reset(builder_li->attach(chan_li, root, FieldName("li")));
+        pvif_si.reset(builder_si->attach(chan_si, root, FieldName("si")));
+        pvif_ai.reset(builder_ai->attach(chan_ai, root, FieldName("ai")));
+        pvif_mbbi.reset(builder_mbbi->attach(chan_mbbi, root, FieldName("mbbi")));
     }
-
-    pvd::FieldConstPtr dtype_li(builder->dtype(chan_li));
-    pvd::FieldConstPtr dtype_si(builder->dtype(chan_si));
-    pvd::FieldConstPtr dtype_ai(builder->dtype(chan_ai));
-    pvd::FieldConstPtr dtype_mbbi(builder->dtype(chan_mbbi));
-
-    pvd::StructureConstPtr dtype_root(pvd::getFieldCreate()->createFieldBuilder()
-                                      ->add("li", dtype_li)
-                                      ->add("si", dtype_si)
-                                      ->add("ai", dtype_ai)
-                                      ->add("mbbi", dtype_mbbi)
-                                      ->createStructure());
-
-    pvd::PVStructurePtr root(pvd::getPVDataCreate()->createPVStructure(dtype_root));
-
-    p2p::auto_ptr<PVIF> pvif_li(builder->attach(chan_li, root, FieldName("li")));
-    p2p::auto_ptr<PVIF> pvif_si(builder->attach(chan_si, root, FieldName("si")));
-    p2p::auto_ptr<PVIF> pvif_ai(builder->attach(chan_ai, root, FieldName("ai")));
-    p2p::auto_ptr<PVIF> pvif_mbbi(builder->attach(chan_mbbi, root, FieldName("mbbi")));
 
     pvd::BitSet mask;
 

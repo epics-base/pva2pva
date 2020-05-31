@@ -407,7 +407,7 @@ struct QSRV_API PVIFBuilder {
     virtual PVIF* attach(dbChannel *channel, const epics::pvData::PVStructurePtr& root, const FieldName& fld) =0;
 
     // entry point for Builder
-    static PVIFBuilder* create(const std::string& name);
+    static PVIFBuilder* create(const std::string& mapname, dbChannel* chan);
 protected:
     PVIFBuilder() {}
 private:

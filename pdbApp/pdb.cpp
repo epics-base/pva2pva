@@ -447,7 +447,7 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                     chan.swap(temp);
                 }
 
-                std::tr1::shared_ptr<PVIFBuilder> pvifbuilder(PVIFBuilder::create(mem.type));
+                std::tr1::shared_ptr<PVIFBuilder> pvifbuilder(PVIFBuilder::create(mem.type, chan.chan));
 
                 if(!parts.empty())
                     builder = pvifbuilder->dtype(builder, parts.back().name, chan);
