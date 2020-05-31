@@ -180,6 +180,7 @@ struct PDBProcessor
     {
         GroupConfig conf;
 
+        // process info(Q:Group, ...)
         for(pdbRecordIterator rec; !rec.done(); rec.next())
         {
             const char *json = rec.info("Q:group");
@@ -202,6 +203,46 @@ struct PDBProcessor
             }catch(std::exception& e){
                 fprintf(stderr, "%s: Error parsing info(\"Q:group\", ... : %s\n",
                         rec.record()->name, e.what());
+            }
+        }
+
+        // process group definition files
+        for(PDBProvider::group_files_t::const_iterator it(PDBProvider::group_files.begin()), end(PDBProvider::group_files.end());
+            it != end; ++it)
+        {
+            std::ifstream jfile(it->c_str());
+            if(!jfile.is_open()) {
+                fprintf(stderr, "Error opening \"%s\"\n", it->c_str());
+                continue;
+            }
+
+            std::vector<char> contents;
+            size_t pos=0u;
+            while(true) {
+                contents.resize(pos+1024u);
+                if(!jfile.read(&contents[pos], contents.size()-pos))
+                    break;
+                pos += jfile.gcount();
+            }
+
+            if(jfile.bad() || !jfile.eof()) {
+                fprintf(stderr, "Error reading \"%s\"\n", it->c_str());
+                continue;
+            }
+
+            contents.push_back('\0');
+            const char *json = &contents[0];
+
+            if(PDBProviderDebug>2) {
+                fprintf(stderr, "Process dbGroup file \"%s\"\n", it->c_str());
+            }
+
+            try {
+                GroupConfig::parse(json, "", conf);
+                if(!conf.warning.empty())
+                    fprintf(stderr, "warning(s) from dbGroup file \"%s\"\n%s", it->c_str(), conf.warning.c_str());
+            }catch(std::exception& e){
+                fprintf(stderr, "Error from dbGroup file \"%s\"\n%s", it->c_str(), e.what());
             }
         }
 
@@ -318,6 +359,8 @@ struct PDBProcessor
 }
 
 size_t PDBProvider::num_instances;
+
+std::list<std::string> PDBProvider::group_files;
 
 PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_pointer &)
 {

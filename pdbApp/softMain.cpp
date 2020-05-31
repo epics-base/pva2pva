@@ -29,6 +29,8 @@
 #include "iocsh.h"
 #include "osiFileName.h"
 
+#include <pv/qsrv.h>
+
 extern "C" int softIocPVA_registerRecordDeviceDriver(struct dbBase *pdbbase);
 
 #ifndef EPICS_BASE
@@ -75,6 +77,8 @@ void usage(const char *arg0, const std::string& base_dbd) {
                "\n"
                "    -a <acf>  Access Security configuration file.  Macro substitution is\n"
                "        performed.\n"
+               "\n"
+               "    -G <json>  DB Group definition file in JSON format.\n"
                "\n"
                "    -m <MAC>=<value>,... Set/replace macro definitions used by subsequent -d and\n"
                "        -a.\n"
@@ -155,7 +159,7 @@ int main(int argc, char *argv[])
 
         int opt;
 
-        while ((opt = getopt(argc, argv, "ha:D:d:m:Ssx:v")) != -1) {
+        while ((opt = getopt(argc, argv, "ha:D:d:m:Ssx:G:v")) != -1) {
             switch (opt) {
             case 'h':               /* Print usage */
                 usage(argv[0], dbd_file);
@@ -215,6 +219,9 @@ int main(int argc, char *argv[])
                 errIf(dbLoadRecords(exit_file.c_str(), xmacro.c_str()),
                       std::string("Failed to load: ")+exit_file);
                 loadedDb = true;
+                break;
+            case 'G':
+                dbLoadGroup(optarg);
                 break;
             }
         }

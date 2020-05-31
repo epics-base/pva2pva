@@ -49,6 +49,9 @@ QSRV_API unsigned qsrvVersion(void);
 /** returns QSRV_ABI_VERSION_INT captured at compilation time */
 QSRV_API unsigned qsrvABIVersion(void);
 
+QSRV_API
+long dbLoadGroup(const char* fname);
+
 QSRV_API void testqsrvWaitForLinkEvent(struct link *plink);
 
 /** Call before testIocShutdownOk()

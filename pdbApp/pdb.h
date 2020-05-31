@@ -64,6 +64,9 @@ struct QSRV_API PDBProvider : public epics::pvAccess::ChannelProvider,
 
     dbEventCtx event_context;
 
+    typedef std::list<std::string> group_files_t;
+    static group_files_t group_files;
+
     static size_t num_instances;
 };
 
