@@ -100,7 +100,6 @@ struct PDBProcessor
     typedef std::map<std::string, GroupInfo> groups_t;
     groups_t groups;
 
-    std::string recbase;
     GroupInfo *curgroup;
 
     // validate trigger mappings and process into bit map form
@@ -196,12 +195,9 @@ struct PDBProcessor
 
             try {
                 GroupConfig conf;
-                GroupConfig::parse(json, conf);
+                GroupConfig::parse(json, rec.name(), conf);
                 if(!conf.warning.empty())
                     fprintf(stderr, "%s: warning(s) from info(Q:group, ...\n%s", rec.name(), conf.warning.c_str());
-
-                recbase = rec.name();
-                recbase += ".";
 
                 for(GroupConfig::groups_t::const_iterator git=conf.groups.begin(), gend=conf.groups.end();
                     git!=gend; ++git)
@@ -232,15 +228,15 @@ struct PDBProcessor
 
                         GroupInfo::members_map_t::const_iterator oldgrp(curgroup->members_map.find(fldname));
                         if(oldgrp!=curgroup->members_map.end()) {
-                            fprintf(stderr, "%s.%s Warning: ignoring duplicate mapping %s%s\n",
+                            fprintf(stderr, "%s.%s Warning: ignoring duplicate mapping %s\n",
                                     grpname.c_str(), fldname.c_str(),
-                                    recbase.c_str(), fld.channel.c_str());
+                                    fld.channel.c_str());
                             continue;
                         }
 
                         std::tr1::shared_ptr<PVIFBuilder> builder(PVIFBuilder::create(fld.type));
 
-                        curgroup->members.push_back(GroupMemberInfo(fld.channel.empty() ? fld.channel : recbase + fld.channel, fldname, builder));
+                        curgroup->members.push_back(GroupMemberInfo(fld.channel, fldname, builder));
                         curgroup->members.back().structID = fld.id;
                         curgroup->members.back().putorder = fld.putorder;
                         curgroup->members_map[fldname] = (size_t)-1; // placeholder  see below

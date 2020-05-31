@@ -26,6 +26,7 @@ typedef std::map<std::string, pvd::AnyScalar> options_t;
 typedef std::map<std::string, options_t> config_t;
 
 struct context {
+    const std::string chanprefix;
     std::string msg;
     std::string group, field, key;
     unsigned depth; // number of '{'s
@@ -34,9 +35,13 @@ struct context {
     // depth 2 - Group
     // depth 3 - field
 
-    context() :depth(0u) {}
+    context(const std::string& chanprefix, GroupConfig& conf)
+        :chanprefix(chanprefix)
+        ,depth(0u)
+        ,conf(conf)
+    {}
 
-    GroupConfig conf;
+    GroupConfig& conf;
 
     void can_assign()
     {
@@ -69,7 +74,7 @@ struct context {
                 fld.type = value.ref<std::string>();
 
             } else if(key=="+channel") {
-                fld.channel = value.ref<std::string>();
+                fld.channel = chanprefix + value.ref<std::string>();
 
             } else if(key=="+id") {
                 fld.id = value.ref<std::string>();
@@ -217,6 +222,7 @@ struct handler {
 }// namespace
 
 void GroupConfig::parse(const char *txt,
+                        const char *recname,
                         GroupConfig& result)
 {
 #ifndef EPICS_YAJL_VERSION
@@ -228,7 +234,12 @@ void GroupConfig::parse(const char *txt,
 
     std::istringstream strm(txt);
 
-    context ctxt;
+    std::string chanprefix;
+    if(recname) {
+        chanprefix = recname;
+        chanprefix += '.';
+    }
+    context ctxt(chanprefix, result);
 
 #ifndef EPICS_YAJL_VERSION
     handler handle(yajl_alloc(&conf_cbs, &conf, NULL, &ctxt));
@@ -240,6 +251,4 @@ void GroupConfig::parse(const char *txt,
 
     if(!pvd::yajl_parse_helper(strm, handle))
         throw std::runtime_error(ctxt.msg);
-
-    ctxt.conf.swap(result);
 }

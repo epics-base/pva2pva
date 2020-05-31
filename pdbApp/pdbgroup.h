@@ -59,7 +59,7 @@ struct QSRV_API GroupConfig
         std::swap(warning, o.warning);
     }
 
-    static void parse(const char *txt,
+    static void parse(const char *txt, const char *recname,
                       GroupConfig& result);
 };
 

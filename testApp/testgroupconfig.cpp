@@ -18,6 +18,7 @@ void test_parse()
     "  \"+atomic\":false,\n"
     "  \"fld\":{\n"
     "    \"+type\": \"simple\","
+    "    \"+channel\": \"VAL\","
     "    \"+putorder\": -4"
     "  },\n"
     "  \"\":{\n"
@@ -29,7 +30,7 @@ void test_parse()
     "}";
 
     GroupConfig conf;
-    GroupConfig::parse(txt, conf);
+    GroupConfig::parse(txt, "rec", conf);
 
     testOk(conf.warning.empty(), "Warnings: %s", conf.warning.c_str());
 
@@ -37,7 +38,7 @@ void test_parse()
     testOk1(conf.groups["grpa"].atomic_set);
 
     testEqual(conf.groups["grpa"].fields["fld"].type, "simple");
-    testEqual(conf.groups["grpa"].fields["fld"].channel, "");
+    testEqual(conf.groups["grpa"].fields["fld"].channel, "rec.VAL");
     testEqual(conf.groups["grpa"].fields["fld"].putorder, -4);
 
     testEqual(conf.groups["grpa"].fields[""].type, "top");
@@ -49,15 +50,15 @@ void test_fail()
 
     {
         GroupConfig conf;
-        testThrows(std::runtime_error, GroupConfig::parse("{", conf));
+        testThrows(std::runtime_error, GroupConfig::parse("{", "", conf));
     }
     {
         GroupConfig conf;
-        testThrows(std::runtime_error, GroupConfig::parse("{\"G\":{\"F\":{\"K\":{}}}}", conf));
+        testThrows(std::runtime_error, GroupConfig::parse("{\"G\":{\"F\":{\"K\":{}}}}", "", conf));
     }
     {
         GroupConfig conf;
-        testThrows(std::runtime_error, GroupConfig::parse("{\"G\":5}", conf));
+        testThrows(std::runtime_error, GroupConfig::parse("{\"G\":5}", "", conf));
     }
 }
 
