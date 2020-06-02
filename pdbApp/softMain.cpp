@@ -27,9 +27,8 @@
 #include "iocInit.h"
 #include "iocsh.h"
 #include "osiFileName.h"
-#include "epicsInstallDir.h"
 
-extern "C" int softIoc_registerRecordDeviceDriver(struct dbBase *pdbbase);
+extern "C" int softIocPVA_registerRecordDeviceDriver(struct dbBase *pdbbase);
 
 #ifndef EPICS_BASE
 // so IDEs knows EPICS_BASE is a string constant
@@ -37,7 +36,7 @@ extern "C" int softIoc_registerRecordDeviceDriver(struct dbBase *pdbbase);
 #  error -DEPICS_BASE required
 #endif
 
-#define DBD_BASE "dbd" OSI_PATH_SEPARATOR "softIoc.dbd"
+#define DBD_BASE "dbd" OSI_PATH_SEPARATOR "softIocPVA.dbd"
 #define EXIT_BASE "db" OSI_PATH_SEPARATOR "softIocExit.db"
 #define DBD_FILE_REL ".." OSI_PATH_SEPARATOR ".." OSI_PATH_SEPARATOR DBD_BASE
 #define EXIT_FILE_REL ".." OSI_PATH_SEPARATOR ".." OSI_PATH_SEPARATOR EXIT_BASE
@@ -52,11 +51,11 @@ static void exitSubroutine(subRecord *precord) {
 
 void usage(const char *arg0, const std::string& base_dbd) {
     std::cout<<"Usage: "<<arg0<<
-               " [-D softIoc.dbd] [-h] [-S] [-s] [-a ascf]\n"
+               " [-D softIocPVA.dbd] [-h] [-S] [-s] [-a ascf]\n"
                "[-m macro=value,macro2=value2] [-d file.db]\n"
                "[-x prefix] [st.cmd]\n"
                "\n"
-               "    -D <dbd>  If used, must come first. Specify the path to the softIoc.dbdfile."
+               "    -D <dbd>  If used, must come first. Specify the path to the softIocPVA.dbdfile."
                "        The compile-time install location is saved in the binary as a default.\n"
                "\n"
                "    -h  Print this mesage and exit.\n"
@@ -86,7 +85,7 @@ void usage(const char *arg0, const std::string& base_dbd) {
                "loading must be performed by the script itself, or by the user from the\n"
                "interactive IOC shell.\n"
                "\n"
-               "Compiled-in path to softIoc.dbd is:\n"
+               "Compiled-in path to softIocPVA.dbd is:\n"
                "\t"<<base_dbd.c_str()<<"\n";
 }
 
@@ -106,8 +105,8 @@ void lazy_dbd(const std::string& dbd_file) {
           std::string("Failed to load DBD file: ")+dbd_file);
     std::cout<<"dbLoadDatabase(\""<<dbd_file<<"\")\n";
 
-    softIoc_registerRecordDeviceDriver(pdbbase);
-    std::cout<<"softIoc_registerRecordDeviceDriver(pdbbase)\n";
+    softIocPVA_registerRecordDeviceDriver(pdbbase);
+    std::cout<<"softIocPVA_registerRecordDeviceDriver(pdbbase)\n";
     registryFunctionAdd("exit", (REGISTRYFUNCTION) exitSubroutine);
 }
 
@@ -167,7 +166,7 @@ int main(int argc, char *argv[])
                 break;
             case 'D':
                 if(lazy_dbd_loaded) {
-                    throw std::runtime_error("-D specified too late.  softIoc.dbd already loaded.\n");
+                    throw std::runtime_error("-D specified too late.  softIocPVA.dbd already loaded.\n");
                 }
                 dbd_file = optarg;
                 break;

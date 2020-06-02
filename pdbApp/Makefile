@@ -60,7 +60,9 @@ qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 FINAL_LOCATION ?= $(shell $(PERL) $(TOOLS)/fullPathName.pl $(INSTALL_LOCATION))
 
-USR_CPPFLAGS += -DFINAL_LOCATION="\"$(FINAL_LOCATION)\""
+# since we copy softMain.cpp from Base, use the same
+# EPICS_BASE macro for our location
+USR_CPPFLAGS += -DEPICS_BASE="\"$(FINAL_LOCATION)\""
 
 PROD_IOC += softIocPVA
 
