@@ -14,6 +14,7 @@
 #include <list>
 #include <stdexcept>
 
+#include <epicsVersion.h>
 #include <epicsGetopt.h>
 #include "registryFunction.h"
 #include "epicsThread.h"
@@ -34,6 +35,10 @@ extern "C" int softIocPVA_registerRecordDeviceDriver(struct dbBase *pdbbase);
 // so IDEs knows EPICS_BASE is a string constant
 #  define EPICS_BASE "/"
 #  error -DEPICS_BASE required
+#endif
+
+#if EPICS_VERSION_INT>=VERSION_INT(7,0,2,0)
+#  define USE_EXECDIR
 #endif
 
 #define DBD_BASE "dbd" OSI_PATH_SEPARATOR "softIocPVA.dbd"
@@ -122,6 +127,7 @@ int main(int argc, char *argv[])
         bool interactive = true;
         bool loadedDb = false;
 
+#ifdef USE_EXECDIR
         // attempt to compute relative paths
         {
             std::string prefix;
@@ -139,6 +145,7 @@ int main(int argc, char *argv[])
             dbd_file = prefix + DBD_FILE_REL;
             exit_file = prefix + EXIT_FILE_REL;
         }
+#endif
 
         int opt;
 
