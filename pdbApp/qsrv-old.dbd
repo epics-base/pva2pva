@@ -16,3 +16,4 @@ variable(PDBProviderDebug, int)
 variable(pvaLinkNWorkers, int)
 
 include "svectorinRecord.dbd"
+include "pvstructinRecord.dbd"

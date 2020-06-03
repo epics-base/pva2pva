@@ -23,6 +23,7 @@ INC += pv/qsrv.h
 INC += pv/qsrvVersionNum.h
 
 DBDINC += svectorinRecord
+DBDINC += pvstructinRecord
 
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
 EXPANDVARS += EPICS_QSRV_MINOR_VERSION
@@ -60,6 +61,9 @@ endif
 qsrv_SRCS += svectorinRecord.c
 qsrv_SRCS += devSVInSoft.c
 
+qsrv_SRCS += pvstructinRecord.c
+qsrv_SRCS += devPVSInSoft.c
+
 qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
@@ -88,6 +92,7 @@ endif
 
 softIocPVA_DBD += softIoc.dbd
 softIocPVA_DBD += svectorinRecord.dbd
+softIocPVA_DBD += pvstructinRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
@@ -99,6 +104,7 @@ include $(TOP)/configure/RULES
 
 # why is this not automatic!
 $(COMMON_DIR)/softIocPVA.dbd: ../svectorinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../pvstructinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
 
 # Can't use EXPAND as generated headers must appear
@@ -117,6 +123,7 @@ QSRVDBD = ../qsrv-old.dbd
 endif
 
 $(QSRVDBD) : ../svectorinRecord.dbd
+$(QSRVDBD) : ../pvstructinRecord.dbd
 
 ../O.Common/qsrv.dbd: $(QSRVDBD)
 	$(CP) $< $@
