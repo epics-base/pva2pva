@@ -28,6 +28,7 @@
 #include <epicsExport.h>
 
 #include <svectorinRecord.h>
+#include <pvstructinRecord.h>
 
 #ifdef EPICS_VERSION_INT
 #  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
@@ -1000,6 +1001,123 @@ struct PVIFPlain : public PVIF
     }
 };
 
+struct Arbitrary : public PVIF
+{
+    const pvd::PVStructurePtr root;
+    const pvd::PVField * const enclosing;
+    pvd::BitSet scratch;
+
+    Arbitrary(dbChannel *chan, const pvd::PVStructurePtr& root, pvd::PVField *enclosing)
+        :PVIF(chan)
+        ,root(root)
+        ,enclosing(enclosing)
+    {}
+    virtual ~Arbitrary() {}
+
+    virtual void put(epics::pvData::BitSet &mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
+    {
+        if(dbe&DBE_VALUE) {
+            scratch.clear();
+
+            VSharedPVStructure arg;
+            arg.vtype = &vfPVStructure;
+            arg.value = &root;
+            arg.changed = &scratch;
+
+            long status = dbChannelGet(chan, DBR_VFIELD, &arg, NULL, NULL, pfl);
+            if(status)
+                throw std::runtime_error(SB()<<"PVStructure Get error 0x"<<std::hex<<status);
+
+            if(enclosing) {
+                if(!scratch.isEmpty())
+                    mask.set(enclosing->getFieldOffset());
+
+            } else {
+                mask |= scratch;
+            }
+        }
+    }
+    virtual epics::pvData::Status get(const epics::pvData::BitSet &mask, proc_t proc, bool permit) OVERRIDE FINAL
+    {
+        pvd::Status ret;
+
+        if(!(dbe(mask)&DBE_VALUE))
+            return ret;
+
+        pvd::int32 first = root->getFieldOffset();
+        pvd::int32 end = root->getNextFieldOffset();
+
+        scratch.clear();
+        if(enclosing) {
+            for(pvd::int32 i=first; i<end; i++)
+                scratch.set(i);
+        } else {
+            scratch = mask;
+        }
+
+        VSharedPVStructure arg;
+        arg.vtype = &vfPVStructure;
+        arg.value = &root;
+        arg.changed = &scratch;
+
+        long status = dbChannelPut(chan, DBR_VFIELD, &arg, NULL);
+        if(status)
+            ret = pvd::Status::error(SB()<<"PVStructure Put error 0x"<<std::hex<<status);
+
+        return ret;
+    }
+    virtual unsigned dbe(const epics::pvData::BitSet &mask) OVERRIDE FINAL
+    {
+        if(enclosing && mask.get(enclosing->getFieldOffset()))
+            return DBE_VALUE;
+        else if(enclosing)
+            return 0;
+
+        pvd::int32 first = root->getFieldOffset();
+        pvd::int32 end = root->getNextFieldOffset();
+
+        pvd::int32 idx = mask.nextSetBit(first);
+        if(idx<0 || idx >= end)
+            return DBE_VALUE;
+
+        return 0;
+    }
+};
+
+struct ArbitraryBuilder : public PVIFBuilder
+{
+    epics::pvData::StructureConstPtr type;
+
+    ArbitraryBuilder(dbChannel* chan)
+        :PVIFBuilder(chan)
+    {
+        if(!channel)
+            throw std::runtime_error("+type:\"arbitrary\" requires +channel:");
+
+        pvd::BitSet changed;
+        VSharedStructure arg;
+        arg.vtype = &vfStructure;
+        arg.value = &type;
+
+        long status = dbChannelGet(chan, DBR_VFIELD, &arg, NULL, NULL, NULL);
+        if(status || !type)
+            throw std::runtime_error("arbitrary mapping unable to fetch initial value/type");
+    }
+    virtual ~ArbitraryBuilder() {}
+
+    virtual epics::pvData::FieldConstPtr dtype() OVERRIDE FINAL
+    {
+        return type;
+    }
+    virtual PVIF *attach(const epics::pvData::PVStructurePtr &root, const FieldName &fldname) OVERRIDE FINAL
+    {
+        pvd::PVField *enclosing = 0;
+        pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
+
+        return new Arbitrary(channel, std::tr1::static_pointer_cast<pvd::PVStructure>(fld), enclosing);
+    }
+};
+
 struct PlainBuilder : public PVIFBuilder
 {
     const VFieldType* const vtype;
@@ -1299,14 +1417,19 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type, dbChannel* chan)
     if(chan && dbChannelVFields(chan)) {
         for(ELLNODE *cur = ellFirst(dbChannelVFields(chan)); cur; cur = ellNext(cur)) {
             const VFieldTypeNode* vnode = CONTAINER(cur, VFieldTypeNode, node);
-            if(vnode->vtype==&vfSharedVector) {
+            if(vnode->vtype==&vfSharedVector || vnode->vtype==&vfPVStructure) {
                 vtype = vnode->vtype;
                 break;
             }
         }
     }
 
-    if(type.empty() || type=="scalar")
+    if(vtype==&vfPVStructure) {
+        if(!type.empty()) {
+            errlogPrintf("%s: ignore +type \"%s\"\n", dbChannelName(chan), type.c_str());
+        }
+        return new ArbitraryBuilder(chan);
+    } else if(type.empty() || type=="scalar")
         return new ScalarBuilder(chan, vtype);
     else if(type=="plain")
         return new PlainBuilder(chan, vtype);
