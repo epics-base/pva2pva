@@ -30,6 +30,8 @@ struct QSRV_API PDBSinglePV : public PDBPV
      * is locked.
      */
     DBCH chan;
+    // used for DBE_PROPERTY subscription when chan has filters
+    DBCH chan2;
     PDBProvider::shared_pointer provider;
 
     // only for use in pdb_single_event()

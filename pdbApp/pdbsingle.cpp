@@ -103,6 +103,10 @@ PDBSinglePV::PDBSinglePV(DBCH& chan,
     ,hadevent_VALUE(false)
     ,hadevent_PROPERTY(false)
 {
+    if(ellCount(&chan.chan->pre_chain) || ellCount(&chan.chan->post_chain)) {
+        DBCH temp(dbChannelName(chan.chan));
+        this->chan2.swap(temp);
+    }
     this->chan.swap(chan);
     fielddesc = std::tr1::static_pointer_cast<const pvd::Structure>(builder->dtype(this->chan));
 
@@ -120,8 +124,9 @@ PDBSinglePV::~PDBSinglePV()
 
 void PDBSinglePV::activate()
 {
+    dbChannel *pchan = this->chan2.chan ? this->chan2.chan : this->chan.chan;
     evt_VALUE.create(provider->event_context, this->chan, &pdb_single_event, DBE_VALUE|DBE_ALARM);
-    evt_PROPERTY.create(provider->event_context, this->chan, &pdb_single_event, DBE_PROPERTY);
+    evt_PROPERTY.create(provider->event_context, pchan, &pdb_single_event, DBE_PROPERTY);
 }
 
 pva::Channel::shared_pointer
