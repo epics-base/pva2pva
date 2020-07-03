@@ -400,7 +400,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
         p2p::auto_ptr<PVIF> putpvif(channel->pv->builder->attach(channel->pv->chan, value, FieldName()));
         try{
             DBScanLocker L(chan);
-            putpvif->get(*changed, doProc);
+            ret = putpvif->get(*changed, doProc);
 
         }catch(std::runtime_error& e){
             ret = pvd::Status::error(e.what());

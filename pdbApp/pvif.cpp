@@ -641,6 +641,14 @@ void findFormat(pvTimeAlarm& pvmeta, pdbRecordIterator& info, const epics::pvDat
     }
 }
 
+pvd::Status checkDISP(dbChannel *chan)
+{
+    dbCommon *prec = dbChannelRecord(chan);
+    pvd::Status ret;
+    if(prec->disp && dbChannelField(chan)!=&prec->disp)
+        ret = pvd::Status::error("Put Disabled");
+    return ret;
+}
 
 template<typename PVX, typename META>
 struct PVIFScalarNumeric : public PVIF
@@ -698,7 +706,10 @@ struct PVIFScalarNumeric : public PVIF
 
     virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
-        pvd::Status ret;
+        pvd::Status ret = checkDISP(chan);
+        if(!ret)
+            return ret;
+
         bool newval = mask.logical_and(pvmeta.maskVALUEPut);
         if(newval) {
             if(permit)
@@ -906,7 +917,10 @@ struct PVIFPlain : public PVIF
 
     virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
-        pvd::Status ret;
+        pvd::Status ret = checkDISP(chan);
+        if(!ret)
+            return ret;
+
         bool newval = mask.get(fieldOffset);
         if(newval) {
             if(permit)
