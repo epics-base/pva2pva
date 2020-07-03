@@ -1039,10 +1039,12 @@ struct Arbitrary : public PVIF
     }
     virtual epics::pvData::Status get(const epics::pvData::BitSet &mask, proc_t proc, bool permit) OVERRIDE FINAL
     {
-        pvd::Status ret;
+        if(!(dbe(mask)&DBE_VALUE)) {
+            return pvd::Status();
 
-        if(!(dbe(mask)&DBE_VALUE))
-            return ret;
+        } else if(dbChannelRecord(chan)->disp && dbChannelField(chan)!=&dbChannelRecord(chan)->disp) {
+            return pvd::Status::error("Put Disabled");
+        }
 
         pvd::int32 first = root->getFieldOffset();
         pvd::int32 end = root->getNextFieldOffset();
@@ -1060,7 +1062,8 @@ struct Arbitrary : public PVIF
         arg.value = &root;
         arg.changed = &scratch;
 
-        long status = dbChannelPut(chan, DBR_VFIELD, &arg, NULL);
+        long status = dbChannelPut(chan, DBR_VFIELD, &arg, 1);
+        pvd::Status ret;
         if(status)
             ret = pvd::Status::error(SB()<<"PVStructure Put error 0x"<<std::hex<<status);
 
