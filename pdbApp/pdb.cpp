@@ -419,6 +419,12 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                     members_map[mem.pvfldname] = J;
                     PDBGroupPV::Info& info = members[J];
 
+                    DBCH chan2;
+                    if(chan.chan && (ellCount(&chan.chan->pre_chain)>0 || ellCount(&chan.chan->post_chain)>0)) {
+                        DBCH temp(mem.pvname);
+                        info.chan2.swap(chan2);
+                    }
+
                     info.allowProc = mem.putorder != std::numeric_limits<int>::min();
                     info.builder = PTRMOVE(mem.builder);
                     assert(info.builder.get());
@@ -514,7 +520,8 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                 info.pvif.reset(info.builder->attach(info.chan, pv->complete, info.attachment));
 
                 // TODO: don't need evt_PROPERTY for PVIF plain
-                info.evt_PROPERTY.create(event_context, info.chan, &pdb_group_event, DBE_PROPERTY);
+                dbChannel *pchan = info.chan2.chan ? info.chan2.chan : info.chan.chan;
+                info.evt_PROPERTY.create(event_context, pchan, &pdb_group_event, DBE_PROPERTY);
 
                 if(!info.triggers.empty()) {
                     info.evt_VALUE.create(event_context, info.chan, &pdb_group_event, DBE_VALUE|DBE_ALARM);
