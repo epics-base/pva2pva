@@ -2,6 +2,15 @@
 
 @page release_notes Release Notes
 
+Release 1.2.4 (July 2020)
+=========================
+
+- Bug Fixes
+  - Fix stalled monitor when server side filter drops initial DBE_PROPERTY update.
+  - Respect DISP
+- Changes
+  - Refreshed softIocPVA to match options in Base.
+
 Release 1.2.3 (May 2020)
 ========================
 
