@@ -1,0 +1,49 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+
+include "menuFtype.dbd"
+
+recordtype(columnarin) {
+    include "dbCommon.dbd"
+    %#include <pv/sharedVector.h>
+    %#include <pv/qsrv.h>
+    %struct columnarinRecord;
+    %namespace columnarin {
+    %struct RPvt;
+    %QSRV_API
+    %void add_column(struct columnarinRecord *prec, const char* fname, const char* label, ::epics::pvData::ScalarType type);
+    %QSRV_API
+    %void set_column(struct columnarinRecord *prec, const char* fname, const ::epics::pvData::shared_vector<const void>& cdata);
+    %} // namespace columnarin
+    %#ifdef __cplusplus
+    %extern "C" {
+    %#endif
+    %struct columnarindset {
+    %    dset common; /*init_record returns: (-1,0)=>(failure,success)*/
+    %    long (*read_tbl)(struct columnarinRecord *prec); /*returns: (-1,0)=>(failure,success)*/
+    %};
+    %#ifdef __cplusplus
+    %} // extern "C"
+    %#endif
+    field(VAL,DBF_NOACCESS) {
+        prompt("Current Value")
+        asl(ASL0)
+        pp(TRUE)
+        special(SPC_DBADDR)
+        extra("void* val")
+    }
+    field(RPVT,DBF_NOACCESS) {
+        special(SPC_NOMOD)
+        extra("::columnarin::RPvt* rpvt")
+    }
+    field(INP,DBF_INLINK) {
+        prompt("Input Specification")
+        promptgroup("40 - Input")
+        interest(1)
+    }
+}
+
+device(columnarin, CONSTANT, devCOLISoft, "Soft Channel")
