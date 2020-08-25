@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include <asLib.h>
 #include <dbAccess.h>
 #include <dbChannel.h>
 #include <dbStaticLib.h>
@@ -355,6 +356,16 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
     dbChannel *chan = channel->pv->chan;
     dbFldDes *fld = dbChannelFldDes(chan);
 
+    void *asWritePvt;
+    asWritePvt = asTrapWriteWithData(channel->aspvt.aspvt,
+                        std::string(channel->cred.user.begin(), channel->cred.user.end()).c_str(),
+                        std::string(channel->cred.host.begin(), channel->cred.host.end()).c_str(),
+                        chan,
+                        chan->final_type,
+                        chan->final_no_elements,
+                        NULL
+                        );
+
     pvd::Status ret;
     if(!channel->aspvt.canWrite()) {
         ret = pvd::Status::error("Put not permitted");
@@ -409,6 +420,8 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
     requester_type::shared_pointer req(requester.lock());
     if(req)
         req->putDone(ret, shared_from_this());
+
+    asTrapWriteAfter(asWritePvt);
 }
 
 void PDBSinglePut::cancel()
