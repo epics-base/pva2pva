@@ -21,6 +21,9 @@ p2p
 A PV Access gateway (aka proxy).
 The 'p2p' executable.
 
+The P2P gateway has been deprecated in favor of
+[p4p.gw](https://mdavidsaver.github.io/p4p/gw.html).
+
 Dependencies
 ------------
 
