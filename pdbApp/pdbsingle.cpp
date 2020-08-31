@@ -363,7 +363,7 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
                         chan,
                         chan->final_type,
                         chan->final_no_elements,
-                        NULL
+                        NULL    //caputRecoreder module may prefer it not to be null (but it does make a check if it is)
                         );
 
     pvd::Status ret;
