@@ -2,6 +2,12 @@
 
 @page release_notes Release Notes
 
+Unreleased
+==========
+
+- Changes
+  - Add Access Security hooks for single and group writes.
+
 Release 1.2.4 (July 2020)
 =========================
 
