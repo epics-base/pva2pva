@@ -350,13 +350,13 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     // assume value may be a different struct each time... lot of wasted prep work
     const size_t npvs = channel->pv->members.size();
     std::vector<std::tr1::shared_ptr<PVIF> > putpvif(npvs);
-    std::vector<void *> asWritePvt;
+    std::vector<AsWritePvt> asWritePvt;
 
     for(size_t i=0; i<npvs; i++)
     {
         PDBGroupPV::Info& info = channel->pv->members[i];
 
-        asWritePvt.push_back(
+        asWritePvt.push_back(AsWritePvt(
             asTrapWriteWithData(channel->aspvt.at(i).aspvt,
                             std::string(channel->cred.user.begin(), channel->cred.user.end()).c_str(),
                             std::string(channel->cred.host.begin(), channel->cred.host.end()).c_str(),
@@ -365,7 +365,7 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
                             info.chan->final_no_elements,
                             NULL    //caputRecoreder module may prefer it not to be null (but it does make a check if it is)
                             )
-        );
+        ));
 
         if(!info.allowProc) continue;
         putpvif[i].reset(info.builder->attach(info.chan, value, info.attachment));
@@ -398,11 +398,6 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     requester_type::shared_pointer req(requester.lock());
     if(req)
         req->putDone(ret, shared_from_this());
-
-    for(std::vector<void *>::iterator it = asWritePvt.begin();
-            it != asWritePvt.end(); ++it) {
-        asTrapWriteAfter(*it);
-    }
 }
 
 void PDBGroupPut::get()
