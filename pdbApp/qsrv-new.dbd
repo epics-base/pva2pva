@@ -18,3 +18,4 @@ variable(pvaLinkNWorkers, int)
 
 include "svectorinRecord.dbd"
 include "pvstructinRecord.dbd"
+include "statBinRecord.dbd"
