@@ -25,6 +25,7 @@ INC += pv/qsrvVersionNum.h
 DBDINC += svectorinRecord
 DBDINC += pvstructinRecord
 DBDINC += columnarinRecord
+DBDINC += statBinRecord
 
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
 EXPANDVARS += EPICS_QSRV_MINOR_VERSION
@@ -67,6 +68,8 @@ qsrv_SRCS += devPVSInSoft.c
 
 qsrv_SRCS += columnarinRecord.c
 
+qsrv_SRCS += statBinRecord.c
+
 qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
@@ -97,6 +100,7 @@ softIocPVA_DBD += softIoc.dbd
 softIocPVA_DBD += svectorinRecord.dbd
 softIocPVA_DBD += pvstructinRecord.dbd
 softIocPVA_DBD += columnarinRecord.dbd
+softIocPVA_DBD += statBinRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
@@ -110,6 +114,7 @@ include $(TOP)/configure/RULES
 $(COMMON_DIR)/softIocPVA.dbd: ../svectorinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../pvstructinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../columnarinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../statBinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
 
 # Can't use EXPAND as generated headers must appear
