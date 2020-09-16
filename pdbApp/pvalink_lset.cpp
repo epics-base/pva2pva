@@ -4,6 +4,8 @@
 #include <recGbl.h>
 #include <epicsStdio.h> // redirect stdout/stderr
 
+#include <pvstructinRecord.h>
+
 #include <pv/current_function.h>
 
 #include "pvalink.h"
@@ -199,6 +201,31 @@ long pvaGetValue(DBLINK *plink, short dbrType, void *pbuffer,
             }
             DEBUG(self, <<CURRENT_FUNCTION<<" "<<self->channelName<<" !valid");
             return -1;
+        }
+
+        if(dbrType==DBR_VFIELD) {
+            if(!self->lchan->op_mon.root)
+                return -1;
+
+            VField *vfield = static_cast<VField*>(pbuffer);
+            if(vfield->vtype==&vfStructure) {
+                VSharedStructure *vstruct = static_cast<VSharedStructure*>(pbuffer);
+                *vstruct->value = self->lchan->op_mon.root->getStructure();
+                return 0;
+
+            } else if(vfield->vtype==&vfPVStructure) {
+                VSharedPVStructure *vinst = static_cast<VSharedPVStructure*>(pbuffer);
+                if((*vinst->value)->getStructure()!=self->lchan->op_mon.root->getStructure()) {
+                    // TODO: how to handle type change?
+                    return S_db_badDbrtype;
+                }
+                (*vinst->value)->copy(*self->lchan->op_mon.root);
+                (*vinst->changed) |= self->lchan->op_mon.changed;
+                return 0;
+
+            } else {
+                return S_db_badDbrtype;
+            }
         }
 
         if(self->fld_value) {
