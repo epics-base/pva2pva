@@ -238,7 +238,7 @@ long cvt_dbaddr(DBADDR *paddr)
 
     paddr->field_type = DBF_NOACCESS;
 
-    if(dbGetFieldIndex(paddr)==pvstructinRecordVAL) {
+    if(dbGetFieldIndex(paddr)==columnarinRecordVAL) {
         // we provide vfield access
         paddr->vfields = &vfPVStructureList;
     }
@@ -265,7 +265,7 @@ long get_vfield(struct dbAddr *paddr, struct VField *p)
 
     if(p->vtype==&vfPVStructure) {
         VSharedPVStructure *pstr = (VSharedPVStructure*)p;
-        if(dbGetFieldIndex(paddr)==pvstructinRecordVAL) {
+        if(dbGetFieldIndex(paddr)==columnarinRecordVAL) {
             if(!*pstr->value)
                 return S_db_notInit;
             (*pstr->value)->copy(*prec->rpvt->tbl);
@@ -275,7 +275,7 @@ long get_vfield(struct dbAddr *paddr, struct VField *p)
 
     } else if(p->vtype==&vfStructure) {
         VSharedStructure *pstr = (VSharedStructure*)p;
-        if(dbGetFieldIndex(paddr)==pvstructinRecordVAL) {
+        if(dbGetFieldIndex(paddr)==columnarinRecordVAL) {
             *pstr->value = prec->rpvt->tbl->getStructure();
             return 0;
         }
