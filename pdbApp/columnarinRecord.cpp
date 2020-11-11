@@ -24,7 +24,9 @@
 #include <alarm.h>
 #include <epicsStdio.h>
 
-#include <pvstructinRecord.h>
+#include <pv/pvData.h>
+#include <pv/bitSet.h>
+#include <pv/qsrv.h>
 
 #define GEN_SIZE_OFFSET
 #include <columnarinRecord.h>

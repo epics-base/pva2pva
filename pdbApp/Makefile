@@ -60,15 +60,16 @@ else
 qsrv_SRCS += pvalink_null.cpp
 endif
 
-qsrv_SRCS += svectorinRecord.c
-qsrv_SRCS += devSVInSoft.c
+qsrv_SRCS += vfield.cpp
+qsrv_SRCS += svectorinRecord.cpp
+qsrv_SRCS += devSVInSoft.cpp
 
-qsrv_SRCS += pvstructinRecord.c
-qsrv_SRCS += devPVSInSoft.c
+qsrv_SRCS += pvstructinRecord.cpp
+qsrv_SRCS += devPVSInSoft.cpp
 
-qsrv_SRCS += columnarinRecord.c
+qsrv_SRCS += columnarinRecord.cpp
 
-qsrv_SRCS += statBinRecord.c
+qsrv_SRCS += statBinRecord.cpp
 
 qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)

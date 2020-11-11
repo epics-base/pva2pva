@@ -17,11 +17,6 @@ recordtype(svectorin) {
     %#ifdef __cplusplus
     %extern "C" {
     %#endif
-    %QSRV_API extern const VFieldType vfSharedVector;
-    %struct VSharedVector {
-    %    const VFieldType* vtype;
-    %    epics::pvData::shared_vector<const void>* value;
-    %};
     %typedef struct svectorindset {
     %    dset common; /*init_record returns: (-1,0)=>(failure,success)*/
     %    long (*read_sharedvector)(struct svectorinRecord *prec); /*returns: (-1,0)=>(failure,success)*/
