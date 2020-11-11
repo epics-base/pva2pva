@@ -26,14 +26,12 @@
 #include "devSup.h"
 #include "epicsTime.h"
 
+#include <pv/qsrv.h>
+
 #define GEN_SIZE_OFFSET
 #include <svectorinRecord.h>
 #undef  GEN_SIZE_OFFSET
 #include <epicsExport.h>
-
-extern "C" {
-const VFieldType vfSharedVector = {"epics::pvData::shared_vector<const void>"};
-}
 
 namespace  {
 

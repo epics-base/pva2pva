@@ -26,15 +26,12 @@
 #include "devSup.h"
 #include "epicsTime.h"
 
+#include <pv/qsrv.h>
+
 #define GEN_SIZE_OFFSET
 #include <pvstructinRecord.h>
 #undef  GEN_SIZE_OFFSET
 #include <epicsExport.h>
-
-extern "C" {
-const VFieldType vfStructure = {"epics::pvData::StructureConstPtr"};
-const VFieldType vfPVStructure = {"epics::pvData::PVStructurePtr"};
-}
 
 namespace  {
 

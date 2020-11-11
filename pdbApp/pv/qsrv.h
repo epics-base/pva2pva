@@ -37,6 +37,9 @@
 #endif
 
 
+#include <dbAccess.h>
+#include <pv/pvData.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -81,6 +84,28 @@ QSRV_API void testqsrvShutdownOk(void);
  @endcode
  */
 QSRV_API void testqsrvCleanup(void);
+
+QSRV_API
+extern const VFieldType vfSharedVector;
+struct VSharedVector {
+    const VFieldType* vtype;
+    epics::pvData::shared_vector<const void>* value;
+};
+
+QSRV_API
+extern const VFieldType vfStructure;
+struct VSharedStructure {
+    const VFieldType* vtype;
+    epics::pvData::StructureConstPtr* value;
+};
+QSRV_API
+extern const VFieldType vfPVStructure;
+struct VSharedPVStructure {
+    const VFieldType* vtype;
+    const epics::pvData::PVStructurePtr* value;
+    epics::pvData::BitSet* changed;
+};
+
 
 #ifdef __cplusplus
 }
