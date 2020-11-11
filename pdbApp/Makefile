@@ -23,6 +23,7 @@ INC += pv/qsrv.h
 INC += pv/qsrvVersionNum.h
 
 DBDINC += svectorinRecord
+DBDINC += svectoroutRecord
 DBDINC += pvstructinRecord
 DBDINC += columnarinRecord
 DBDINC += statBinRecord
@@ -62,7 +63,9 @@ endif
 
 qsrv_SRCS += vfield.cpp
 qsrv_SRCS += svectorinRecord.cpp
+qsrv_SRCS += svectoroutRecord.cpp
 qsrv_SRCS += devSVInSoft.cpp
+qsrv_SRCS += devSVOutSoft.cpp
 
 qsrv_SRCS += pvstructinRecord.cpp
 qsrv_SRCS += devPVSInSoft.cpp
@@ -99,6 +102,7 @@ endif
 
 softIocPVA_DBD += softIoc.dbd
 softIocPVA_DBD += svectorinRecord.dbd
+softIocPVA_DBD += svectoroutRecord.dbd
 softIocPVA_DBD += pvstructinRecord.dbd
 softIocPVA_DBD += columnarinRecord.dbd
 softIocPVA_DBD += statBinRecord.dbd
@@ -113,6 +117,7 @@ include $(TOP)/configure/RULES
 
 # why is this not automatic!
 $(COMMON_DIR)/softIocPVA.dbd: ../svectorinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../svectoroutRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../pvstructinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../columnarinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../statBinRecord.dbd
@@ -134,6 +139,7 @@ QSRVDBD = ../qsrv-old.dbd
 endif
 
 $(QSRVDBD) : ../svectorinRecord.dbd
+$(QSRVDBD) : ../svectoroutRecord.dbd
 $(QSRVDBD) : ../pvstructinRecord.dbd
 
 ../O.Common/qsrv.dbd: $(QSRVDBD)
