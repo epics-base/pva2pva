@@ -27,6 +27,7 @@ DBDINC += svectoroutRecord
 DBDINC += pvstructinRecord
 DBDINC += columnarinRecord
 DBDINC += statBinRecord
+DBDINC += ndainRecord
 
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
 EXPANDVARS += EPICS_QSRV_MINOR_VERSION
@@ -74,6 +75,9 @@ qsrv_SRCS += columnarinRecord.cpp
 
 qsrv_SRCS += statBinRecord.cpp
 
+qsrv_SRCS += ndainRecord.cpp
+qsrv_SRCS += devNDAInSoft.cpp
+
 qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
@@ -106,6 +110,7 @@ softIocPVA_DBD += svectoroutRecord.dbd
 softIocPVA_DBD += pvstructinRecord.dbd
 softIocPVA_DBD += columnarinRecord.dbd
 softIocPVA_DBD += statBinRecord.dbd
+softIocPVA_DBD += ndainRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
@@ -121,6 +126,7 @@ $(COMMON_DIR)/softIocPVA.dbd: ../svectoroutRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../pvstructinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../columnarinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../statBinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../ndainRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
 
 # Can't use EXPAND as generated headers must appear
@@ -141,6 +147,9 @@ endif
 $(QSRVDBD) : ../svectorinRecord.dbd
 $(QSRVDBD) : ../svectoroutRecord.dbd
 $(QSRVDBD) : ../pvstructinRecord.dbd
+$(QSRVDBD) : ../columnarinRecord.dbd
+$(QSRVDBD) : ../statBinRecord.dbd
+$(QSRVDBD) : ../ndainRecord.dbd
 
 ../O.Common/qsrv.dbd: $(QSRVDBD)
 	$(CP) $< $@

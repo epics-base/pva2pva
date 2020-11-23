@@ -1,0 +1,91 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+
+menu(menuColor) {
+    choice(menuColorGray, "GRAY")
+    # ... RGB8 etc.
+}
+
+recordtype(ndain) {
+    include "dbCommon.dbd"
+    %/* Declare Device Support Entry Table */
+    %#include <devSup.h>
+    %#include <pv/bitSet.h>
+    %#include <pv/pvData.h>
+    %#ifdef __cplusplus
+    %extern "C" {
+    %#endif
+    %typedef struct ndaindset {
+    %    dset common; /*init_record returns: (-1,0)=>(failure,success)*/
+    %    long (*read_ndarray)(struct ndainRecord *prec); /*returns: (-1,0)=>(failure,success)*/
+    %} ndaindset;
+    %#define HAS_ndaindset
+    %struct ndainPvt;
+    %#ifdef __cplusplus
+    %}
+    %#endif
+    field(VAL,DBF_NOACCESS) {
+        prompt("Pixel array")
+        promptgroup("40 - Input")
+        asl(ASL0)
+        pp(TRUE)
+        special(SPC_DBADDR)
+        extra("::epics::pvData::shared_vector<const void> val")
+    }
+    field(INP,DBF_INLINK) {
+        prompt("Input Specification")
+        promptgroup("40 - Input")
+        interest(1)
+    }
+    field(H, DBF_ULONG) {
+        prompt("Height in pixels")
+        interest(3)
+        special(SPC_NOMOD)
+    }
+    field(INH,DBF_INLINK) {
+        prompt("Read height")
+        promptgroup("40 - Input")
+        interest(3)
+    }
+    field(W, DBF_ULONG) {
+        prompt("Width in pixels")
+        interest(3)
+        special(SPC_NOMOD)
+    }
+    field(INW,DBF_INLINK) {
+        prompt("Read width")
+        promptgroup("40 - Input")
+        interest(3)
+    }
+    field(COL, DBF_MENU) {
+        prompt("Color Mode")
+        interest(3)
+        special(SPC_NOMOD)
+        menu(menuColor)
+    }
+    field(ID, DBF_LONG) {
+        prompt("Unique ID")
+        interest(3)
+        special(SPC_NOMOD)
+    }
+    field(RPVT, DBF_NOACCESS) {
+        extra("struct ndainPvt *rpvt")
+    }
+    field(ROOT,DBF_NOACCESS) {
+        special(SPC_NOMOD)
+        extra("::epics::pvData::PVStructurePtr root")
+    }
+    field(CHG,DBF_NOACCESS) {
+        special(SPC_NOMOD)
+        extra("::epics::pvData::BitSet chg")
+    }
+    field(VLD,DBF_NOACCESS) {
+        special(SPC_NOMOD)
+        extra("::epics::pvData::BitSet vld")
+    }
+}
+
+device(ndain, CONSTANT, devNDAISoft, "Soft Channel")
