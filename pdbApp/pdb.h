@@ -2,6 +2,7 @@
 #define PDB_H
 
 #include <dbEvent.h>
+#include <asLib.h>
 
 #include <pv/configuration.h>
 #include <pv/pvAccess.h>
@@ -69,5 +70,14 @@ struct QSRV_API PDBProvider : public epics::pvAccess::ChannelProvider,
 
 QSRV_API
 void QSRVRegistrar_counters();
+
+class QSRV_API AsWritePvt {
+    void * pvt;
+public:
+    explicit AsWritePvt(void * pvt): pvt(pvt) {}
+    ~AsWritePvt() {
+        asTrapWriteAfterWrite(pvt);
+    }
+};
 
 #endif // PDB_H
