@@ -1,4 +1,6 @@
 
+#define USE_TYPED_DSET
+
 #include <epicsMath.h>
 #include <dbAccess.h>
 #include <dbScan.h>
@@ -6,12 +8,18 @@
 #include <alarm.h>
 
 #include <waveformRecord.h>
+#include <ndainRecord.h>
 #include <menuFtype.h>
+#include <errlog.h>
 
 #include <epicsExport.h>
 
 namespace {
 
+namespace pvd = epics::pvData;
+
+// 2*pi
+const double two_pi = 6.283185307179586;
 // pi/180
 static const double pi_180 = 0.017453292519943295;
 
@@ -51,6 +59,67 @@ long process_spin(waveformRecord *prec)
     return 0;
 }
 
+struct imgPvt {
+    double phase;
+};
+
+long init_img(dbCommon *pcom)
+{
+    ndainRecord *prec = (ndainRecord*)pcom;
+    try {
+        imgPvt * pvt = new imgPvt;
+        pvt->phase = 0.0;
+        prec->dpvt = pvt;
+
+        return 0;
+    }catch(std::exception& e){
+        errlogPrintf("%s: init_img error: %s\n", prec->name, e.what());
+        recGblSetSevrMsg(prec, READ_ALARM, INVALID_ALARM, "DEMO ERR: %s", e.what());
+        return -1;
+    }
+}
+
+long process_img(ndainRecord *prec)
+{
+    if(!prec->dpvt)
+        return -1;
+
+    imgPvt *pvt = (imgPvt*)prec->dpvt;
+    try {
+        pvd::shared_vector<pvd::uint8> pixels(prec->w * prec->h);
+
+        // place blob center offset from image center by 1/4th
+        double centerX = prec->w/2 + cos(pvt->phase)*prec->w/4.0,
+               centerY = prec->h/2 + sin(pvt->phase)*prec->h/4.0;
+        double sigma = (prec->w < prec->h ? prec->w : prec->h)/4.0;
+        sigma = 2.0*sigma*sigma;
+
+        for(epicsUInt32 h=0u; h<prec->h; h++) {
+            for(epicsUInt32 w=0u; w<prec->w; w++) {
+                double distX = w - centerX,
+                       distY = h - centerY,
+                       dist2  = distX*distX + distY*distY;
+
+                pixels[h*prec->w + w] = (pvd::uint8)( 255.0 * exp(-dist2/sigma) );
+            }
+        }
+
+        for(epicsUInt32 w=0u; w<prec->w; w++) {
+            pixels[prec->h/2*prec->w + w] = 255u;
+        }
+
+        prec->val = pvd::static_shared_vector_cast<const void>(pvd::freeze(pixels));
+
+        pvt->phase = fmod(pvt->phase + two_pi/60.0, two_pi);
+
+        return 0;
+    }catch(std::exception& e){
+        errlogPrintf("%s: process_img error: %s\n", prec->name, e.what());
+        recGblSetSevrMsg(prec, READ_ALARM, INVALID_ALARM, "DEMO ERR: %s", e.what());
+        return -1;
+    }
+}
+
 template<typename REC>
 struct dset5
 {
@@ -64,8 +133,18 @@ struct dset5
 
 dset5<waveformRecord> devWfPDBDemo = {5,0,0,&init_spin,0,&process_spin};
 
+ndaindset devNDAIPDBDemo = {
+    {
+        5, 0, 0,
+        &init_img,
+        0,
+    },
+    &process_img,
+};
+
 } // namespace
 
 extern "C" {
 epicsExportAddress(dset, devWfPDBDemo);
+epicsExportAddress(dset, devNDAIPDBDemo);
 }

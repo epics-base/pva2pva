@@ -19,3 +19,7 @@ variable(pvaLinkNWorkers, int)
 include "svectorinRecord.dbd"
 include "pvstructinRecord.dbd"
 include "statBinRecord.dbd"
+include "ndainRecord.dbd"
+
+# from demo.cpp
+device(ndain, CONSTANT, devNDAIPDBDemo, "QSRV Demo")
