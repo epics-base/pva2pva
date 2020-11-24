@@ -26,8 +26,10 @@ DBDINC += svectorinRecord
 DBDINC += svectoroutRecord
 DBDINC += pvstructinRecord
 DBDINC += columnarinRecord
+DBDINC += columnaroutRecord
 DBDINC += statBinRecord
 DBDINC += ndainRecord
+DBDINC += multiArrayCommon
 
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
 EXPANDVARS += EPICS_QSRV_MINOR_VERSION
@@ -72,10 +74,12 @@ qsrv_SRCS += pvstructinRecord.cpp
 qsrv_SRCS += devPVSInSoft.cpp
 
 qsrv_SRCS += columnarinRecord.cpp
+qsrv_SRCS += columnaroutRecord.cpp
 
 qsrv_SRCS += statBinRecord.cpp
 
 qsrv_SRCS += ndainRecord.cpp
+qsrv_SRCS += multiArrayCommon.cpp
 qsrv_SRCS += devNDAInSoft.cpp
 
 qsrv_LIBS += pvAccess pvData
@@ -109,6 +113,7 @@ softIocPVA_DBD += svectorinRecord.dbd
 softIocPVA_DBD += svectoroutRecord.dbd
 softIocPVA_DBD += pvstructinRecord.dbd
 softIocPVA_DBD += columnarinRecord.dbd
+softIocPVA_DBD += columnaroutRecord.dbd
 softIocPVA_DBD += statBinRecord.dbd
 softIocPVA_DBD += ndainRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
@@ -125,6 +130,7 @@ $(COMMON_DIR)/softIocPVA.dbd: ../svectorinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../svectoroutRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../pvstructinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../columnarinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../columnaroutRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../statBinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../ndainRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
@@ -159,3 +165,15 @@ qsrv.dbd$(DEP):
 	@echo "$(COMMONDEP_TARGET): ../Makefile" > $@
 
 ../O.Common/softIocPVA.dbd: ../O.Common/qsrv.dbd
+
+
+# cf. specials for dbCommon.h in modules/database/src/ioc/db/RULES
+
+multiArrayCommon.h$(DEP): ../multiArrayCommonRecord.dbd ../multiArrayCommon.dbd
+	@$(RM) $@
+	@$(DBTORECORDTYPEH) -D $(DBDFLAGS) -o $(COMMONDEP_TARGET) $< > $@
+
+$(COMMON_DIR)/multiArrayCommon.h: ../multiArrayCommonRecord.dbd ../multiArrayCommon.dbd
+	@$(RM) $(notdir $@)
+	$(DBTORECORDTYPEH) $(DBDFLAGS) -o $(notdir $@) $<
+	@$(MV) $(notdir $@) $@

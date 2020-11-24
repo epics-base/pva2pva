@@ -1,0 +1,79 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+    include "dbCommon.dbd"
+    %#include <pv/sharedVector.h>
+    %#include <pv/qsrv.h>
+    %#include <pv/bitSet.h>
+    %#include <pv/pvData.h>
+    %
+    %#ifndef multiArrayCommonRecordDef
+    %#define multiArrayCommonRecordDef
+    %namespace multiArray {
+    %struct RPvt;
+    %struct Entry {
+    %    const char* name;
+    %    const char* label;
+    %    ::epics::pvData::ScalarType type;
+    %};
+    %struct ColMeta {
+    %    epicsUInt16 sevr;
+    %    const char *amsg;
+    %    epicsTimeStamp time;
+    %    epicsInt32 utag;
+    %    ColMeta() :sevr(0), amsg(0), utag(0) { time.secPastEpoch = 0; time.nsec = 0;}
+    %};
+    %// Call from device support init_record(), define new column
+    %QSRV_API
+    %void add_column(void *prec, const char* fname, const char* label, ::epics::pvData::ScalarType type);
+    %// Call from device support init_record(), define new columns
+    %QSRV_API
+    %void add_columns(void *prec, const Entry* cols);
+    %// Call from device support init_record() and/or process(), Set value of column.
+    %QSRV_API
+    %void set_column(void *prec, const char* fname, const ::epics::pvData::shared_vector<const void>& cdata, const ColMeta* =0);
+    %
+    %// Call from sub-record support
+    %QSRV_API
+    %long initialize();
+    %QSRV_API
+    %long init_record(struct dbCommon *pcommon, int pass);
+    %QSRV_API
+    %void monitor(void* prec, unsigned short monitor_mask);
+    %QSRV_API
+    %long cvt_dbaddr(DBADDR *paddr);
+    %QSRV_API
+    %long get_array_info(DBADDR *paddr, long *no_elements, long *offset);
+    %QSRV_API
+    %long put_array_info(DBADDR *paddr, long nNew);
+    %QSRV_API
+    %long get_vfield(struct dbAddr *paddr, struct VField *p);
+    %QSRV_API
+    %long put_vfield(struct dbAddr *paddr, const struct VField *p);
+    %} // namespace multiArray
+    %#endif // multiArrayCommonRecordDef
+    field(RPVT,DBF_NOACCESS) {
+        special(SPC_NOMOD)
+        extra("::multiArray::RPvt* rpvt")
+    }
+    field(VAL,DBF_NOACCESS) {
+        prompt("Current Value")
+        promptgroup("40 - Input")
+        asl(ASL0)
+        pp(TRUE)
+        special(SPC_DBADDR)
+        extra("::epics::pvData::PVStructurePtr val")
+    }
+    field(VLD,DBF_NOACCESS) {
+        prompt("Valid Mask")
+        special(SPC_NOMOD)
+        extra("::epics::pvData::BitSet vld")
+    }
+    field(LAY, DBF_MENU) {
+        prompt("Structure Layout")
+        interest(2)
+        special(SPC_NOMOD)
+        menu(multiArrayLayout)
+    }
