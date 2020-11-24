@@ -29,7 +29,7 @@
 #include <pv/qsrv.h>
 
 #define GEN_SIZE_OFFSET
-#include <columnarinRecord.h>
+#include <columnaroutRecord.h>
 #undef  GEN_SIZE_OFFSET
 #include <epicsExport.h>
 
@@ -44,8 +44,8 @@ long initialize()
 
 long init_record(struct dbCommon *pcommon, int pass)
 {
-    columnarinRecord *prec = (columnarinRecord*)pcommon;
-    columnarindset *pdset = (columnarindset *)(prec->dset);
+    columnaroutRecord *prec = (columnaroutRecord*)pcommon;
+    columnaroutdset *pdset = (columnaroutdset *)(prec->dset);
     /* overall ordering
      * pass==0
      *   - check dset
@@ -56,7 +56,7 @@ long init_record(struct dbCommon *pcommon, int pass)
      */
 
     if (!pdset && pass==0) {
-        recGblRecordError(S_dev_noDSET, prec, "columnarin: no DSET");
+        recGblRecordError(S_dev_noDSET, prec, "columnarout: no DSET");
         return S_dev_noDSET;
     }
 
@@ -71,13 +71,13 @@ long init_record(struct dbCommon *pcommon, int pass)
     return status;
 }
 
-long readValue(columnarinRecord *prec,
-               columnarindset *pdset)
+long writeValue(columnaroutRecord *prec,
+               columnaroutdset *pdset)
 {
-    return pdset->read_tbl(prec);
+    return pdset->write_tbl(prec);
 }
 
-void monitor(columnarinRecord *prec)
+void monitor(columnaroutRecord *prec)
 {
     int monitor_mask = recGblResetAlarms(prec);
 
@@ -86,17 +86,17 @@ void monitor(columnarinRecord *prec)
 
 long process(struct dbCommon *pcommon)
 {
-    columnarinRecord *prec = (columnarinRecord*)pcommon;
-    columnarindset *pdset = (columnarindset *)(prec->dset);
+    columnaroutRecord *prec = (columnaroutRecord*)pcommon;
+    columnaroutdset *pdset = (columnaroutdset *)(prec->dset);
     try {
 
         unsigned char    pact=prec->pact;
         long status;
 
-        if( (pdset==NULL) || (pdset->read_tbl==NULL) ) {
+        if( (pdset==NULL) || (pdset->write_tbl==NULL) ) {
             prec->pact=TRUE;
-            recGblSetSevrMsg(prec, READ_ALARM, INVALID_ALARM, "no read_tbl");
-            recGblRecordError(S_dev_missingSup,(void *)prec,"read_tbl");
+            recGblSetSevrMsg(prec, READ_ALARM, INVALID_ALARM, "no write_tbl");
+            recGblRecordError(S_dev_missingSup,(void *)prec,"write_tbl");
             return S_dev_missingSup;
 
         } else if(!prec->val) {
@@ -105,7 +105,7 @@ long process(struct dbCommon *pcommon)
             return S_dev_NoInit;
         }
 
-        status=readValue(prec, pdset); /* read the new value */
+        status=writeValue(prec, pdset); /* read the new value */
         /* check if device support set pact */
         if ( !pact && prec->pact ) return(0);
 
@@ -162,7 +162,7 @@ long put_vfield(struct dbAddr *paddr, const struct VField *p)
 #define get_control_double NULL
 #define get_alarm_double NULL
 
-rset columnarinRSET = {
+rset columnaroutRSET = {
     RSETNUMBER,
     report,
     initialize,
@@ -185,48 +185,22 @@ rset columnarinRSET = {
     put_vfield,
 };
 
-long readLocked(struct link *pinp, void *raw)
+long write_tbl_soft(columnaroutRecord* prec)
 {
-    columnarinRecord *prec = (columnarinRecord *) pinp->precord;
-
-    VSharedPVStructure ival;
-    ival.vtype = &vfPVStructure;
-    ival.value = &prec->val;
-    ival.changed = &prec->vld;
-
-    long status = dbGetLink(pinp, DBR_VFIELD, &ival, 0, 0);
-
-    if (status) return status;
-
-    if (dbLinkIsConstant(&prec->tsel) &&
-        prec->tse == epicsTimeEventDeviceTime)
-        dbGetTimeStamp(pinp, &prec->time);
-
-    return status;
+    (void)recGblSetSevr(prec, READ_ALARM, INVALID_ALARM);
+    // TODO: custom link support to aggregate a list of arrays into a table?
+    return 0;
 }
 
-long read_tbl_soft(columnarinRecord* prec)
-{
-    long status = dbLinkDoLocked(&prec->inp, readLocked, 0);
-
-    if (status == S_db_noLSET)
-        status = readLocked(&prec->inp, 0);
-
-    if (!status && !dbLinkIsConstant(&prec->inp))
-        prec->udf = FALSE;
-
-    return status;
-}
-
-columnarindset devCOLISoft = {
+columnaroutdset devCOLOSoft = {
     {5, NULL, NULL, NULL, NULL},
-    &read_tbl_soft
+    &write_tbl_soft
 };
 
 
 } // namespace
 
 extern "C" {
-epicsExportAddress(rset,columnarinRSET);
-epicsExportAddress(dset, devCOLISoft);
+epicsExportAddress(rset,columnaroutRSET);
+epicsExportAddress(dset, devCOLOSoft);
 }
