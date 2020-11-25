@@ -1,6 +1,10 @@
 TOP=..
 
 include $(TOP)/configure/CONFIG
+# cfg/ sometimes isn't correctly included due to a Base bug
+# so we do here (maybe again) as workaround
+include $(TOP)/configure/CONFIG_QSRV_VERSION
+
 #----------------------------------------
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
@@ -99,18 +103,20 @@ softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
 DBD += softIocPVA.dbd
 DBD += qsrv.dbd
 
+qsrv_pieces += ../qsrv-common.dbd
+ifdef BASE_3_16
+qsrv_pieces += ../qsrv-lset.dbd
+endif
+ifeq (YES,$(HAS_DBR_VFIELD))
+qsrv_pieces += ../qsrv-vfield.dbd
+endif
+
 ifneq ($(FINAL_LOCATION),$(EPICS_BASE))
 # Copy from Base if we won't be installed there
 DB_INSTALLS += $(EPICS_BASE)/db/softIocExit.db
 endif
 
 softIocPVA_DBD += softIoc.dbd
-softIocPVA_DBD += svectorinRecord.dbd
-softIocPVA_DBD += svectoroutRecord.dbd
-softIocPVA_DBD += pvstructinRecord.dbd
-softIocPVA_DBD += columnarinRecord.dbd
-softIocPVA_DBD += statBinRecord.dbd
-softIocPVA_DBD += ndainRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
@@ -138,24 +144,9 @@ $(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
 qsrv$(DEP): ../O.Common/pv/qsrvVersionNum.h
 pvalink$(DEP): ../O.Common/pv/qsrvVersionNum.h
 
-ifdef BASE_3_16
-QSRVDBD = ../qsrv-new.dbd
-else
-QSRVDBD = ../qsrv-old.dbd
-endif
-
-$(QSRVDBD) : ../svectorinRecord.dbd
-$(QSRVDBD) : ../svectoroutRecord.dbd
-$(QSRVDBD) : ../pvstructinRecord.dbd
-$(QSRVDBD) : ../columnarinRecord.dbd
-$(QSRVDBD) : ../statBinRecord.dbd
-$(QSRVDBD) : ../ndainRecord.dbd
-
-../O.Common/qsrv.dbd: $(QSRVDBD)
-	$(CP) $< $@
-
-qsrv.dbd$(DEP):
+qsrv.dbd$(DEP): $(qsrv_pieces)
 	@$(RM) $@
 	@echo "$(COMMONDEP_TARGET): ../Makefile" > $@
 
-../O.Common/softIocPVA.dbd: ../O.Common/qsrv.dbd
+$(COMMON_DIR)/qsrv.dbd: $(qsrv_pieces)
+	$(CAT) $(filter %.dbd,$^) > $@

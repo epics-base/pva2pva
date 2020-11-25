@@ -3,7 +3,6 @@
 
 registrar(QSRVRegistrar)
 registrar(installPVAAddLinkHook)
-link("pva", "lsetPVA")
 
 # from demo.cpp
 device(waveform, CONSTANT, devWfPDBDemo, "QSRV Demo")
@@ -16,11 +15,3 @@ variable(PDBProviderDebug, int)
 # Number of worker threads for handling monitor updates.
 # Default: 1
 variable(pvaLinkNWorkers, int)
-
-include "svectorinRecord.dbd"
-include "pvstructinRecord.dbd"
-include "statBinRecord.dbd"
-include "ndainRecord.dbd"
-
-# from demo.cpp
-device(ndain, CONSTANT, devNDAIPDBDemo, "QSRV Demo")

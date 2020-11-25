@@ -1,7 +1,7 @@
 
 #include <pv/qsrv.h>
 
-#ifdef QSRV_HAS_VFIELD
+#ifdef DBR_VFIELD
 
 const VFieldType vfSharedVector = {"epics::pvData::shared_vector<const void>"};
 
