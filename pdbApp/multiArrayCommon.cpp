@@ -10,6 +10,7 @@
 #include <recGbl.h>
 #include <alarm.h>
 #include <errlog.h>
+#include <dbEvent.h>
 
 #include <pv/standardField.h>
 
