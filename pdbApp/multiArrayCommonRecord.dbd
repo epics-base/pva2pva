@@ -4,10 +4,7 @@
 # in file LICENSE that is included with this distribution.
 #*************************************************************************
 
-menu(multiArrayLayout) {
-    choice(multiArrayLayoutComposite, "Composite")
-    choice(multiArrayLayoutTable, "Table")
-}
+include "menuMultiArrayLayout.dbd"
 
 recordtype(multiArrayCommon) {
     include "multiArrayCommon.dbd"

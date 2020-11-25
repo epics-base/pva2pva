@@ -22,6 +22,8 @@ USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 INC += pv/qsrv.h
 INC += pv/qsrvVersionNum.h
 
+DBD += menuMultiArrayLayout.dbd
+
 DBDINC += svectorinRecord
 DBDINC += svectoroutRecord
 DBDINC += pvstructinRecord

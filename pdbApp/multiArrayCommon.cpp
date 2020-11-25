@@ -120,12 +120,12 @@ void set_column(void *pvoid, const char* fname, const pvd::shared_vector<const v
     } else {
         // called from process()
 
-        if(prec->lay==multiArrayLayoutTable) {
+        if(prec->lay==menuMultiArrayLayoutTable) {
             pvd::PVScalarArrayPtr arr(prec->val->getSubFieldT<pvd::PVScalarArray>(ent.name));
             arr->putFrom(cdata);
             prec->vld.set(arr->getFieldOffset());
 
-        } else if(prec->lay==multiArrayLayoutComposite) {
+        } else if(prec->lay==menuMultiArrayLayoutComposite) {
             pvd::PVStructurePtr base(prec->val->getSubFieldT<pvd::PVStructure>(ent.name));
 
             pvd::PVScalarArrayPtr arr(base->getSubFieldT<pvd::PVScalarArray>("value"));
@@ -154,10 +154,10 @@ void get_column(void *pvoid, const char* fname, ::epics::pvData::shared_vector<c
         cdata = ent.value;
 
     } else {
-        if(prec->lay==multiArrayLayoutTable) {
+        if(prec->lay==menuMultiArrayLayoutTable) {
             prec->val->getSubFieldT<pvd::PVScalarArray>(ent.name)->getAs(cdata);
 
-        } else if(prec->lay==multiArrayLayoutComposite) {
+        } else if(prec->lay==menuMultiArrayLayoutComposite) {
             pvd::PVStructurePtr base(prec->val->getSubFieldT<pvd::PVStructure>(ent.name));
             base->getSubFieldT<pvd::PVScalarArray>("value")->getAs(cdata);
 
@@ -209,7 +209,7 @@ long init_record(struct dbCommon *pcommon, int pass)
 
             pvd::FieldBuilderPtr builder = pvd::FieldBuilder::begin();
 
-            if(prec->lay==multiArrayLayoutTable) {
+            if(prec->lay==menuMultiArrayLayoutTable) {
 
                 pvd::shared_vector<std::string> labels;
                 labels.reserve(prec->rpvt->entries.size());
@@ -252,7 +252,7 @@ long init_record(struct dbCommon *pcommon, int pass)
                     prec->vld.set(fld->getFieldOffset());
                 }
 
-            } else if(prec->lay==multiArrayLayoutComposite) {
+            } else if(prec->lay==menuMultiArrayLayoutComposite) {
 
                 for(RPvt::entries_t::const_iterator it(prec->rpvt->entries.begin()),
                     end(prec->rpvt->entries.end()); it!=end; ++it)
@@ -302,18 +302,18 @@ void monitor(void *pvoid, unsigned short monitor_mask)
 
     if(monitor_mask&DBE_ALARM) {
         // sync record alarm into PVD structure
-        if(prec->lay==multiArrayLayoutTable) {
+        if(prec->lay==menuMultiArrayLayoutTable) {
             storeAlarm(*prec->val, prec->vld, prec->sevr, prec->amsg);
 
-        } else if(prec->lay==multiArrayLayoutComposite) {
+        } else if(prec->lay==menuMultiArrayLayoutComposite) {
             // no top level alarm
         }
     }
 
-    if(prec->lay==multiArrayLayoutTable) {
+    if(prec->lay==menuMultiArrayLayoutTable) {
         storeTime(*prec->val, prec->vld, prec->time, prec->utag);
 
-    } else if(prec->lay==multiArrayLayoutComposite) {
+    } else if(prec->lay==menuMultiArrayLayoutComposite) {
         // no top level timestamp
     }
 
