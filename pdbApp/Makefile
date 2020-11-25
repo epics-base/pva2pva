@@ -109,13 +109,6 @@ DB_INSTALLS += $(EPICS_BASE)/db/softIocExit.db
 endif
 
 softIocPVA_DBD += softIoc.dbd
-softIocPVA_DBD += svectorinRecord.dbd
-softIocPVA_DBD += svectoroutRecord.dbd
-softIocPVA_DBD += pvstructinRecord.dbd
-softIocPVA_DBD += columnarinRecord.dbd
-softIocPVA_DBD += columnaroutRecord.dbd
-softIocPVA_DBD += statBinRecord.dbd
-softIocPVA_DBD += ndainRecord.dbd
 softIocPVA_DBD += PVAServerRegister.dbd
 softIocPVA_DBD += qsrv.dbd
 
