@@ -140,6 +140,34 @@ void set_column(void *pvoid, const char* fname, const pvd::shared_vector<const v
     }
 }
 
+void get_column(void *pvoid, const char* fname, ::epics::pvData::shared_vector<const void>& cdata, ColMeta* pmeta)
+{
+    multiArrayCommonRecord *prec = (multiArrayCommonRecord*)pvoid;
+
+    RPvt::entries_map_t::iterator it(prec->rpvt->entries_map.find(fname));
+    if(it==prec->rpvt->entries_map.end())
+        throw std::logic_error("No such column");
+
+    EntryStorage& ent = *it->second;
+
+    if(!prec->rpvt->finished) {
+        cdata = ent.value;
+
+    } else {
+        if(prec->lay==multiArrayLayoutTable) {
+            prec->val->getSubFieldT<pvd::PVScalarArray>(ent.name)->getAs(cdata);
+
+        } else if(prec->lay==multiArrayLayoutComposite) {
+            pvd::PVStructurePtr base(prec->val->getSubFieldT<pvd::PVStructure>(ent.name));
+            base->getSubFieldT<pvd::PVScalarArray>("value")->getAs(cdata);
+
+            if(pmeta) {
+                // TODO: extract alarm/time
+            }
+        }
+    }
+}
+
 #define TRY try
 #define CATCH() catch(std::exception& e) { \
     (void)recGblSetSevrMsg(prec, COMM_ALARM, INVALID_ALARM, "exc: %s", e.what()); \

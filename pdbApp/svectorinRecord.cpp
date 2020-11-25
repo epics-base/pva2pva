@@ -53,6 +53,7 @@ long type_check(svectorinRecord *prec)
         return 0;
 
     errlogPrintf("%s error: device support attempts type change.  Clear VAL\n", prec->name);
+    (void)recGblSetSevrMsg(prec, READ_ALARM, INVALID_ALARM, "STVL type mismatch");
 
     prec->val.clear();
 

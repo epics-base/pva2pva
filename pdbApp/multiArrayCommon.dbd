@@ -34,6 +34,8 @@
     %// Call from device support init_record() and/or process(), Set value of column.
     %QSRV_API
     %void set_column(void *prec, const char* fname, const ::epics::pvData::shared_vector<const void>& cdata, const ColMeta* =0);
+    %QSRV_API
+    %void get_column(void *prec, const char* fname, ::epics::pvData::shared_vector<const void>& cdata, ColMeta* =0);
     %
     %// Call from sub-record support
     %QSRV_API
