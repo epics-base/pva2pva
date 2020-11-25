@@ -1,0 +1,195 @@
+/**
+@page qsrv_pvd_records QSRV PVD record types
+
+Several additional process database record types are provided along with QSRV
+which make use of pvData container classes.
+These records include some fields which are only accessible via PV Access.
+Device support for these record types must be written in C++.
+
+- svectorin/out
+- columnarin/out
+- ndain
+- statBin
+- pvstructin
+
+All of these record types provide custom device support (dset)
+struct definitions.  eg. 'struct svectorindset'
+
+@section qsrv_svector svectorin/out record types
+
+The svectorin/out records are analogous to to aai/aao record types in EPICS Base,
+with different management of array allocations.  The aai/aao types manage a
+C array which device support copies samples to/from.
+The svectorin/out use an epics::pvData::shared_vector<> to allow immutable array data
+references to be moved in/out without copying.
+
+Configuration is similar to aai/aao, with the FTVL field being required
+to specify the array element type.
+
+Unlike aai/aao the NELM field is not required.  It may be set to enable a limited
+compatibility mode in which the NELM elements may be read (but not written) via Channel Access.
+
+Device support code for svectorin needs to populate a shared_vector instance of the correct type,
+and assign it to VAL.
+Assigning an array of an incorrect type is an error, VAL will be cleared and an the record alarmed.
+
+@code
+/*
+ * record(svectorin, "myrec") {
+ *     field(DTYP, "My Support")
+ *     field(FTVL, "DOUBLE")
+ *     field(NELM, "100") # only needed for CA read access
+ * }
+ */
+#include <svectorinRecord.h>
+...
+static
+long read_my_array(svectorinRecord *prec) {
+    epics::pvData::shared_vector<double> arr(2);
+    arr[0] = 1.0;
+    arr[1] = 2.0;
+    prec->val = epics::pvData::static_shared_vector_cast<const void>(epics::pvData::freeze(arr));
+    return 0;
+}
+...
+static svectorindtype devSVIMySupport = {{5,0,0,0,0}, &read_my_array};
+...
+@endcode
+
+Device support code for svectorout will access the shared_vector assigned to VAL.
+Since the array data is immutable, references may be safely passed to other
+threads.
+
+@section qsrv_columnar columnarin/out and statBin record types
+
+The columnarin/out and statBin types may be understood as storing
+a collection of named arrays of POD or string types.
+Depending on the LAY field, this collection can either be presented
+as a group of NTScalarArray sub-structures (LAY="Composite"), or as a single NTTable
+with the arrays becoming columns (LAY="Table").
+
+At this point, the only difference between columnarin and columnarout is the
+presence of an INP vs. OUT field.
+
+In either case, device support init_record() must use the multiArray::add_column()
+or multiArray::add_columns() helper methods to define column name, type, and optionally
+label (used with NTTable only).
+
+@code
+#include <columnarinRecord.h>
+/*
+ * record(columnarin, "myrec") {
+ *     field(DTYP, "My Support")
+ *     field(LAY , "Table") # default is Composite
+ * }
+ */
+static
+multiArray::Entry columns[] = {
+    {"a", "Column A", epics::pvData::pvString},
+    {"b", "Column B", epics::pvData::pvDouble},
+    {0}, // end
+};
+static
+long init_record_my_table(dbCommon *pcommon) {
+    multiArray::add_columns(pcommon, columns);
+    return 0;
+}
+@endcode
+
+Device support for the columnarin or statBin type will use multiArray::set_column()
+to assign shared_vector instances for each "column".
+In the case of LAY="Table" it is the responsibility for device support
+to ensure that all arrays/columns have the same number of rows.
+
+@code
+static
+long read_my_table(columnarinRecord *prec) {
+    epics::pvData::shared_vector<std::string> cola(2);
+    cola[0] = "hello";
+    cola[1] = "world";
+
+    epics::pvData::shared_vector<double> colb(2);
+    colb[0] = 1.0;
+    colb[1] = 2.0;
+
+    multiArray::set_column(prec, "a", epics::pvData::static_shared_vector_cast<const void>(epics::pvData::freeze(cola)));
+    multiArray::set_column(prec, "b", epics::pvData::static_shared_vector_cast<const void>(epics::pvData::freeze(colb)));
+    return 0;
+}
+...
+static columnarindtype devCOLIMySupport = {{5,0,0,&init_record_my_table,0}, &read_my_table};
+...
+@endcode
+
+Device support for the columnarout type will use multiArray::get_column() to retrieve
+column arrays.
+
+@subsection qsrv_statbin_softchannel statBin default device support
+
+The statBin type is similar to columnarin with added fields, and a default
+device support where INP can be pointed to an array field (eg. aai or svectorin)
+to compute certain statistical values.
+
+@code
+record(aai, "some:array") { ... }
+record(statBin, "my:stats") {
+    field(INP, "some:array")
+    field(DEC, "10") # decimate by 10.  aka. 10 input samples to one output bin.
+}
+@endcode
+
+
+@section qsrv_ndain ndain record type
+
+The ndain record type presents an NTNDArray structure a la. areaDetector.
+Some additional fields are added, notably W and H, and FTVL is omitted.
+Otherwise this type is similar to svectorin.
+
+Currently only Gray scale images are supported.
+
+See process_img() in pdbApp/src/demo.cpp for a more realistic example.
+
+@code
+/*
+ * record(ndain, "myrec") {
+ *     field(DTYP, "My Support")
+ * }
+ */
+#include <ndainRecord.h>
+...
+static
+long read_my_image(ndainRecord *prec) {
+    // 3x2 8bit
+    prec->w = 3;
+    prec->h = 2;
+    epics::pvData::shared_vector<epics::pvData::uint8> arr(3*2);
+    // width is innermost/contiguous
+    // idx = h*prec->w + w
+    arr[0] = 1; // 0x0
+    arr[1] = 2;
+    arr[2] = 3; // 2x0
+    arr[3] = 4; // 0x1
+    arr[4] = 5;
+    arr[5] = 6;
+    prec->val = epics::pvData::static_shared_vector_cast<const void>(epics::pvData::freeze(arr));
+    return 0;
+}
+...
+static ndaindtype devNDIMySupport = {{5,0,0,0,0}, &read_my_image};
+...
+@endcode
+
+@section qsrv_pvstructin pvstructin record type
+
+By analogy, the pvstructin record type is to these special record types what aSub is the Base record types.
+A tool to be used when no other would be sufficient.
+
+This record type allows device support to device an arbitrary pvData structure,
+which is done by placing a PVStructure pointer in the VAL field during init_record().
+
+It is then the responsibility of device support to manipulate the (arbitrary) structure,
+and to set the appropriate bit(s) of the CHG bitmask when doing so.
+
+A discussion of the proper handling of a PVStructure is outside the scope of this document.
+
+*/
