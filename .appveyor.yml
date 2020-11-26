@@ -30,6 +30,7 @@ skip_commits:
   files:
     - 'documentation/*'
     - '**/*.md'
+    - '.github/**'
 
 # Build Configurations: dll/static, regular/debug
 configuration:
