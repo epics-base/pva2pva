@@ -55,6 +55,13 @@ long dbLoadGroup(const char* fname)
                    "Load additional DB group definitions from file.\n");
             return 1;
         }
+#ifndef USE_MULTILOCK
+            static bool warned;
+            if(!warned) {
+                warned = true;
+                fprintf(stderr, "ignoring %s\n", fname);
+            }
+#endif
 
         if(fname[0]=='-') {
             fname++;

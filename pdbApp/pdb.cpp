@@ -174,7 +174,9 @@ struct PDBProcessor
 
     PDBProcessor()
     {
+#ifdef USE_MULTILOCK
         GroupConfig conf;
+#endif
 
         // process info(Q:Group, ...)
         for(pdbRecordIterator rec; !rec.done(); rec.next())
@@ -192,6 +194,7 @@ struct PDBProcessor
                 fprintf(stderr, "%s: info(Q:Group, ...\n", rec.name());
             }
 
+#ifdef USE_MULTILOCK
             try {
                 GroupConfig::parse(json, rec.name(), conf);
                 if(!conf.warning.empty())
@@ -200,6 +203,7 @@ struct PDBProcessor
                 fprintf(stderr, "%s: Error parsing info(\"Q:group\", ... : %s\n",
                         rec.record()->name, e.what());
             }
+#endif
         }
 
         // process group definition files
@@ -233,6 +237,7 @@ struct PDBProcessor
                 fprintf(stderr, "Process dbGroup file \"%s\"\n", it->c_str());
             }
 
+#ifdef USE_MULTILOCK
             try {
                 GroupConfig::parse(json, "", conf);
                 if(!conf.warning.empty())
@@ -240,8 +245,10 @@ struct PDBProcessor
             }catch(std::exception& e){
                 fprintf(stderr, "Error from dbGroup file \"%s\"\n%s", it->c_str(), e.what());
             }
+#endif
         }
 
+#ifdef USE_MULTILOCK
         for(GroupConfig::groups_t::const_iterator git=conf.groups.begin(), gend=conf.groups.end();
             git!=gend; ++git)
         {
@@ -351,6 +358,7 @@ struct PDBProcessor
         resolveTriggers();
         // must not re-sort members after this point as resolveTriggers()
         // has stored array indicies.
+#endif
     }
 
 };
