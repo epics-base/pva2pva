@@ -2,6 +2,14 @@
 
 @page release_notes Release Notes
 
+Release 1.3.0 (UNRELEASED)
+==========================
+
+- Changes
+ - Add dbLoadGroup() iocsh function to read group JSON definitions
+   from a file.  Mappings in files must refer to full record names
+   instead of fields.  eg. 'recname.VAL' instead of 'VAL'.
+
 Release 1.2.4 (July 2020)
 =========================
 

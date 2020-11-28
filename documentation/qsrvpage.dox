@@ -23,7 +23,9 @@ which is also the PV name.
 So unlike records, the "field" of a group have a different meaning.
 Group field names are _not_ part of the PV name.
 
-A group definition is split among several records.
+A group definition may be split among several records,
+or included in separate JSON file(s).
+
 For example of a group including two records is:
 
 @code
@@ -40,6 +42,23 @@ record(ai, "rec:Y") {
         "Y": {+channel:"VAL"}
     }
   })
+}
+@endcode
+
+Or equivalently with separate .db file and .json files.
+
+@code
+# some .db
+record(ai, "rec:X") {}
+record(ai, "rec:Y") {}
+@endcode
+
+@code
+{
+    "grp:name": {
+        "X": {+channel:"VAL"},
+        "Y": {+channel:"VAL"}
+    }
 }
 @endcode
 
