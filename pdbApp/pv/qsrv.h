@@ -10,6 +10,17 @@
 /* generated header with EPICS_QSRV_*_VERSION macros */
 #  include <pv/qsrvVersionNum.h>
 
+/** QSRV module version.
+ * This single version number will match the Makefile variables provided by the installed cfg/CONFIG_QSRV_VERSION .
+ * The individual components numbers are also available as macros.
+ *
+ * @code
+ * #include <pv/qsrv.h>
+ * #if QSRV_VERSION_INT > VERSION_INT(1,3,0)
+ * // enable some feature
+ * #endif
+ * @endcode
+ */
 #define QSRV_VERSION_INT VERSION_INT(EPICS_QSRV_MAJOR_VERSION, EPICS_QSRV_MINOR_VERSION, EPICS_QSRV_MAINTENANCE_VERSION, !(EPICS_QSRV_DEVELOPMENT_FLAG))
 
 #define QSRV_ABI_VERSION_INT VERSION_INT(EPICS_QSRV_ABI_MAJOR_VERSION, EPICS_QSRV_ABI_MINOR_VERSION, 0, 0)
