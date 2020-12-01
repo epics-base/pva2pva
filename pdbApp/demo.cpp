@@ -63,7 +63,7 @@ struct imgPvt {
     double phase;
 };
 
-#ifdef QSRV_HAS_VFIELD
+#ifdef DBR_VFIELD
 
 long init_img(dbCommon *pcom)
 {
@@ -122,7 +122,7 @@ long process_img(ndainRecord *prec)
     }
 }
 
-#endif // QSRV_HAS_VFIELD
+#endif // DBR_VFIELD
 
 template<typename REC>
 struct dset5
@@ -137,7 +137,7 @@ struct dset5
 
 dset5<waveformRecord> devWfPDBDemo = {5,0,0,&init_spin,0,&process_spin};
 
-#ifdef QSRV_HAS_VFIELD
+#ifdef DBR_VFIELD
 ndaindset devNDAIPDBDemo = {
     {
         5, 0, 0,
@@ -152,7 +152,7 @@ ndaindset devNDAIPDBDemo = {
 
 extern "C" {
 epicsExportAddress(dset, devWfPDBDemo);
-#ifdef QSRV_HAS_VFIELD
+#ifdef DBR_VFIELD
 epicsExportAddress(dset, devNDAIPDBDemo);
 #endif
 }

@@ -85,8 +85,7 @@ QSRV_API void testqsrvShutdownOk(void);
  */
 QSRV_API void testqsrvCleanup(void);
 
-#if EPICS_VERSION_INT>=VERSION_INT(7,0,0,1)
-#define QSRV_HAS_VFIELD
+#ifdef DBR_VFIELD
 
 QSRV_API
 extern const VFieldType vfSharedVector;
