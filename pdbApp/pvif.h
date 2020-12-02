@@ -30,6 +30,15 @@
 #  define USE_MULTILOCK
 #endif
 
+#ifndef DBRutag
+#  define DBR_AMSG 0
+#  define DBR_UTAG 0
+#  define DBRamsg
+#  define DBRutag
+#else
+#  define HAVE_UTAG
+#endif
+
 namespace epics {
 namespace pvAccess {
 class ChannelRequester;

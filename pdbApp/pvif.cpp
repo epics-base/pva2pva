@@ -205,16 +205,20 @@ struct pvArray : public pvCommon {
 
 struct metaTIME {
     DBRstatus
+    DBRamsg
     DBRtime
+    DBRutag
 
-    enum {mask = DBR_STATUS | DBR_TIME};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_TIME | DBR_UTAG};
 };
 
 struct metaDOUBLE {
     DBRstatus
+    DBRamsg
     DBRunits
     DBRprecision
     DBRtime
+    DBRutag
     DBRgrDouble
     DBRctrlDouble
     DBRalDouble
@@ -222,12 +226,14 @@ struct metaDOUBLE {
     // similar junk
     DBRenumStrs
 
-    enum {mask = DBR_STATUS | DBR_UNITS | DBR_PRECISION | DBR_TIME | DBR_GR_DOUBLE | DBR_CTRL_DOUBLE | DBR_AL_DOUBLE};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_UNITS | DBR_PRECISION | DBR_TIME | DBR_UTAG | DBR_GR_DOUBLE | DBR_CTRL_DOUBLE | DBR_AL_DOUBLE};
 };
 
 struct metaENUM {
     DBRstatus
+    DBRamsg
     DBRtime
+    DBRutag
     DBRenumStrs
 
     // similar junk
@@ -237,12 +243,14 @@ struct metaENUM {
     DBRctrlDouble
     DBRalDouble
 
-    enum {mask = DBR_STATUS | DBR_TIME | DBR_ENUM_STRS};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_TIME | DBR_UTAG | DBR_ENUM_STRS};
 };
 
 struct metaSTRING {
     DBRstatus
+    DBRamsg
     DBRtime
+    DBRutag
 
     // similar junk
     DBRenumStrs
@@ -252,7 +260,7 @@ struct metaSTRING {
     DBRctrlDouble
     DBRalDouble
 
-    enum {mask = DBR_STATUS | DBR_TIME};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_TIME | DBR_UTAG};
 };
 
 void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
@@ -264,6 +272,9 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
     FMAP(message, PVString, "alarm.message", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
+#ifdef HAVE_UTAG
+    FMAP(userTag, PVInt, "timeStamp.userTag", ALWAYS);
+#endif
 #undef FMAP
 }
 
@@ -328,16 +339,22 @@ void attachAll(PVX& pvm, const pvd::PVStructurePtr& pv)
     attachMeta(pvm, pv);
 }
 
-void mapStatus(unsigned code, pvd::PVInt* status, pvd::PVString* message)
+template<typename Meta>
+void mapStatus(const Meta& meta, pvd::PVInt* status, pvd::PVString* message)
 {
-    if(code<ALARM_NSTATUS)
-        message->put(epicsAlarmConditionStrings[code]);
+#ifdef HAVE_UTAG
+    if(meta.amsg[0]!='\0') {
+        message->put(meta.amsg);
+    } else
+#endif
+    if(meta.status<ALARM_NSTATUS)
+        message->put(epicsAlarmConditionStrings[meta.status]);
     else
         message->put("???");
 
     // Arbitrary mapping from DB status codes
     unsigned out;
-    switch(code) {
+    switch(meta.status) {
     case NO_ALARM:
         out = 0;
         break;
@@ -385,6 +402,10 @@ void putMetaImpl(const pvTimeAlarm& pv, const META& meta)
     if(pv.nsecMask) {
         pv.userTag->put(nsec&pv.nsecMask);
         nsec &= ~pv.nsecMask;
+#ifdef HAVE_UTAG
+    } else {
+        pv.userTag->put(meta.utag);
+#endif
     }
     pv.nsec->put(nsec);    pv.sec->put(meta.time.secPastEpoch+POSIX_TIME_AT_EPICS_EPOCH);
 }
@@ -400,7 +421,7 @@ void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
 
     putMetaImpl(pv, meta);
     if(dbe&DBE_ALARM) {
-        mapStatus(meta.status, pv.status.get(), pv.message.get());
+        mapStatus(meta, pv.status.get(), pv.message.get());
         pv.severity->put(meta.severity);
     }
 }
@@ -546,7 +567,7 @@ void putMeta(const pvCommon& pv, unsigned dbe, db_field_log *pfl)
     putMetaImpl(pv, meta);
 #define FMAP(MNAME, FNAME) pv.MNAME->put(meta.FNAME)
     if(dbe&DBE_ALARM) {
-        mapStatus(meta.status, pv.status.get(), pv.message.get());
+        mapStatus(meta, pv.status.get(), pv.message.get());
         FMAP(severity, severity);
     }
     if(dbe&DBE_PROPERTY) {
@@ -774,6 +795,16 @@ short PVD2DBR(pvd::ScalarType pvt)
     return -1;
 }
 
+static
+pvd::StructureConstPtr buildTimeStamp()
+{
+    return pvd::FieldBuilder::begin()
+                    ->add("secondsPastEpoch", pvd::pvLong)
+                    ->add("nanoseconds", pvd::pvInt)
+                    ->add("userTag", pvd::pvInt)
+                  ->createStructure();
+}
+
 epics::pvData::FieldConstPtr
 ScalarBuilder::dtype()
 {
@@ -808,7 +839,7 @@ ScalarBuilder::dtype()
                          ->addArray("value", pvt);
 
     builder = builder->add("alarm", standard->alarm())
-                     ->add("timeStamp", standard->timeStamp());
+                     ->add("timeStamp", buildTimeStamp());
 
     if(dbr!=DBR_ENUM) {
         builder = builder->addNestedStructure("display")
@@ -1108,11 +1139,11 @@ struct MetaBuilder : public PVIFBuilder
         pvd::StandardFieldPtr std(pvd::getStandardField());
         if(fld.empty()) {
             return builder->add("alarm", std->alarm())
-                          ->add("timeStamp", std->timeStamp());
+                          ->add("timeStamp", buildTimeStamp());
         } else {
             return builder->addNestedStructure(fld)
                                 ->add("alarm", std->alarm())
-                                ->add("timeStamp", std->timeStamp())
+                                ->add("timeStamp", buildTimeStamp())
                            ->endNested();
         }
     }
