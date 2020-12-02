@@ -183,7 +183,8 @@ struct pvTimeAlarm : public pvPlain {
     pvd::BitSet maskALWAYS, maskALARM;
 
     pvd::PVLongPtr sec;
-    pvd::PVIntPtr status, severity, nsec, userTag;
+    pvd::PVIntPtr status, severity, nsec;
+    pvd::PVULongPtr userTag;
     pvd::PVStringPtr message;
 
     pvTimeAlarm() :nsecMask(0) {}
@@ -273,7 +274,7 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
     FMAP(message, PVString, "alarm.message", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
-    FMAP(userTag, PVInt, "timeStamp.userTag", ALWAYS);
+    FMAP(userTag, PVULong, "timeStamp.userTag", ALWAYS);
 #undef FMAP
 }
 
@@ -827,6 +828,16 @@ ScalarBuilder::ScalarBuilder(dbChannel* chan, const VFieldType* vtype)
 
 ScalarBuilder::~ScalarBuilder() {}
 
+static
+pvd::StructureConstPtr buildTimeStamp()
+{
+    return pvd::FieldBuilder::begin()
+                    ->add("secondsPastEpoch", pvd::pvLong)
+                    ->add("nanoseconds", pvd::pvInt)
+                    ->add("userTag", pvd::pvULong)
+                  ->createStructure();
+}
+
 epics::pvData::FieldConstPtr
 ScalarBuilder::dtype()
 {
@@ -859,7 +870,7 @@ ScalarBuilder::dtype()
                          ->addArray("value", pvt);
 
     builder = builder->add("alarm", standard->alarm())
-                     ->add("timeStamp", standard->timeStamp());
+                     ->add("timeStamp", buildTimeStamp());
 
     if(dbr!=DBR_ENUM) {
         builder = builder->addNestedStructure("display")
@@ -1287,11 +1298,11 @@ struct MetaBuilder : public PVIFBuilder
         pvd::StandardFieldPtr std(pvd::getStandardField());
         if(fld.empty()) {
             return builder->add("alarm", std->alarm())
-                          ->add("timeStamp", std->timeStamp());
+                          ->add("timeStamp", buildTimeStamp());
         } else {
             return builder->addNestedStructure(fld)
                                 ->add("alarm", std->alarm())
-                                ->add("timeStamp", std->timeStamp())
+                                ->add("timeStamp", buildTimeStamp())
                            ->endNested();
         }
     }

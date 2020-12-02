@@ -22,7 +22,7 @@
     %    epicsUInt16 sevr;
     %    const char *amsg;
     %    epicsTimeStamp time;
-    %    epicsInt32 utag;
+    %    epicsUTag utag;
     %    ColMeta() :sevr(0), amsg(0), utag(0) { time.secPastEpoch = 0; time.nsec = 0;}
     %};
     %// Call from device support init_record(), define new column

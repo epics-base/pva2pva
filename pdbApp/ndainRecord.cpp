@@ -244,7 +244,7 @@ void monitor(ndainRecord *prec)
         prec->chg.set(fld->getFieldOffset());
 
         fld = prec->root->getSubFieldT<pvd::PVScalar>("timeStamp.userTag");
-        fld->putFrom<pvd::int32>(prec->utag);
+        fld->putFrom<pvd::uint64>(prec->utag);
         prec->chg.set(fld->getFieldOffset());
 
         monitor_mask |= DBE_VALUE|DBE_ARCHIVE;

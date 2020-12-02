@@ -60,7 +60,7 @@ void storeAlarm(pvd::PVStructure& root, pvd::BitSet& vld,
 
 static
 void storeTime(pvd::PVStructure& root, pvd::BitSet& vld,
-               const epicsTimeStamp& time, epicsInt32 utag)
+               const epicsTimeStamp& time, epicsUTag utag)
 {
     pvd::PVScalarPtr fld(root.getSubFieldT<pvd::PVScalar>("timeStamp.secondsPastEpoch"));
     fld->putFrom<pvd::uint32>(time.secPastEpoch + POSIX_TIME_AT_EPICS_EPOCH);
@@ -71,7 +71,7 @@ void storeTime(pvd::PVStructure& root, pvd::BitSet& vld,
     vld.set(fld->getFieldOffset());
 
     fld = root.getSubFieldT<pvd::PVScalar>("timeStamp.userTag");
-    fld->putFrom<pvd::int32>(utag);
+    fld->putFrom<pvd::uint64>(utag);
     vld.set(fld->getFieldOffset());
 }
 
