@@ -81,7 +81,7 @@ void monitor(columnaroutRecord *prec)
 {
     int monitor_mask = recGblResetAlarms(prec);
 
-    multiArray::monitor(prec, monitor_mask);
+    multiArray::monitor(prec, monitor_mask | DBE_VALUE | DBE_ARCHIVE);
 }
 
 long process(struct dbCommon *pcommon)
