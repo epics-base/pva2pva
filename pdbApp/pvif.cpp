@@ -184,7 +184,7 @@ struct pvTimeAlarm : public pvPlain {
 
     pvd::PVLongPtr sec;
     pvd::PVIntPtr status, severity, nsec;
-    pvd::PVULongPtr userTag;
+    pvd::PVIntPtr userTag;
     pvd::PVStringPtr message;
 
     pvTimeAlarm() :nsecMask(0) {}
@@ -274,7 +274,7 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
     FMAP(message, PVString, "alarm.message", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
-    FMAP(userTag, PVULong, "timeStamp.userTag", ALWAYS);
+    FMAP(userTag, PVInt, "timeStamp.userTag", ALWAYS);
 #undef FMAP
 }
 
@@ -834,7 +834,7 @@ pvd::StructureConstPtr buildTimeStamp()
     return pvd::FieldBuilder::begin()
                     ->add("secondsPastEpoch", pvd::pvLong)
                     ->add("nanoseconds", pvd::pvInt)
-                    ->add("userTag", pvd::pvULong)
+                    ->add("userTag", pvd::pvInt)
                   ->createStructure();
 }
 
