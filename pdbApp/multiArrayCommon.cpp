@@ -122,7 +122,7 @@ void set_column(void *pvoid, const char* fname, const pvd::shared_vector<const v
         // called from process()
 
         if(prec->lay==menuMultiArrayLayoutTable) {
-            pvd::PVScalarArrayPtr arr(prec->val->getSubFieldT<pvd::PVScalarArray>(ent.name));
+            pvd::PVScalarArrayPtr arr(prec->val->getSubFieldT<pvd::PVStructure>("value")->getSubFieldT<pvd::PVScalarArray>(ent.name));
             arr->putFrom(cdata);
             prec->vld.set(arr->getFieldOffset());
 
