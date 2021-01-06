@@ -8,7 +8,7 @@ record(ai, "target:ai") {
 }
 
 record(int64in, "src:i1") {
-    field(INP, {pva:"target:i"})
+    field(INP, {"pva":"target:i"})
 }
 
 # used by testPut()
@@ -17,5 +17,5 @@ record(int64in, "target:i2") {
 }
 
 record(int64out, "src:o2") {
-    field(OUT, {pva:"target:i2"})
+    field(OUT, {"pva":"target:i2"})
 }
