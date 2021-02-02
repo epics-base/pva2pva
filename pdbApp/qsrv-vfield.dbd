@@ -4,6 +4,7 @@ include "columnarinRecord.dbd"
 include "columnarinRecord.dbd"
 include "statBinRecord.dbd"
 include "ndainRecord.dbd"
+include "tableAggRecord.dbd"
 include "pvstructinRecord.dbd"
 
 # from demo.cpp

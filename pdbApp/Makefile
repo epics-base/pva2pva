@@ -35,6 +35,7 @@ DBDINC += columnarinRecord
 DBDINC += columnaroutRecord
 DBDINC += statBinRecord
 DBDINC += ndainRecord
+DBDINC += tableAggRecord
 DBDINC += multiArrayCommon
 
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
@@ -83,8 +84,9 @@ qsrv_SRCS += columnarinRecord.cpp
 qsrv_SRCS += columnaroutRecord.cpp
 
 qsrv_SRCS += statBinRecord.cpp
-
 qsrv_SRCS += ndainRecord.cpp
+qsrv_SRCS += tableAggRecord.cpp
+
 qsrv_SRCS += multiArrayCommon.cpp
 qsrv_SRCS += devNDAInSoft.cpp
 
@@ -140,6 +142,7 @@ $(COMMON_DIR)/softIocPVA.dbd: ../columnarinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../columnaroutRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../statBinRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: ../ndainRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../tableAggRecord.dbd
 $(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
 
 # Can't use EXPAND as generated headers must appear
