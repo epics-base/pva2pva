@@ -1,0 +1,30 @@
+record(waveform, "INA") {
+    field(FTVL, "$(FTVLA)")
+    field(NELM, "$(NELM)")
+}
+
+record(waveform, "INB") {
+    field(FTVL, "$(FTVLB)")
+    field(NELM, "$(NELM)")
+}
+
+record(waveform, "INC") {
+    field(FTVL, "$(FTVLC)")
+    field(NELM, "$(NELM)")
+}
+
+record(tableAgg, "TABLE") {
+    field(INPA, "INA")
+    field(FNAA, "$(FNAA)")
+    field(LABA, "$(LABA)")
+
+    field(INPB, "INB")
+    field(FNAB, "$(FNAB)")
+    field(LABB, "$(LABB)")
+
+    field(INPC, "INC")
+    field(FNAC, "$(FNAC)")
+    field(LABC, "$(LABC)")
+
+    field(LAY,  "")
+}

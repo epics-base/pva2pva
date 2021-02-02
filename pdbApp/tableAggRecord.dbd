@@ -1,0 +1,130 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+
+include "menuMultiArrayLayout.dbd"
+
+recordtype(tableAgg) {
+    include "multiArrayCommon.dbd"
+    %#include <pv/sharedVector.h>
+    %#include <pv/qsrv.h>
+    %struct tableAggRecord;
+    %#ifdef __cplusplus
+    %extern "C" {
+    %#endif
+    %struct tableAggdset {
+    %    dset common; /*init_record returns: (-1,0)=>(failure,success)*/
+    %    long (*read_tbl)(struct tableAggRecord *prec); /*returns: (-1,0)=>(failure,success)*/
+    %};
+    %#ifdef __cplusplus
+    %} // extern "C"
+    %#endif
+    field(INPA,DBF_INLINK) { prompt("Input A") promptgroup("41 - Input A-H") interest(1) }
+    field(INPB,DBF_INLINK) { prompt("Input B") promptgroup("41 - Input A-H") interest(1) }
+    field(INPC,DBF_INLINK) { prompt("Input C") promptgroup("41 - Input A-H") interest(1) }
+    field(INPD,DBF_INLINK) { prompt("Input D") promptgroup("41 - Input A-H") interest(1) }
+    field(INPE,DBF_INLINK) { prompt("Input E") promptgroup("41 - Input A-H") interest(1) }
+    field(INPF,DBF_INLINK) { prompt("Input F") promptgroup("41 - Input A-H") interest(1) }
+    field(INPG,DBF_INLINK) { prompt("Input G") promptgroup("41 - Input A-H") interest(1) }
+    field(INPH,DBF_INLINK) { prompt("Input H") promptgroup("41 - Input A-H") interest(1) }
+    field(INPI,DBF_INLINK) { prompt("Input I") promptgroup("42 - Input I-P") interest(1) }
+    field(INPJ,DBF_INLINK) { prompt("Input J") promptgroup("42 - Input I-P") interest(1) }
+    field(INPK,DBF_INLINK) { prompt("Input K") promptgroup("42 - Input I-P") interest(1) }
+    field(INPL,DBF_INLINK) { prompt("Input L") promptgroup("42 - Input I-P") interest(1) }
+    field(INPM,DBF_INLINK) { prompt("Input M") promptgroup("42 - Input I-P") interest(1) }
+    field(INPN,DBF_INLINK) { prompt("Input N") promptgroup("42 - Input I-P") interest(1) }
+    field(INPO,DBF_INLINK) { prompt("Input O") promptgroup("42 - Input I-P") interest(1) }
+    field(INPP,DBF_INLINK) { prompt("Input P") promptgroup("42 - Input I-P") interest(1) }
+    field(INPQ,DBF_INLINK) { prompt("Input Q") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPR,DBF_INLINK) { prompt("Input R") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPS,DBF_INLINK) { prompt("Input S") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPT,DBF_INLINK) { prompt("Input T") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPU,DBF_INLINK) { prompt("Input U") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPV,DBF_INLINK) { prompt("Input V") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPW,DBF_INLINK) { prompt("Input W") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPX,DBF_INLINK) { prompt("Input X") promptgroup("43 - Input Q-X") interest(1) }
+    field(INPY,DBF_INLINK) { prompt("Input Y") promptgroup("44 - Input Y-Z") interest(1) }
+    field(INPZ,DBF_INLINK) { prompt("Input Z") promptgroup("44 - Input Y-Z") interest(1) }
+    field(FNAA,DBF_STRING) { prompt("Field Name A") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAB,DBF_STRING) { prompt("Field Name B") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAC,DBF_STRING) { prompt("Field Name C") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAD,DBF_STRING) { prompt("Field Name D") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAE,DBF_STRING) { prompt("Field Name E") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAF,DBF_STRING) { prompt("Field Name F") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAG,DBF_STRING) { prompt("Field Name G") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAH,DBF_STRING) { prompt("Field Name H") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAI,DBF_STRING) { prompt("Field Name I") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAJ,DBF_STRING) { prompt("Field Name J") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAK,DBF_STRING) { prompt("Field Name K") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAL,DBF_STRING) { prompt("Field Name L") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAM,DBF_STRING) { prompt("Field Name M") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAN,DBF_STRING) { prompt("Field Name N") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAO,DBF_STRING) { prompt("Field Name O") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAP,DBF_STRING) { prompt("Field Name P") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAQ,DBF_STRING) { prompt("Field Name Q") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAR,DBF_STRING) { prompt("Field Name R") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAS,DBF_STRING) { prompt("Field Name S") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAT,DBF_STRING) { prompt("Field Name T") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAU,DBF_STRING) { prompt("Field Name U") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAV,DBF_STRING) { prompt("Field Name V") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAW,DBF_STRING) { prompt("Field Name W") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAX,DBF_STRING) { prompt("Field Name X") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAY,DBF_STRING) { prompt("Field Labe Y") promptgroup("44 - Input Y-Z") special(SPC_NOMOD) interest(1) size(41) }
+    field(FNAZ,DBF_STRING) { prompt("Field Name Z") promptgroup("44 - Input Y-Z") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABA,DBF_STRING) { prompt("Field Label A") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABB,DBF_STRING) { prompt("Field Label B") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABC,DBF_STRING) { prompt("Field Label C") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABD,DBF_STRING) { prompt("Field Label D") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABE,DBF_STRING) { prompt("Field Label E") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABF,DBF_STRING) { prompt("Field Label F") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABG,DBF_STRING) { prompt("Field Label G") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABH,DBF_STRING) { prompt("Field Label H") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABI,DBF_STRING) { prompt("Field Label I") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABJ,DBF_STRING) { prompt("Field Label J") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABK,DBF_STRING) { prompt("Field Label K") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABL,DBF_STRING) { prompt("Field Label L") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABM,DBF_STRING) { prompt("Field Label M") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABN,DBF_STRING) { prompt("Field Label N") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABO,DBF_STRING) { prompt("Field Label O") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABP,DBF_STRING) { prompt("Field Label P") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABQ,DBF_STRING) { prompt("Field Label Q") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABR,DBF_STRING) { prompt("Field Label R") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABS,DBF_STRING) { prompt("Field Label S") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABT,DBF_STRING) { prompt("Field Label T") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABU,DBF_STRING) { prompt("Field Label U") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABV,DBF_STRING) { prompt("Field Label V") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABW,DBF_STRING) { prompt("Field Label W") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABX,DBF_STRING) { prompt("Field Label X") promptgroup("42 - Input Q-X") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABY,DBF_STRING) { prompt("Field Label Y") promptgroup("42 - Input Y-Z") special(SPC_NOMOD) interest(1) size(41) }
+    field(LABZ,DBF_STRING) { prompt("Field Label Z") promptgroup("42 - Input Y-Z") special(SPC_NOMOD) interest(1) size(41) }
+    field(FTA,DBF_MENU) { prompt("Field Type A") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTB,DBF_MENU) { prompt("Field Type B") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTC,DBF_MENU) { prompt("Field Type C") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTD,DBF_MENU) { prompt("Field Type D") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTE,DBF_MENU) { prompt("Field Type E") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTF,DBF_MENU) { prompt("Field Type F") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTG,DBF_MENU) { prompt("Field Type G") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTH,DBF_MENU) { prompt("Field Type H") promptgroup("41 - Input A-H") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTI,DBF_MENU) { prompt("Field Type I") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTJ,DBF_MENU) { prompt("Field Type J") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTK,DBF_MENU) { prompt("Field Type K") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTL,DBF_MENU) { prompt("Field Type L") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTM,DBF_MENU) { prompt("Field Type M") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTN,DBF_MENU) { prompt("Field Type N") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTO,DBF_MENU) { prompt("Field Type O") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTP,DBF_MENU) { prompt("Field Type P") promptgroup("42 - Input I-P") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTQ,DBF_MENU) { prompt("Field Type Q") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTR,DBF_MENU) { prompt("Field Type R") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTS,DBF_MENU) { prompt("Field Type S") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTT,DBF_MENU) { prompt("Field Type T") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTU,DBF_MENU) { prompt("Field Type U") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTV,DBF_MENU) { prompt("Field Type V") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTW,DBF_MENU) { prompt("Field Type W") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTX,DBF_MENU) { prompt("Field Type X") promptgroup("43 - Input Q-X") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTY,DBF_MENU) { prompt("Field Type Y") promptgroup("44 - Input Y-Z") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+    field(FTZ,DBF_MENU) { prompt("Field Type Z") promptgroup("44 - Input Y-Z") special(SPC_NOMOD) interest(1) initial("DOUBLE") menu(menuFtype) }
+}
+
+device(tableAgg, CONSTANT, devTASoft, "Soft Channel")
