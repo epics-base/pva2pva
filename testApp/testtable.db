@@ -1,30 +1,43 @@
 record(waveform, "INA") {
-    field(FTVL, "$(FTVLA)")
-    field(NELM, "$(NELM)")
+    field(FTVL, "DOUBLE")
+    field(NELM, "3")
+    field(INP,  {const:[1,2,3]})
+    field(PINI, "YES")
 }
 
 record(waveform, "INB") {
-    field(FTVL, "$(FTVLB)")
-    field(NELM, "$(NELM)")
+    field(FTVL, "CHAR")
+    field(NELM, "4")
+    field(INP,  {const:[4,3,2,1]})
+    field(PINI, "YES")
 }
 
-record(waveform, "INC") {
-    field(FTVL, "$(FTVLC)")
-    field(NELM, "$(NELM)")
+record(svectorin, "INC") {
+    field(FTVL, "SHORT")
+    field(NELM, "3")
+    field(INP,  {const:[7,8,9]})
+    field(PINI, "YES")
 }
 
 record(tableAgg, "TABLE") {
     field(INPA, "INA")
-    field(FNAA, "$(FNAA)")
-    field(LABA, "$(LABA)")
+    field(FNAA, "col1")
+    field(LABA, "One")
 
     field(INPB, "INB")
-    field(FNAB, "$(FNAB)")
-    field(LABB, "$(LABB)")
+    field(FNAB, "col2")
+    field(LABB, "Two")
+    field(FTB,  "CHAR")
 
     field(INPC, "INC")
-    field(FNAC, "$(FNAC)")
-    field(LABC, "$(LABC)")
+    field(FNAC, "col3")
+    field(LABC, "Three")
+    field(FTC,  "SHORT")
 
-    field(LAY,  "")
+    # The following should be ignored
+    field(INPF, "BOGUS")
+    field(FNAF, "col6")
+    field(LABF, "Six")
+
+    field(LAY,  "Table")
 }

@@ -22,77 +22,78 @@ void tableTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 namespace {
 
+namespace pvd = epics::pvData;
+
 void testGetPut()
 {
-    // Get handles to records
-    waveformRecord *pina = (waveformRecord*)testdbRecordPtr("INA");
-    waveformRecord *pinb = (waveformRecord*)testdbRecordPtr("INB");
-    waveformRecord *pinc = (waveformRecord*)testdbRecordPtr("INC");
+    // Get handles to record
     tableAggRecord *ptable = (tableAggRecord*)testdbRecordPtr("TABLE");
 
-    DBADDR addra, addrb, addrc, addrtable;
+    DBADDR addr;
 
-    if (!pina || dbNameToAddr("INA", &addra))
-        testAbort("Failed to find record INA");
-
-    if (!pinb || dbNameToAddr("INB", &addrb))
-        testAbort("Failed to find record INB");
-
-    if (!pinc || dbNameToAddr("INC", &addrc))
-        testAbort("Failed to find record INC");
-
-    if (!ptable || dbNameToAddr("TABLE", &addrtable))
+    if (!ptable || dbNameToAddr("TABLE", &addr))
         testAbort("Failed to find record TABLE");
-
-    // Generate test data
-    double dataa[NELM], datab[NELM], datac[NELM];
-    for (size_t i = 0; i < NELM; ++i) {
-        dataa[i] = (double)i;
-        datab[i] = (double)(NELM - i - 1);
-        datac[i] = (dataa[i] + datab[i]) / 2.0;
-    }
-
-    // Put test data into inputs
-    dbScanLock((dbCommon*)pina);
-    dbPut(&addra, DBF_DOUBLE, &dataa, NELM);
-    dbScanUnlock((dbCommon*)pina);
-
-    dbScanLock((dbCommon*)pinb);
-    dbPut(&addrb, DBF_DOUBLE, &datab, NELM);
-    dbScanUnlock((dbCommon*)pinb);
-
-    dbScanLock((dbCommon*)pinc);
-    dbPut(&addrc, DBF_DOUBLE, &datac, NELM);
-    dbScanUnlock((dbCommon*)pinc);
 
     // Process table record
     testdbPutFieldOk("TABLE.PROC", DBF_LONG, 1);
 
+    // Fetch Structure
+    VSharedStructure sval;
+    sval.vtype = &vfStructure;
+    sval.value = new pvd::StructureConstPtr();
 
+    testOk1(!dbGetField(&addr, DBR_VFIELD, &sval, 0, 0, 0));
 
-    /*VString sval;
-    sval.vtype = &vfStdString;
-    sval.value = "This is a long test value to ensure std::string allocates";
+    // Check that the names of the columns are being correctly set
+    const pvd::StringArray & cols = (*sval.value)->getFieldT<pvd::Structure>("value")->getFieldNames();
+    testOk1(cols.size()==3);
+    testOk1(cols.at(0)=="col1");
+    testOk1(cols.at(1)=="col2");
+    testOk1(cols.at(2)=="col3");
 
-    testdbPutFieldOk("recsrc", DBR_VFIELD, &sval);
+    // Fetch PVStructure
+    VSharedPVStructure val;
+    val.vtype = &vfPVStructure;
+    val.value = new pvd::PVStructurePtr((*sval.value)->build());
+    val.changed = new pvd::BitSet();
 
-    dbScanLock((dbCommon*)psrc);
-    testOk1(psrc->val==sval.value);
-    dbScanUnlock((dbCommon*)psrc);
+    testOk1(!dbGetField(&addr, DBR_VFIELD, &val, 0, 0, 0));
 
-    VString sval2;
-    sval2.vtype = &vfStdString;
+    // Check that the labels are being correctly set
+    pvd::PVStringArrayPtr labels_ptr = (*val.value)->getSubFieldT<pvd::PVStringArray>("labels");
+    pvd::shared_vector<const std::string> labels = labels_ptr->view();
+    testOk1(labels.size()==3);
+    testOk1(labels.at(0)=="One");
+    testOk1(labels.at(1)=="Two");
+    testOk1(labels.at(2)=="Three");
 
-    testOk1(!dbGetField(&addr, DBR_VFIELD, &sval2, 0, 0, 0));
-    testOk1(sval2.value==sval.value);
+    // Check values for first column
+    pvd::PVScalarArrayPtr col1_ptr = (*val.value)->getSubFieldT<pvd::PVScalarArray>("value.col1");
+    pvd::shared_vector<const double> col1;
+    col1_ptr->getAs(col1);
+    testOk1(col1.size()==3);
+    testOk1(col1.at(0)==1);
+    testOk1(col1.at(1)==2);
+    testOk1(col1.at(2)==3);
 
-    testdbPutFieldOk("recdst.PROC", DBF_LONG, 1);
+    // Check values for second column
+    pvd::PVScalarArrayPtr col2_ptr = (*val.value)->getSubFieldT<pvd::PVScalarArray>("value.col2");
+    pvd::shared_vector<const pvd::int8> col2;
+    col2_ptr->getAs(col2);
+    testOk1(col2.size()==4);
+    testOk1(col2.at(0)==4);
+    testOk1(col2.at(1)==3);
+    testOk1(col2.at(2)==2);
+    testOk1(col2.at(3)==1);
 
-    dbScanLock((dbCommon*)pdst);
-    testOk1(pdst->val==sval.value);
-    dbScanUnlock((dbCommon*)pdst);
-
-    testdbGetArrFieldEqual("recsrc", DBF_CHAR, sval.value.size()+1, sval.value.size()+1, sval.value.c_str());*/
+    // Check values for third column
+    pvd::PVScalarArrayPtr col3_ptr = (*val.value)->getSubFieldT<pvd::PVScalarArray>("value.col3");
+    pvd::shared_vector<const pvd::int16> col3;
+    col3_ptr->getAs(col3);
+    testOk1(col3.size()==3);
+    testOk1(col3.at(0)==7);
+    testOk1(col3.at(1)==8);
+    testOk1(col3.at(2)==9);
 }
 
 }

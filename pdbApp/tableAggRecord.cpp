@@ -210,7 +210,7 @@ rset tableAggRSET = {
 
 long readLocked(struct link *pinp, void *raw)
 {
-    const char *fname = reinterpret_cast<const char*>(raw);
+    const char *fname = static_cast<const char*>(raw);
     dbCommon *prec = pinp->precord;
 
     pvd::shared_vector<const void> arr;
@@ -226,6 +226,7 @@ long readLocked(struct link *pinp, void *raw)
         status = 0;
 
         int dbf = dbGetLinkDBFtype(pinp);
+
         pvd::ScalarType stype;
 
         try {
@@ -260,10 +261,13 @@ long readLocked(struct link *pinp, void *raw)
     }
 
     multiArray::ColMeta meta;
-    char amsg[AMSG_LEN];
+    char amsg[AMSG_LEN] = {};
 
-    dbGetTimeStampTag(pinp, &meta.time, &meta.utag);
-    dbGetAlarmMsg(pinp, NULL, &meta.sevr, amsg, sizeof(amsg));
+    if ((status = dbGetTimeStampTag(pinp, &meta.time, &meta.utag)))
+        errlogPrintf("%s [%s]: failed to get timestamp\n", prec->name, fname);
+
+    if ((status = dbGetAlarmMsg(pinp, NULL, &meta.sevr, amsg, sizeof(amsg))))
+        errlogPrintf("%s [%s]: failed to get alarm\n", prec->name, fname);
 
     meta.amsg = amsg;
     multiArray::set_column(prec, fname, arr, &meta);
@@ -276,18 +280,16 @@ long init_record_soft(struct dbCommon *pcommon)
     tableAggRecord *prec = reinterpret_cast<tableAggRecord*>(pcommon);
 
     for (size_t i = 0; i < MAX_COLS; ++i) {
-        // Assume zero-terminated strings
-        const char *name = field_ptr<const char*>(prec, tableAggRecordFNAA + i);
+        // Assume NUL-terminated strings
+        const char *fname = field_ptr<const char*>(prec, tableAggRecordFNAA + i);
         const char *label = field_ptr<const char*>(prec, tableAggRecordLABA + i);
         epicsEnum16 *type = field_ptr<epicsEnum16*>(prec, tableAggRecordFTA + i);
 
-        // Stop at first unnamed input
-        if (!strlen(name))
+        // Stop at first unnamed column
+        if (!strlen(fname))
             break;
 
-        printf("%s: col: %s label: %s type: %d\n", prec->name, name, label, *type);
-
-        multiArray::add_column(pcommon, name, label, to_pvd_type(*type));
+        multiArray::add_column(pcommon, fname, label, to_pvd_type(*type));
     }
 
     return 0;
@@ -300,6 +302,7 @@ long read_tbl_soft(tableAggRecord* prec)
         const char *fname = field_ptr<const char*>(prec, tableAggRecordFNAA + i);
         struct link *pinp = field_ptr<struct link*>(prec, tableAggRecordINPA + i);
 
+        // Stop at first unnamed column
         if (!strlen(fname))
             break;
 
@@ -307,7 +310,7 @@ long read_tbl_soft(tableAggRecord* prec)
         if (status == S_db_noLSET)
             status = readLocked(pinp, (void*)fname);
 
-        if (!status && !dbLinkIsConstant(pinp))
+        if (!status)
             prec->udf = FALSE;
 
         if (status)
