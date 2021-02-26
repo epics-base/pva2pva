@@ -1,7 +1,7 @@
 # Module (source) version
 EPICS_QSRV_MAJOR_VERSION = 1
 EPICS_QSRV_MINOR_VERSION = 3
-EPICS_QSRV_MAINTENANCE_VERSION = 0
+EPICS_QSRV_MAINTENANCE_VERSION = 1
 
 # ABI version
 EPICS_QSRV_ABI_MAJOR_VERSION = 1
@@ -9,7 +9,7 @@ EPICS_QSRV_ABI_MINOR_VERSION = 2
 
 # Development flag, set to zero for release versions
 
-EPICS_QSRV_DEVELOPMENT_FLAG = 0
+EPICS_QSRV_DEVELOPMENT_FLAG = 1
 
 # Immediately after a release the MAINTENANCE_VERSION
 # will be incremented and the DEVELOPMENT_FLAG set to 1
