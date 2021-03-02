@@ -13,6 +13,7 @@ Device support for these record types must be written in C++.
 - ndain
 - statBin
 - pvstructin
+- tableAgg
 
 All of these record types provide custom device support (dset)
 struct definitions.  eg. 'struct svectorindset'
@@ -193,5 +194,43 @@ It is then the responsibility of device support to manipulate the (arbitrary) st
 and to set the appropriate bit(s) of the CHG bitmask when doing so.
 
 A discussion of the proper handling of a PVStructure is outside the scope of this document.
+
+@section qsrv_tableagg tableAgg record type
+
+The tableAgg record builds a collection of arrays out of individual array inputs. Like
+the columnarin/out and statBin records, the resulting value can be presented either as
+a Table or as a Composite (structure) type, depending on the selection in the LAY field.
+
+There are 26 inputs available to the record, A..Z:
+
+INPA..INPZ specify where to obtain the data for each column
+FNAA..FNAZ specify the field name for the corresponding column
+LABA..LABZ specify the field label for each corresponding column
+FTA..FTZ specify the data type of the elements of the corresponding column (default: DOUBLE)
+
+Similar to columnarin/out and statBin, device support for tableAgg should call multiArray::add_column
+or multiArray::add_columns in order to create the appropriate columns in the collection. Setting column
+values should be done via multiArray::set_column.
+
+@subsection qsrv_tableagg_softchannel tableAgg default device support
+
+During initialization, the default device support for tableAgg creates columns based on FNAA..FNAZ,
+LABA..LABZ and FTA..FTZ. It reads these inputs in order A..Z and stops creating new columns as soon
+as it finds and empty FNAx field. For example, the following record will have only one column:
+
+@code
+record(tableAgg, "my:table") {
+    field(FNAA, "some_array")
+    field(INPA, "some:array")
+
+    # FNAB is empty, all following columns will be ignored
+
+    field(FNAC, "another_array")
+    field(INPC, "another:array")
+}
+@endcode
+
+When processed, the default device support will read each INPx field and populate the corresponding
+value with the obtained array.
 
 */
