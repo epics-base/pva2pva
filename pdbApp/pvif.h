@@ -254,6 +254,7 @@ struct LocalFL
                 if(pfl) pfl = dbChannelRunPostChain(pchan, pfl);
             }
         }
+        this->pfl = pfl;
     }
     ~LocalFL() {
         if(ours) db_delete_field_log(pfl);
