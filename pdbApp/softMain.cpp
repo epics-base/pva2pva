@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
                     xmacro;
         bool interactive = true;
         bool loadedDb = false;
+        bool ranScript = false;
 
 #ifdef USE_EXECDIR
         // attempt to compute relative paths
@@ -240,7 +241,7 @@ int main(int argc, char *argv[])
                 std::cout<<"# End "<<argv[optind]<<"\n";
 
             epicsThreadSleep(0.2);
-            loadedDb = true;    /* Give it the benefit of the doubt... */
+            ranScript = true;    /* Assume the script has done any necessary initialization */
         }
 
         if (loadedDb) {
@@ -259,7 +260,7 @@ int main(int argc, char *argv[])
             }
 
         } else {
-            if (loadedDb) {
+            if (loadedDb || ranScript) {
                 epicsThreadExitMain();
 
             } else {
