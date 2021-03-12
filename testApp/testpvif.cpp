@@ -546,11 +546,66 @@ void testPlain()
     dbScanUnlock((dbCommon*)prec_mbbi);
 }
 
+void testFilters()
+{
+    testDiag("testFilter");
+
+    TestIOC IOC;
+
+    testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
+    p2pTestIoc_registerRecordDeviceDriver(pdbbase);
+    testdbReadDatabase("testfilters.db", NULL, NULL);
+
+    IOC.init();
+
+    dbCommon *prec =  testdbRecordPtr("TEST");
+#if EPICS_VERSION_INT > VERSION_INT(7, 0, 5, 0)
+    static epicsInt32 arr[] = {9, 8, 7, 6, 5, 4, 3, 2, 1};
+    testdbGetArrFieldEqual("TEST", DBF_LONG, 10, 9, arr);
+    testdbGetArrFieldEqual("TEST.{arr:{s:5}}", DBF_LONG, 10, 4, arr+5);
+
+    static epicsInt32 arr2[] = {9, 7, 5, 3, 1};
+    testdbGetArrFieldEqual("TEST.{arr:{i:2}}", DBF_LONG, 10, 5, arr2);
+
+#else
+    testSkip(3, "dbUnitTest doesn't use dbChannel");
+#endif
+
+    pvd::PVStructurePtr root;
+    p2p::auto_ptr<PVIF> pvif;
+
+    DBCH chan("TEST.{arr:{i:2}}");
+    ScalarBuilder builder(chan);
+
+    root = pvd::FieldBuilder::begin()
+            ->add("dut", builder.dtype())
+            ->createStructure()->build();
+
+    pvif.reset(builder.attach(root, FieldName("dut")));
+
+    LocalFL fl(0, chan.chan);
+
+    pvd::shared_vector<pvd::int16> scratch(5);
+    scratch[0] = 9;
+    scratch[1] = 7;
+    scratch[2] = 5;
+    scratch[3] = 3;
+    scratch[4] = 1;
+    pvd::shared_vector<const pvd::int16> expected(pvd::freeze(scratch));
+
+    dbScanLock(prec);
+    pvd::BitSet changed;
+    pvif->put(changed, DBE_VALUE, fl.pfl);
+    dbScanUnlock(prec);
+
+    testFieldEqual<pvd::PVShortArray>(root, "dut.value", expected);
+}
+
 } // namespace
 
 MAIN(testpvif)
 {
-    testPlan(75
+    testPlan(79
 #ifdef USE_INT64
              +13
 #endif
@@ -562,5 +617,6 @@ MAIN(testpvif)
 #endif
     testScalar();
     testPlain();
+    testFilters();
     return testDone();
 }

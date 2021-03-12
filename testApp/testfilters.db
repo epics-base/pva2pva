@@ -1,0 +1,7 @@
+record (aai, "TEST") {
+field(FTVL, "SHORT")
+field(NELM, "10")
+field(INP, [9,8,7,6,5,4,3,2,1])
+field(PINI, "YES")
+info(test, "Hello World")
+}
