@@ -550,6 +550,10 @@ void testFilters()
 {
     testDiag("testFilter");
 
+#if EPICS_VERSION_INT < VERSION_INT(7, 0, 0, 0)
+    testSkip(5, "Needs Base >=7.0");
+#else
+
     TestIOC IOC;
 
     testdbReadDatabase("p2pTestIoc.dbd", NULL, NULL);
@@ -558,9 +562,10 @@ void testFilters()
 
     IOC.init();
 
-    dbCommon *prec =  testdbRecordPtr("TEST");
-#if EPICS_VERSION_INT > VERSION_INT(7, 0, 5, 0)
     static epicsInt32 arr[] = {9, 8, 7, 6, 5, 4, 3, 2, 1};
+    testdbPutArrFieldOk("TEST", DBF_LONG, 9, arr);
+
+#if EPICS_VERSION_INT > VERSION_INT(7, 0, 5, 0)
     testdbGetArrFieldEqual("TEST", DBF_LONG, 10, 9, arr);
     testdbGetArrFieldEqual("TEST.{arr:{s:5}}", DBF_LONG, 10, 4, arr+5);
 
@@ -593,19 +598,21 @@ void testFilters()
     scratch[4] = 1;
     pvd::shared_vector<const pvd::int16> expected(pvd::freeze(scratch));
 
+    dbCommon *prec =  testdbRecordPtr("TEST");
     dbScanLock(prec);
     pvd::BitSet changed;
     pvif->put(changed, DBE_VALUE, fl.pfl);
     dbScanUnlock(prec);
 
     testFieldEqual<pvd::PVShortArray>(root, "dut.value", expected);
+#endif // >= 7.0
 }
 
 } // namespace
 
 MAIN(testpvif)
 {
-    testPlan(79
+    testPlan(80
 #ifdef USE_INT64
              +13
 #endif
