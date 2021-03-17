@@ -562,15 +562,15 @@ void testFilters()
 
     IOC.init();
 
-    static epicsInt32 arr[] = {9, 8, 7, 6, 5, 4, 3, 2, 1};
+    static const epicsInt32 arr[] = {9, 8, 7, 6, 5, 4, 3, 2, 1};
     testdbPutArrFieldOk("TEST", DBF_LONG, 9, arr);
 
 #if EPICS_VERSION_INT > VERSION_INT(7, 0, 5, 0)
     testdbGetArrFieldEqual("TEST", DBF_LONG, 10, 9, arr);
-    testdbGetArrFieldEqual("TEST.{arr:{s:5}}", DBF_LONG, 10, 4, arr+5);
+    testdbGetArrFieldEqual("TEST.{\"arr\":{\"s\":5}}", DBF_LONG, 10, 4, arr+5);
 
-    static epicsInt32 arr2[] = {9, 7, 5, 3, 1};
-    testdbGetArrFieldEqual("TEST.{arr:{i:2}}", DBF_LONG, 10, 5, arr2);
+    static const epicsInt32 arr2[] = {9, 7, 5, 3, 1};
+    testdbGetArrFieldEqual("TEST.{\"arr\":{\"i\":2}}", DBF_LONG, 10, 5, arr2);
 
 #else
     testSkip(3, "dbUnitTest doesn't use dbChannel");
@@ -579,7 +579,7 @@ void testFilters()
     pvd::PVStructurePtr root;
     p2p::auto_ptr<PVIF> pvif;
 
-    DBCH chan("TEST.{arr:{i:2}}");
+    DBCH chan("TEST.{\"arr\":{\"i\":2}}");
     ScalarBuilder builder(chan);
 
     root = pvd::FieldBuilder::begin()
