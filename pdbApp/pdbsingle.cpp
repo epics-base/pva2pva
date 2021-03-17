@@ -426,7 +426,8 @@ void PDBSinglePut::get()
     changed->clear();
     {
         DBScanLocker L(pvif->chan);
-        pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+        LocalFL FL(NULL, pvif->chan);
+        pvif->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, FL.pfl);
     }
     //TODO: report unused fields as changed?
     changed->clear();

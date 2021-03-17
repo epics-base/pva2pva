@@ -394,8 +394,10 @@ void PDBGroupPut::get()
     changed->clear();
     if(atomic) {
         DBManyLocker L(channel->pv->locker);
-        for(size_t i=0; i<npvs; i++)
-            pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+        for(size_t i=0; i<npvs; i++) {
+            LocalFL FL(NULL, channel->pv->members[i].chan);
+            pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, FL.pfl);
+        }
     } else {
 
         for(size_t i=0; i<npvs; i++)
@@ -403,7 +405,8 @@ void PDBGroupPut::get()
             PDBGroupPV::Info& info = channel->pv->members[i];
 
             DBScanLocker L(dbChannelRecord(info.chan));
-            pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, NULL);
+            LocalFL FL(NULL, info.chan);
+            pvif[i]->put(*changed, DBE_VALUE|DBE_ALARM|DBE_PROPERTY, FL.pfl);
         }
     }
     //TODO: report unused fields as changed?
