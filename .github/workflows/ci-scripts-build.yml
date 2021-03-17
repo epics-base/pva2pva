@@ -136,6 +136,12 @@ jobs:
             base: "7.0"
             name: "7.0 Win2019 MSC-19, static"
 
+          - os: windows-2019
+            cmp: gcc
+            configuration: static
+            base: "7.0"
+            name: "7.0 Win2019 mingw, static"
+
     steps:
     - uses: actions/checkout@v2
       with:
