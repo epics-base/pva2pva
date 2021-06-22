@@ -144,6 +144,12 @@ void testSingleMonitor(pvac::ClientProvider& client)
     if(!mon.poll())
         testAbort("Data event w/o data");
 
+#ifdef HAVE_UTAG
+    testTrue(mon.changed.get(mon.root->getSubFieldT("timeStamp.userTag")->getFieldOffset()));
+    mon.changed.clear(mon.root->getSubFieldT("timeStamp.userTag")->getFieldOffset());
+#else
+    testSkip(1, "!HAVE_UTAG");
+#endif
     testEqual(mon.changed, pvd::BitSet()
               .set(mon.root->getSubFieldT("value")->getFieldOffset())
               .set(mon.root->getSubFieldT("alarm.severity")->getFieldOffset())
@@ -214,6 +220,12 @@ void testGroupMonitor(pvac::ClientProvider& client)
     if(!mon.poll())
         testAbort("Data event w/o data");
 
+#ifdef HAVE_UTAG
+    testTrue(mon.changed.get(mon.root->getSubFieldT("fld1.timeStamp.userTag")->getFieldOffset()));
+    mon.changed.clear(mon.root->getSubFieldT("fld1.timeStamp.userTag")->getFieldOffset());
+#else
+    testSkip(1, "!HAVE_UTAG");
+#endif
     testEqual(mon.changed, pvd::BitSet()
               .set(mon.root->getSubFieldT("fld1.value")->getFieldOffset())
               .set(mon.root->getSubFieldT("fld1.alarm.severity")->getFieldOffset())
@@ -224,7 +236,7 @@ void testGroupMonitor(pvac::ClientProvider& client)
 
     testFieldEqual<pvd::PVDouble>(mon.root, "fld1.value", 32.0);
 #else
-    testSkip(20, "No multilock");
+    testSkip(21, "No multilock");
 #endif
 }
 
@@ -266,6 +278,14 @@ void testGroupMonitorTriggers(pvac::ClientProvider& client)
 
     testShow()<<mon.root;
 #define OFF(NAME) mon.root->getSubFieldT(NAME)->getFieldOffset()
+#ifdef HAVE_UTAG
+    testTrue(mon.changed.get(OFF("fld1.timeStamp.userTag")));
+    mon.changed.clear(OFF("fld1.timeStamp.userTag"));
+    testTrue(mon.changed.get(OFF("fld2.timeStamp.userTag")));
+    mon.changed.clear(OFF("fld2.timeStamp.userTag"));
+#else
+    testSkip(2, "!HAVE_UTAG");
+#endif
     testEqual(mon.changed, pvd::BitSet()
               .set(OFF("fld1.value"))
               .set(OFF("fld1.alarm.severity"))
@@ -288,7 +308,7 @@ void testGroupMonitorTriggers(pvac::ClientProvider& client)
 
     testOk1(!mon.poll());
 #else
-    testSkip(19, "No multilock");
+    testSkip(21, "No multilock");
 #endif
 }
 
@@ -338,7 +358,7 @@ void p2pTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpdb)
 {
-    testPlan(95);
+    testPlan(99);
     try{
         QSRVRegistrar_counters();
         epics::RefSnapshot ref_before;

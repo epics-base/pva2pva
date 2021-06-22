@@ -72,6 +72,8 @@ void testScalar()
     testEqual(dbChannelFinalFieldType(chan_mbbi), DBR_ENUM);
 #ifdef USE_INT64
     testEqual(dbChannelFinalFieldType(chan_i64), DBR_INT64);
+#else
+    testSkip(1, "!USE_INT64");
 #endif
 
     pvd::PVStructurePtr root;
@@ -136,6 +138,12 @@ void testScalar()
     dbScanUnlock((dbCommon*)prec_li);
 
 #define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
+#ifdef HAVE_UTAG
+    testTrue(mask.get(OFF("li.timeStamp.userTag")));
+    mask.clear(OFF("li.timeStamp.userTag"));
+#else
+    testSkip(1, "!HAVE_UTAG");
+#endif
     testEqual(mask, pvd::BitSet()
               .set(OFF("li.value"))
               .set(OFF("li.alarm.severity"))
@@ -168,6 +176,12 @@ void testScalar()
     dbScanUnlock((dbCommon*)prec_i64);
 
 #define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
+#ifdef HAVE_UTAG
+    testTrue(mask.get(OFF("i64.timeStamp.userTag")));
+    mask.clear(OFF("i64.timeStamp.userTag"));
+#else
+    testSkip(1, "!HAVE_UTAG");
+#endif
     testEqual(mask, pvd::BitSet()
               .set(OFF("i64.value"))
               .set(OFF("i64.alarm.severity"))
@@ -191,7 +205,10 @@ void testScalar()
 #undef OFF
     mask.clear();
 
-#endif
+#else // !USE_INT64
+    testSkip(2, "!USE_INT64");
+
+#endif // USE_INT64
 
     dbScanLock((dbCommon*)prec_si);
     prec_si->time.secPastEpoch = 0x12345678;
@@ -200,6 +217,12 @@ void testScalar()
     dbScanUnlock((dbCommon*)prec_si);
 
 #define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
+#ifdef HAVE_UTAG
+    testTrue(mask.get(OFF("si.timeStamp.userTag")));
+    mask.clear(OFF("si.timeStamp.userTag"));
+#else
+    testSkip(1, "!HAVE_UTAG");
+#endif
     testEqual(mask, pvd::BitSet()
               .set(OFF("si.value"))
               .set(OFF("si.alarm.severity"))
@@ -207,7 +230,6 @@ void testScalar()
               .set(OFF("si.alarm.message"))
               .set(OFF("si.timeStamp.secondsPastEpoch"))
               .set(OFF("si.timeStamp.nanoseconds"))
-              //.set(OFF("si.timeStamp.userTag"))
               .set(OFF("si.display.limitHigh"))
               .set(OFF("si.display.limitLow"))
               .set(OFF("si.display.description"))
@@ -228,6 +250,14 @@ void testScalar()
     dbScanUnlock((dbCommon*)prec_ai);
 
 #define OFF(NAME) (epicsUInt32)root->getSubFieldT(NAME)->getFieldOffset()
+#ifdef HAVE_UTAG
+    testTrue(mask.get(OFF("ai.timeStamp.userTag")));
+    mask.clear(OFF("ai.timeStamp.userTag"));
+    testTrue(mask.get(OFF("ai_rval.timeStamp.userTag")));
+    mask.clear(OFF("ai_rval.timeStamp.userTag"));
+#else
+    testSkip(2, "!HAVE_UTAG");
+#endif
     testEqual(mask, pvd::BitSet()
               .set(OFF("ai.value"))
               .set(OFF("ai.alarm.severity"))
@@ -235,7 +265,6 @@ void testScalar()
               .set(OFF("ai.alarm.message"))
               .set(OFF("ai.timeStamp.secondsPastEpoch"))
               .set(OFF("ai.timeStamp.nanoseconds"))
-              //.set(OFF("ai.timeStamp.userTag"))
               .set(OFF("ai.display.limitHigh"))
               .set(OFF("ai.display.limitLow"))
               .set(OFF("ai.display.description"))
@@ -254,7 +283,6 @@ void testScalar()
               .set(OFF("ai_rval.alarm.message"))
               .set(OFF("ai_rval.timeStamp.secondsPastEpoch"))
               .set(OFF("ai_rval.timeStamp.nanoseconds"))
-              //.set(OFF("ai_rval.timeStamp.userTag"))
               .set(OFF("ai_rval.display.limitHigh"))
               .set(OFF("ai_rval.display.limitLow"))
               .set(OFF("ai_rval.display.description"))
@@ -315,6 +343,8 @@ void testScalar()
     testFieldEqual<pvd::PVString>(root, "i64.display.units", "arb");
     testTodoEnd();
     testFieldEqual<pvd::PVInt>(root, "i64.display.precision", 0);
+#else
+    testSkip(9, "!USE_INT64");
 #endif
 
     testFieldEqual<pvd::PVString>(root, "si.value", "hello");
@@ -380,15 +410,15 @@ void testScalar()
     pvif_i64->get(mask);
     testEqual(prec_i64->val, epicsInt64(-0x8000000000000000LL));
     dbScanUnlock((dbCommon*)prec_i64);
-#endif
 
-#ifdef USE_INT64
     dbScanLock((dbCommon*)prec_i64);
     mask.clear();
     mask.set(root->getSubFieldT("i64.value")->getFieldOffset());
     pvif_i64->get(mask);
     testEqual(prec_i64->val, epicsInt64(-0x8000000000000000LL));
     dbScanUnlock((dbCommon*)prec_i64);
+#else
+    testSkip(2, "!USE_INT64");
 #endif
 
     dbScanLock((dbCommon*)prec_si);
@@ -612,11 +642,7 @@ void testFilters()
 
 MAIN(testpvif)
 {
-    testPlan(80
-#ifdef USE_INT64
-             +13
-#endif
-             );
+    testPlan(98);
 #ifdef USE_INT64
     testDiag("Testing of 64-bit field access");
 #else
