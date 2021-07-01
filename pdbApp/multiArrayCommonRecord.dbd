@@ -1,0 +1,11 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+
+include "menuMultiArrayLayout.dbd"
+
+recordtype(multiArrayCommon) {
+    include "multiArrayCommon.dbd"
+}

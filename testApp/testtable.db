@@ -1,0 +1,55 @@
+record(waveform, "INA") {
+    field(FTVL, "DOUBLE")
+    field(NELM, "3")
+    field(INP,  {const:[1,2,3]})
+    field(PINI, "YES")
+}
+
+record(waveform, "INB") {
+    field(FTVL, "CHAR")
+    field(NELM, "4")
+    field(INP,  {const:[4,3,2,1]})
+    field(PINI, "YES")
+}
+
+record(svectorin, "INC") {
+    field(FTVL, "SHORT")
+    field(NELM, "3")
+    field(INP,  {const:[7,8,9]})
+    field(PINI, "YES")
+}
+
+record(waveform, "IND") {
+    field(FTVL, "STRING")
+    field(NELM, "2")
+    field(INP,  {const:["First","Second"]})
+    field(PINI, "YES")
+}
+
+record(tableAgg, "TABLE") {
+    field(INPA, "INA")
+    field(FNAA, "col1")
+    field(LABA, "One")
+
+    field(INPB, "INB")
+    field(FNAB, "col2")
+    field(LABB, "Two")
+    field(FTB,  "LONG")
+
+    field(INPC, "INC")
+    field(FNAC, "col3")
+    field(LABC, "Three")
+    field(FTC,  "SHORT")
+
+    field(INPD, "IND")
+    field(FNAD, "col4")
+    field(LABD, "Four")
+    field(FTD,  "STRING")
+
+    # The following should be ignored
+    field(INPF, "BOGUS")
+    field(FNAF, "col6")
+    field(LABF, "Six")
+
+    field(LAY,  "Table")
+}

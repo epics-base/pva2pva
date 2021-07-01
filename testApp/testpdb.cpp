@@ -150,7 +150,8 @@ void testSingleMonitor(pvac::ClientProvider& client)
               .set(mon.root->getSubFieldT("alarm.status")->getFieldOffset())
               .set(mon.root->getSubFieldT("alarm.message")->getFieldOffset())
               .set(mon.root->getSubFieldT("timeStamp.secondsPastEpoch")->getFieldOffset())
-              .set(mon.root->getSubFieldT("timeStamp.nanoseconds")->getFieldOffset()));
+              .set(mon.root->getSubFieldT("timeStamp.nanoseconds")->getFieldOffset())
+              .set(mon.root->getSubFieldT("timeStamp.userTag")->getFieldOffset()));
 
     testFieldEqual<pvd::PVDouble>(mon.root, "value", 11.0);
 
@@ -220,7 +221,8 @@ void testGroupMonitor(pvac::ClientProvider& client)
               .set(mon.root->getSubFieldT("fld1.alarm.status")->getFieldOffset())
               .set(mon.root->getSubFieldT("fld1.alarm.message")->getFieldOffset())
               .set(mon.root->getSubFieldT("fld1.timeStamp.secondsPastEpoch")->getFieldOffset())
-              .set(mon.root->getSubFieldT("fld1.timeStamp.nanoseconds")->getFieldOffset()));
+              .set(mon.root->getSubFieldT("fld1.timeStamp.nanoseconds")->getFieldOffset())
+              .set(mon.root->getSubFieldT("fld1.timeStamp.userTag")->getFieldOffset()));
 
     testFieldEqual<pvd::PVDouble>(mon.root, "fld1.value", 32.0);
 #else
@@ -273,12 +275,14 @@ void testGroupMonitorTriggers(pvac::ClientProvider& client)
               .set(OFF("fld1.alarm.message"))
               .set(OFF("fld1.timeStamp.secondsPastEpoch"))
               .set(OFF("fld1.timeStamp.nanoseconds"))
+              .set(OFF("fld1.timeStamp.userTag"))
               .set(OFF("fld2.value"))
               .set(OFF("fld2.alarm.severity"))
               .set(OFF("fld2.alarm.status"))
               .set(OFF("fld2.alarm.message"))
               .set(OFF("fld2.timeStamp.secondsPastEpoch"))
               .set(OFF("fld2.timeStamp.nanoseconds"))
+              .set(OFF("fld2.timeStamp.userTag"))
               );
 #undef OFF
 

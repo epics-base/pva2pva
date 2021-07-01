@@ -1,0 +1,6 @@
+record(ndain, "$(N):Array") {
+    field(DTYP, "QSRV Demo")
+    field(H, "1024")
+    field(W, "768")
+    field(PINI, "YES")
+}

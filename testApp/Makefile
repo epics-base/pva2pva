@@ -67,6 +67,16 @@ testdbf_copy_LIBS += $(EPICS_BASE_IOC_LIBS)
 TESTS += testdbf_copy
 endif
 
+TARGETS += $(COMMON_DIR)/tableTestIoc.dbd
+tableTestIoc_DBD += base.dbd
+tableTestIoc_DBD += qsrv.dbd
+
+TESTPROD_HOST += testtable
+testtable_SRCS += testtable.cpp
+testtable_SRCS += tableTestIoc_registerRecordDeviceDriver.cpp
+testtable_LIBS += qsrv pvData
+TESTS += testtable
+
 TESTSCRIPTS_HOST += $(TESTS:%=%.t)
 
 

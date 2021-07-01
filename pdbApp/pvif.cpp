@@ -27,6 +27,9 @@
 
 #include <epicsExport.h>
 
+#include <svectorinRecord.h>
+#include <pvstructinRecord.h>
+
 #ifdef EPICS_VERSION_INT
 #  if EPICS_VERSION_INT>=VERSION_INT(3,16,1,0)
 #    define USE_INT64
@@ -166,18 +169,25 @@ PVIF::PVIF(dbChannel *ch)
 
 namespace {
 
-struct pvTimeAlarm {
+struct pvPlain {
     dbChannel *chan;
+    const VFieldType *vtype;
 
+    pvPlain() :chan(NULL), vtype(NULL) {}
+    explicit pvPlain(dbChannel *chan, const VFieldType *vtype=0) :chan(chan), vtype(vtype) {}
+};
+
+struct pvTimeAlarm : public pvPlain {
     pvd::uint32 nsecMask;
 
     pvd::BitSet maskALWAYS, maskALARM;
 
     pvd::PVLongPtr sec;
-    pvd::PVIntPtr status, severity, nsec, userTag;
+    pvd::PVIntPtr status, severity, nsec;
+    pvd::PVIntPtr userTag;
     pvd::PVStringPtr message;
 
-    pvTimeAlarm() :chan(NULL), nsecMask(0) {}
+    pvTimeAlarm() :nsecMask(0) {}
 };
 
 struct pvCommon : public pvTimeAlarm {
@@ -205,16 +215,20 @@ struct pvArray : public pvCommon {
 
 struct metaTIME {
     DBRstatus
+    DBRamsg
     DBRtime
+    DBRutag
 
-    enum {mask = DBR_STATUS | DBR_TIME};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_TIME | DBR_UTAG};
 };
 
 struct metaDOUBLE {
     DBRstatus
+    DBRamsg
     DBRunits
     DBRprecision
     DBRtime
+    DBRutag
     DBRgrDouble
     DBRctrlDouble
     DBRalDouble
@@ -222,12 +236,14 @@ struct metaDOUBLE {
     // similar junk
     DBRenumStrs
 
-    enum {mask = DBR_STATUS | DBR_UNITS | DBR_PRECISION | DBR_TIME | DBR_GR_DOUBLE | DBR_CTRL_DOUBLE | DBR_AL_DOUBLE};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_UNITS | DBR_PRECISION | DBR_TIME | DBR_UTAG | DBR_GR_DOUBLE | DBR_CTRL_DOUBLE | DBR_AL_DOUBLE};
 };
 
 struct metaENUM {
     DBRstatus
+    DBRamsg
     DBRtime
+    DBRutag
     DBRenumStrs
 
     // similar junk
@@ -237,12 +253,14 @@ struct metaENUM {
     DBRctrlDouble
     DBRalDouble
 
-    enum {mask = DBR_STATUS | DBR_TIME | DBR_ENUM_STRS};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_TIME | DBR_UTAG | DBR_ENUM_STRS};
 };
 
 struct metaSTRING {
     DBRstatus
+    DBRamsg
     DBRtime
+    DBRutag
 
     // similar junk
     DBRenumStrs
@@ -252,7 +270,7 @@ struct metaSTRING {
     DBRctrlDouble
     DBRalDouble
 
-    enum {mask = DBR_STATUS | DBR_TIME};
+    enum {mask = DBR_STATUS | DBR_AMSG | DBR_TIME | DBR_UTAG};
 };
 
 void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
@@ -264,6 +282,7 @@ void attachTime(pvTimeAlarm& pvm, const pvd::PVStructurePtr& pv)
     FMAP(message, PVString, "alarm.message", ALARM);
     FMAP(sec, PVLong, "timeStamp.secondsPastEpoch", ALWAYS);
     FMAP(nsec, PVInt, "timeStamp.nanoseconds", ALWAYS);
+    FMAP(userTag, PVInt, "timeStamp.userTag", ALWAYS);
 #undef FMAP
 }
 
@@ -405,12 +424,12 @@ void putTime(const pvTimeAlarm& pv, unsigned dbe, db_field_log *pfl)
     }
 }
 
-void putValue(dbChannel *chan, pvd::PVScalar* value, db_field_log *pfl)
+void putValue(const pvPlain& pv, pvd::PVScalar* value, db_field_log *pfl)
 {
     dbrbuf buf;
     long nReq = 1;
 
-    long status = dbChannelGet(chan, dbChannelFinalFieldType(chan), &buf, NULL, &nReq, pfl);
+    long status = dbChannelGet(pv.chan, dbChannelFinalFieldType(pv.chan), &buf, NULL, &nReq, pfl);
     if(status)
         throw std::runtime_error("dbGet for meta fails");
 
@@ -419,7 +438,7 @@ void putValue(dbChannel *chan, pvd::PVScalar* value, db_field_log *pfl)
         memset(&buf, 0, sizeof(buf));
     }
 
-    switch(dbChannelFinalFieldType(chan)) {
+    switch(dbChannelFinalFieldType(pv.chan)) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: value->putFrom<PVATYPE>(buf.dbf_##DBFTYPE); break;
 #define CASE_ENUM
 #define CASE_SKIP_BOOL
@@ -436,11 +455,11 @@ void putValue(dbChannel *chan, pvd::PVScalar* value, db_field_log *pfl)
     }
 }
 
-void getValue(dbChannel *chan, pvd::PVScalar* value)
+void getValue(pvPlain& pv, pvd::PVScalar* value)
 {
     dbrbuf buf;
 
-    switch(dbChannelFinalFieldType(chan)) {
+    switch(dbChannelFinalFieldType(pv.chan)) {
 #define CASE(BASETYPE, PVATYPE, DBFTYPE, PVACODE) case DBR_##DBFTYPE: buf.dbf_##DBFTYPE = value->getAs<PVATYPE>(); break;
 #define CASE_ENUM
 #define CASE_SKIP_BOOL
@@ -459,22 +478,34 @@ void getValue(dbChannel *chan, pvd::PVScalar* value)
         throw std::runtime_error("getValue unsupported DBR code");
     }
 
-    long status = dbChannelPut(chan, dbChannelFinalFieldType(chan), &buf, 1);
+    long status = dbChannelPut(pv.chan, dbChannelFinalFieldType(pv.chan), &buf, 1);
     if(status)
         throw std::runtime_error("dbPut for meta fails");
 }
 
-void getValue(dbChannel *chan, pvd::PVScalarArray* value)
+void getValue(pvPlain& pv, pvd::PVScalarArray* value)
 {
-    short dbr = dbChannelFinalFieldType(chan);
+    short dbr = dbChannelFinalFieldType(pv.chan);
 
-    if(dbr!=DBR_STRING) {
+    if(pv.vtype==&vfSharedVector) {
+        epics::pvData::shared_vector<const void> buf;
+        value->getAs(buf);
+
+        VSharedVector vect;
+        vect.vtype = pv.vtype;
+        vect.value = &buf;
+
+        long status = dbChannelPut(pv.chan, DBR_VFIELD, &vect, 1);
+        if(status)
+            throw std::runtime_error("dbChannelPut fails");
+
+    } else if(dbr!=DBR_STRING) {
         pvd::shared_vector<const void> buf;
 
         value->getAs(buf);
         long nReq = buf.size()/pvd::ScalarTypeFunc::elementSize(value->getScalarArray()->getElementType());
 
-        long status = dbChannelPut(chan, dbr, buf.data(), nReq);
+        long status = dbChannelPut(pv.chan, dbr, buf.data(), nReq);
         if(status)
             throw std::runtime_error("dbChannelPut fails");
 
@@ -491,24 +522,37 @@ void getValue(dbChannel *chan, pvd::PVScalarArray* value)
             temp[i*MAX_STRING_SIZE + MAX_STRING_SIZE-1] = '\0';
         }
 
-        long status = dbChannelPut(chan, dbr, &temp[0], buf.size());
+        long status = dbChannelPut(pv.chan, dbr, &temp[0], buf.size());
         if(status)
             throw std::runtime_error("dbChannelPut fails");
     }
 }
 
-void putValue(dbChannel *chan, pvd::PVScalarArray* value, db_field_log *pfl)
+void putValue(const pvPlain& pv, pvd::PVScalarArray* value, db_field_log *pfl)
 {
-    const short dbr = dbChannelFinalFieldType(chan);
+    const short dbr = dbChannelFinalFieldType(pv.chan);
 
-    long nReq = dbChannelFinalElements(chan);
+    long nReq = dbChannelFinalElements(pv.chan);
     const pvd::ScalarType etype = value->getScalarArray()->getElementType();
 
-    if(dbr!=DBR_STRING) {
+    if(pv.vtype==&vfSharedVector) {
+        epics::pvData::shared_vector<const void> buf;
+        VSharedVector vect;
+        vect.vtype = pv.vtype;
+        vect.value = &buf;
+        nReq = 1;
+
+        long status = dbChannelGet(pv.chan, DBR_VFIELD, &vect, NULL, &nReq, pfl);
+        if(status)
+            throw std::runtime_error("dbChannelGet for vfSharedVector value fails");
+
+        value->putFrom(buf);
+
+    } else if(dbr!=DBR_STRING) {
 
         pvd::shared_vector<void> buf(pvd::ScalarTypeFunc::allocArray(etype, nReq)); // TODO: pool?
 
-        long status = dbChannelGet(chan, dbr, buf.data(), NULL, &nReq, pfl);
+        long status = dbChannelGet(pv.chan, dbr, buf.data(), NULL, &nReq, pfl);
         if(status)
             throw std::runtime_error("dbChannelGet for value fails");
 
@@ -519,7 +563,7 @@ void putValue(dbChannel *chan, pvd::PVScalarArray* value, db_field_log *pfl)
     } else {
         std::vector<char> temp(nReq*MAX_STRING_SIZE);
 
-        long status = dbChannelGet(chan, dbr, &temp[0], NULL, &nReq, pfl);
+        long status = dbChannelGet(pv.chan, dbr, &temp[0], NULL, &nReq, pfl);
         if(status)
             throw std::runtime_error("dbChannelGet for value fails");
 
@@ -586,7 +630,7 @@ template<typename PVC, typename META>
 void putAll(const PVC &pv, unsigned dbe, db_field_log *pfl)
 {
     if(dbe&(DBE_VALUE|DBE_ARCHIVE)) {
-        putValue(pv.chan, pv.value.get(), pfl);
+        putValue(pv, pv.value.get(), pfl);
     }
     if(!(dbe&DBE_PROPERTY)) {
         putTime(pv, dbe, pfl);
@@ -656,7 +700,7 @@ struct PVIFScalarNumeric : public PVIF
     PVX pvmeta;
     const epics::pvData::PVStructurePtr pvalue;
 
-    PVIFScalarNumeric(dbChannel *ch, const epics::pvData::PVFieldPtr& p, pvd::PVField *enclosing)
+    PVIFScalarNumeric(dbChannel *ch, const VFieldType* vtype, const epics::pvData::PVFieldPtr& p, pvd::PVField *enclosing)
         :PVIF(ch)
         ,pvalue(std::tr1::dynamic_pointer_cast<pvd::PVStructure>(p))
     {
@@ -664,6 +708,7 @@ struct PVIFScalarNumeric : public PVIF
             throw std::runtime_error("Must attach to structure");
 
         pvmeta.chan = ch;
+        pvmeta.vtype = vtype;
         attachAll<PVX>(pvmeta, pvalue);
         if(enclosing) {
             size_t bit = enclosing->getFieldOffset();
@@ -713,7 +758,7 @@ struct PVIFScalarNumeric : public PVIF
         bool newval = mask.logical_and(pvmeta.maskVALUEPut);
         if(newval) {
             if(permit)
-                getValue(pvmeta.chan, pvmeta.value.get());
+                getValue(pvmeta, pvmeta.value.get());
             else
                 ret = pvd::Status::error("Put not permitted");
         }
@@ -774,17 +819,37 @@ short PVD2DBR(pvd::ScalarType pvt)
     return -1;
 }
 
+
+ScalarBuilder::ScalarBuilder(dbChannel* chan, const VFieldType* vtype)
+    :PVIFBuilder(chan)
+    ,vtype(vtype)
+    ,scalar(dbChannelFinalElements(channel)==1 && vtype!=&vfSharedVector)
+{}
+
+ScalarBuilder::~ScalarBuilder() {}
+
+static
+pvd::StructureConstPtr buildTimeStamp()
+{
+    return pvd::FieldBuilder::begin()
+                    ->add("secondsPastEpoch", pvd::pvLong)
+                    ->add("nanoseconds", pvd::pvInt)
+                    ->add("userTag", pvd::pvInt)
+                  ->createStructure();
+}
+
 epics::pvData::FieldConstPtr
 ScalarBuilder::dtype()
 {
+    if(!channel)
+        throw std::runtime_error("+type:\"scalar\" requires +channel:");
     short dbr = dbChannelFinalFieldType(channel);
-    const long maxelem = dbChannelFinalElements(channel);
     const pvd::ScalarType pvt = DBR2PVD(dbr);
 
     if(INVALID_DB_REQ(dbr))
         throw std::invalid_argument("DBF code out of range");
 
-    if(maxelem!=1 && dbr==DBR_ENUM)
+    if(!scalar && dbr==DBR_ENUM)
         dbr = DBF_SHORT;
 
     pvd::FieldBuilderPtr builder(pvd::getFieldCreate()->createFieldBuilder());
@@ -797,7 +862,7 @@ ScalarBuilder::dtype()
                             ->add("index", pvd::pvInt)
                             ->addArray("choices", pvd::pvString)
                          ->endNested();
-    else if(maxelem==1)
+    else if(scalar)
         builder = builder->setId("epics:nt/NTScalar:1.0")
                          ->add("value", pvt);
     else
@@ -805,7 +870,7 @@ ScalarBuilder::dtype()
                          ->addArray("value", pvt);
 
     builder = builder->add("alarm", standard->alarm())
-                     ->add("timeStamp", standard->timeStamp());
+                     ->add("timeStamp", buildTimeStamp());
 
     if(dbr!=DBR_ENUM) {
         builder = builder->addNestedStructure("display")
@@ -838,9 +903,8 @@ ScalarBuilder::attach(const epics::pvData::PVStructurePtr& root, const FieldName
     pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
 
     const short dbr = dbChannelFinalFieldType(channel);
-    const long maxelem = dbChannelFinalElements(channel);
 
-    if(maxelem==1) {
+    if(scalar) {
         switch(dbr) {
         case DBR_CHAR:
         case DBR_UCHAR:
@@ -852,14 +916,14 @@ ScalarBuilder::attach(const epics::pvData::PVStructurePtr& root, const FieldName
         case DBR_INT64:
         case DBR_UINT64:
 #endif
-            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, vtype, fld, enclosing);
         case DBR_FLOAT:
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvScalar, metaDOUBLE>(channel, vtype, fld, enclosing);
         case DBR_ENUM:
-            return new PVIFScalarNumeric<pvScalar, metaENUM>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvScalar, metaENUM>(channel, vtype, fld, enclosing);
         case DBR_STRING:
-            return new PVIFScalarNumeric<pvScalar, metaSTRING>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvScalar, metaSTRING>(channel, vtype, fld, enclosing);
         }
     } else {
         switch(dbr) {
@@ -877,7 +941,7 @@ ScalarBuilder::attach(const epics::pvData::PVStructurePtr& root, const FieldName
         case DBR_UINT64:
 #endif
         case DBR_DOUBLE:
-            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, fld, enclosing);
+            return new PVIFScalarNumeric<pvArray, metaDOUBLE>(channel, vtype, fld, enclosing);
         }
     }
 
@@ -890,12 +954,12 @@ struct PVIFPlain : public PVIF
 {
     const typename PVD::shared_pointer field;
     size_t fieldOffset;
-    dbChannel * const channel;
+    pvPlain pv;
 
-    PVIFPlain(dbChannel *channel, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
+    PVIFPlain(dbChannel *channel, const VFieldType *vtype, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
         :PVIF(channel)
         ,field(std::tr1::static_pointer_cast<PVD>(fld))
-        ,channel(channel)
+        ,pv(channel, vtype)
     {
         if(!field)
             throw std::logic_error("PVIFPlain attached type mis-match");
@@ -910,7 +974,7 @@ struct PVIFPlain : public PVIF
     virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
     {
         if(dbe&DBE_VALUE) {
-            putValue(channel, field.get(), pfl);
+            putValue(pv, field.get(), pfl);
             mask.set(fieldOffset);
         }
     }
@@ -924,7 +988,7 @@ struct PVIFPlain : public PVIF
         bool newval = mask.get(fieldOffset);
         if(newval) {
             if(permit)
-                getValue(channel, field.get());
+                getValue(pv, field.get());
             else
                 ret = pvd::Status::error("Put not permitted");
         }
@@ -948,13 +1012,140 @@ struct PVIFPlain : public PVIF
     }
 };
 
+struct Arbitrary : public PVIF
+{
+    const pvd::PVStructurePtr root;
+    const pvd::PVField * const enclosing;
+    pvd::BitSet scratch;
+
+    Arbitrary(dbChannel *chan, const pvd::PVStructurePtr& root, pvd::PVField *enclosing)
+        :PVIF(chan)
+        ,root(root)
+        ,enclosing(enclosing)
+    {}
+    virtual ~Arbitrary() {}
+
+    virtual void put(epics::pvData::BitSet &mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
+    {
+        if(dbe&DBE_VALUE) {
+            scratch.clear();
+
+            VSharedPVStructure arg;
+            arg.vtype = &vfPVStructure;
+            arg.value = &root;
+            arg.changed = &scratch;
+
+            long status = dbChannelGet(chan, DBR_VFIELD, &arg, NULL, NULL, pfl);
+            if(status)
+                throw std::runtime_error(SB()<<"PVStructure Get error 0x"<<std::hex<<status);
+
+            if(enclosing) {
+                if(!scratch.isEmpty())
+                    mask.set(enclosing->getFieldOffset());
+
+            } else {
+                mask |= scratch;
+            }
+        }
+    }
+    virtual epics::pvData::Status get(const epics::pvData::BitSet &mask, proc_t proc, bool permit) OVERRIDE FINAL
+    {
+        if(!(dbe(mask)&DBE_VALUE)) {
+            return pvd::Status();
+
+        } else if(dbChannelRecord(chan)->disp && dbChannelField(chan)!=&dbChannelRecord(chan)->disp) {
+            return pvd::Status::error("Put Disabled");
+        }
+
+        pvd::int32 first = root->getFieldOffset();
+        pvd::int32 end = root->getNextFieldOffset();
+
+        scratch.clear();
+        if(enclosing) {
+            for(pvd::int32 i=first; i<end; i++)
+                scratch.set(i);
+        } else {
+            scratch = mask;
+        }
+
+        VSharedPVStructure arg;
+        arg.vtype = &vfPVStructure;
+        arg.value = &root;
+        arg.changed = &scratch;
+
+        long status = dbChannelPut(chan, DBR_VFIELD, &arg, 1);
+        pvd::Status ret;
+        if(status)
+            ret = pvd::Status::error(SB()<<"PVStructure Put error 0x"<<std::hex<<status);
+
+        return ret;
+    }
+    virtual unsigned dbe(const epics::pvData::BitSet &mask) OVERRIDE FINAL
+    {
+        if(enclosing && mask.get(enclosing->getFieldOffset()))
+            return DBE_VALUE;
+        else if(enclosing)
+            return 0;
+
+        pvd::int32 first = root->getFieldOffset();
+        pvd::int32 end = root->getNextFieldOffset();
+
+        pvd::int32 idx = mask.nextSetBit(first);
+        if(idx<0 || idx >= end)
+            return DBE_VALUE;
+
+        return 0;
+    }
+};
+
+struct ArbitraryBuilder : public PVIFBuilder
+{
+    epics::pvData::StructureConstPtr type;
+
+    ArbitraryBuilder(dbChannel* chan)
+        :PVIFBuilder(chan)
+    {
+        if(!channel)
+            throw std::runtime_error("+type:\"arbitrary\" requires +channel:");
+
+        pvd::BitSet changed;
+        VSharedStructure arg;
+        arg.vtype = &vfStructure;
+        arg.value = &type;
+
+        long status = dbChannelGet(chan, DBR_VFIELD, &arg, NULL, NULL, NULL);
+        if(status || !type)
+            throw std::runtime_error("arbitrary mapping unable to fetch initial value/type");
+    }
+    virtual ~ArbitraryBuilder() {}
+
+    virtual epics::pvData::FieldConstPtr dtype() OVERRIDE FINAL
+    {
+        return type;
+    }
+    virtual PVIF *attach(const epics::pvData::PVStructurePtr &root, const FieldName &fldname) OVERRIDE FINAL
+    {
+        pvd::PVField *enclosing = 0;
+        pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
+
+        return new Arbitrary(channel, std::tr1::static_pointer_cast<pvd::PVStructure>(fld), enclosing);
+    }
+};
+
 struct PlainBuilder : public PVIFBuilder
 {
-    explicit PlainBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
+    const VFieldType* const vtype;
+
+    PlainBuilder(dbChannel* chan, const VFieldType *vtype)
+        :PVIFBuilder(chan)
+        ,vtype(vtype)
+    {}
     virtual ~PlainBuilder() {}
 
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype() OVERRIDE FINAL {
+        if(!channel)
+            throw std::runtime_error("+type:\"plain\" requires +channel:");
         const short dbr = dbChannelFinalFieldType(channel);
         const long maxelem = dbChannelFinalElements(channel);
         const pvd::ScalarType pvt = DBR2PVD(dbr);
@@ -982,15 +1173,20 @@ struct PlainBuilder : public PVIFBuilder
         pvd::PVFieldPtr fld(fldname.lookup(root, &enclosing));
 
         if(maxelem==1)
-            return new PVIFPlain<pvd::PVScalar>(channel, fld, enclosing);
+            return new PVIFPlain<pvd::PVScalar>(channel, vtype, fld, enclosing);
         else
-            return new PVIFPlain<pvd::PVScalarArray>(channel, fld, enclosing);
+            return new PVIFPlain<pvd::PVScalarArray>(channel, vtype, fld, enclosing);
     }
 };
 
 struct AnyScalarBuilder : public PVIFBuilder
 {
-    explicit AnyScalarBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
+    const VFieldType* const vtype;
+
+    explicit AnyScalarBuilder(dbChannel* chan, const VFieldType *vtype)
+        :PVIFBuilder(chan)
+        ,vtype(vtype)
+    {}
     virtual ~AnyScalarBuilder() {}
 
     // fetch the structure description
@@ -1029,9 +1225,9 @@ struct AnyScalarBuilder : public PVIFBuilder
         }
 
         if(maxelem==1)
-            return new PVIFPlain<pvd::PVScalar>(channel, arr, enclosing ? enclosing : arr.get());
+            return new PVIFPlain<pvd::PVScalar>(channel, vtype, arr, enclosing ? enclosing : arr.get());
         else
-            return new PVIFPlain<pvd::PVScalarArray>(channel, arr, enclosing ? enclosing : arr.get());
+            return new PVIFPlain<pvd::PVScalarArray>(channel, vtype, arr, enclosing ? enclosing : arr.get());
     }
 
 };
@@ -1102,11 +1298,11 @@ struct MetaBuilder : public PVIFBuilder
         pvd::StandardFieldPtr std(pvd::getStandardField());
         if(fld.empty()) {
             return builder->add("alarm", std->alarm())
-                          ->add("timeStamp", std->timeStamp());
+                          ->add("timeStamp", buildTimeStamp());
         } else {
             return builder->addNestedStructure(fld)
                                 ->add("alarm", std->alarm())
-                                ->add("timeStamp", std->timeStamp())
+                                ->add("timeStamp", buildTimeStamp())
                            ->endNested();
         }
     }
@@ -1230,12 +1426,29 @@ PVIFBuilder::dtype(epics::pvData::FieldBuilderPtr& builder,
 
 PVIFBuilder* PVIFBuilder::create(const std::string& type, dbChannel* chan)
 {
-    if(type.empty() || type=="scalar")
-        return new ScalarBuilder(chan);
+    // may select a VFT to use
+    const VFieldType* vtype = 0;
+    if(chan && dbChannelVFields(chan)) {
+        for(ELLNODE *cur = ellFirst(dbChannelVFields(chan)); cur; cur = ellNext(cur)) {
+            const VFieldTypeNode* vnode = CONTAINER(cur, VFieldTypeNode, node);
+            if(vnode->vtype==&vfSharedVector || vnode->vtype==&vfPVStructure) {
+                vtype = vnode->vtype;
+                break;
+            }
+        }
+    }
+
+    if(vtype==&vfPVStructure) {
+        if(!type.empty()) {
+            errlogPrintf("%s: ignore +type \"%s\"\n", dbChannelName(chan), type.c_str());
+        }
+        return new ArbitraryBuilder(chan);
+    } else if(type.empty() || type=="scalar")
+        return new ScalarBuilder(chan, vtype);
     else if(type=="plain")
-        return new PlainBuilder(chan);
+        return new PlainBuilder(chan, vtype);
     else if(type=="any")
-        return new AnyScalarBuilder(chan);
+        return new AnyScalarBuilder(chan, vtype);
     else if(type=="meta")
         return new MetaBuilder(chan);
     else if(type=="proc")

@@ -1,0 +1,4 @@
+menu(menuMultiArrayLayout) {
+    choice(menuMultiArrayLayoutComposite, "Composite")
+    choice(menuMultiArrayLayoutTable, "Table")
+}

@@ -419,11 +419,14 @@ private:
 
 struct QSRV_API ScalarBuilder : public PVIFBuilder
 {
-    explicit ScalarBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
-    virtual ~ScalarBuilder() {}
+    explicit ScalarBuilder(dbChannel* chan, const VFieldType* vtype=0);
+    virtual ~ScalarBuilder();
 
     virtual epics::pvData::FieldConstPtr dtype() OVERRIDE FINAL;
     virtual PVIF* attach(const epics::pvData::PVStructurePtr& root, const FieldName& fld) OVERRIDE FINAL;
+
+    const VFieldType* vtype;
+    const bool scalar;
 };
 
 
