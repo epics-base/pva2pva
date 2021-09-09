@@ -61,6 +61,31 @@ void testPut()
     testdbGetFieldEqual("src:o2.VAL", DBF_INT64, 14LL);
 }
 
+void testPutAsync()
+{
+#ifdef USE_MULTILOCK
+    testDiag("==== testPutAsync ====");
+
+    int64outRecord *trig = (int64outRecord*)testdbRecordPtr("async:trig");
+
+    while(!dbIsLinkConnected(&trig->out))
+        testqsrvWaitForLinkEvent(&trig->out);
+
+    testMonitor* done = testMonitorCreate("async:after", DBE_VALUE, 0);
+
+    testdbPutFieldOk("async:trig.PROC", DBF_LONG, 1);
+    testMonitorWait(done);
+
+    testdbGetFieldEqual("async:trig",  DBF_LONG, 1);
+    testdbGetFieldEqual("async:slow",  DBF_LONG, 1); // pushed from async:trig
+    testdbGetFieldEqual("async:slow2", DBF_LONG, 2);
+    testdbGetFieldEqual("async:after", DBF_LONG, 3);
+
+#else
+    testSkip(5, "Not USE_MULTILOCK");
+#endif
+}
+
 } // namespace
 
 extern "C"
@@ -68,7 +93,7 @@ void pvaLinkTestIoc_registerRecordDeviceDriver(struct dbBase *);
 
 MAIN(testpvalink)
 {
-    testPlan(15);
+    testPlan(20);
 
     // Disable PVA client provider, use local/QSRV provider
     pvaLinkIsolate = 1;
@@ -83,6 +108,7 @@ MAIN(testpvalink)
         IOC.init();
         testGet();
         testPut();
+        testPutAsync();
         testqsrvShutdownOk();
         IOC.shutdown();
         testqsrvCleanup();

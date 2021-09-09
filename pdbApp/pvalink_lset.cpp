@@ -20,10 +20,23 @@ using namespace pvalink;
 
 #define CHECK_VALID() if(!self->valid()) { DEBUG(self, <<CURRENT_FUNCTION<<" "<<self->channelName<<" !valid"); return -1;}
 
+dbfType getLinkType(DBLINK *plink)
+{
+    dbCommon *prec = plink->precord;
+    pdbRecordIterator iter(prec);
+
+    for(long status = dbFirstField(&iter.ent, 0); !status; status = dbNextField(&iter.ent, 0)) {
+        if(iter.ent.pfield==plink)
+            return iter.ent.pflddes->field_type;
+    }
+    throw std::logic_error("DBLINK* corrupt");
+}
+
 void pvaOpenLink(DBLINK *plink)
 {
     try {
         pvaLink* self((pvaLink*)plink->value.json.jlink);
+        self->type = getLinkType(plink);
 
         // workaround for Base not propagating info(base:lsetDebug to us
         {
@@ -70,6 +83,7 @@ void pvaOpenLink(DBLINK *plink)
                 // open new channel
 
                 chan.reset(new pvaLinkChannel(key, pvRequest));
+                chan->AP->lc = chan;
                 pvaGlobal->channels.insert(std::make_pair(key, chan));
                 doOpen = true;
             }
@@ -397,8 +411,8 @@ pvd::ScalarType DBR2PVD(short dbr)
     throw std::invalid_argument("Unsupported DBR code");
 }
 
-long pvaPutValue(DBLINK *plink, short dbrType,
-        const void *pbuffer, long nRequest)
+long pvaPutValueX(DBLINK *plink, short dbrType,
+        const void *pbuffer, long nRequest, bool wait)
 {
     TRY {
         (void)self;
@@ -437,12 +451,29 @@ long pvaPutValue(DBLINK *plink, short dbrType,
 
         self->used_scratch = true;
 
+#ifdef USE_MULTILOCK
+        if(wait)
+            self->lchan->after_put.insert(plink->precord);
+#endif
+
         if(!self->defer) self->lchan->put();
 
         DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->op_put.valid());
         return 0;
     }CATCH()
     return -1;
+}
+
+long pvaPutValue(DBLINK *plink, short dbrType,
+        const void *pbuffer, long nRequest)
+{
+    return pvaPutValueX(plink, dbrType, pbuffer, nRequest, false);
+}
+
+long pvaPutValueAsync(DBLINK *plink, short dbrType,
+        const void *pbuffer, long nRequest)
+{
+    return pvaPutValueX(plink, dbrType, pbuffer, nRequest, true);
 }
 
 void pvaScanForward(DBLINK *plink)
@@ -485,7 +516,7 @@ lset pva_lset = {
     &pvaGetAlarm,
     &pvaGetTimeStamp,
     &pvaPutValue,
-    NULL,
+    &pvaPutValueAsync,
     &pvaScanForward
     //&pvaReportLink,
 };
