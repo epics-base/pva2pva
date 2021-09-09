@@ -154,6 +154,8 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     bool queued; // added to WorkQueue
     bool debug; // set if any jlink::debug is set
     std::tr1::shared_ptr<const void> previous_root;
+    typedef std::set<dbCommon*> after_put_t;
+    after_put_t after_put;
 
     struct LinkSort {
         bool operator()(const pvaLink *L, const pvaLink *R) const;
@@ -180,6 +182,12 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     // pvac::ClientChanel::PutCallback
     virtual void putBuild(const epics::pvData::StructureConstPtr& build, pvac::ClientChannel::PutCallback::Args& args) OVERRIDE FINAL;
     virtual void putDone(const pvac::PutEvent& evt) OVERRIDE FINAL;
+    struct AfterPut : public epicsThreadRunable {
+        std::tr1::weak_ptr<pvaLinkChannel> lc;
+        virtual ~AfterPut() {}
+        virtual void run() OVERRIDE FINAL;
+    };
+    std::tr1::shared_ptr<AfterPut> AP;
 private:
     virtual void run() OVERRIDE FINAL;
     void run_dbProcess(size_t idx); // idx is index in scan_records
@@ -198,6 +206,7 @@ struct pvaLink : public pvaLinkConfig
     static size_t num_instances;
 
     bool alive; // attempt to catch some use after free
+    dbfType type;
 
     DBLINK * plink; // may be NULL
 

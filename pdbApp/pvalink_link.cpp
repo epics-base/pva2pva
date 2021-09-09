@@ -7,6 +7,7 @@ namespace pvalink {
 
 pvaLink::pvaLink()
     :alive(true)
+    ,type((dbfType)-1)
     ,plink(0)
     ,used_scratch(false)
     ,used_queue(false)

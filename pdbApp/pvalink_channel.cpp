@@ -47,6 +47,7 @@ pvaLinkChannel::pvaLinkChannel(const pvaGlobal_t::channels_key_t &key, const pvd
     ,queued(false)
     ,debug(false)
     ,links_changed(false)
+    ,AP(new AfterPut)
 {}
 
 pvaLinkChannel::~pvaLinkChannel() {
@@ -103,7 +104,7 @@ pvd::StructureConstPtr putRequestType = pvd::getFieldCreate()->createFieldBuilde
 void pvaLinkChannel::put(bool force)
 {
     pvd::PVStructurePtr pvReq(pvd::getPVDataCreate()->createPVStructure(putRequestType));
-    pvReq->getSubFieldT<pvd::PVBoolean>("record._options.block")->put(false); // TODO: some way to expose completion...
+    pvReq->getSubFieldT<pvd::PVBoolean>("record._options.block")->put(!after_put.empty());
 
     unsigned reqProcess = 0;
     bool doit = force;
@@ -191,22 +192,70 @@ void pvaLinkChannel::putBuild(const epics::pvData::StructureConstPtr& build, pva
     args.root = top;
 }
 
+namespace {
+// soo much easier with c++11 std::shared_ptr...
+struct AFLinker {
+    std::tr1::shared_ptr<pvaLinkChannel> chan;
+    AFLinker(const std::tr1::shared_ptr<pvaLinkChannel>& chan) :chan(chan) {}
+    void operator()(pvaLinkChannel::AfterPut *) {
+        chan.reset();
+    }
+};
+} // namespace
+
 void pvaLinkChannel::putDone(const pvac::PutEvent& evt)
 {
     if(evt.event==pvac::PutEvent::Fail) {
         errlogPrintf("%s PVA link put ERROR: %s\n", key.first.c_str(), evt.message.c_str());
     }
 
-    Guard G(lock);
+    bool needscans;
+    {
+        Guard G(lock);
 
-    DEBUG(this, <<key.first<<" Put result "<<evt.event);
+        DEBUG(this, <<key.first<<" Put result "<<evt.event);
 
-    op_put = pvac::Operation();
+        needscans = !after_put.empty();
+        op_put = pvac::Operation();
 
-    if(evt.event==pvac::PutEvent::Success) {
-        // see if we need start a queue'd put
-        put();
+        if(evt.event==pvac::PutEvent::Success) {
+            // see if we need start a queue'd put
+            put();
+        }
     }
+
+    if(needscans) {
+        pvaGlobal->queue.add(AP);
+    }
+}
+
+void pvaLinkChannel::AfterPut::run()
+{
+    std::set<dbCommon*> toscan;
+    std::tr1::shared_ptr<pvaLinkChannel> link(lc.lock());
+    if(!link)
+        return;
+
+    {
+        Guard G(link->lock);
+        toscan.swap(link->after_put);
+    }
+
+    for(after_put_t::iterator it=toscan.begin(), end=toscan.end();
+        it!=end; ++it)
+    {
+        dbCommon *prec = *it;
+        dbScanLock(prec);
+        if(prec->pact) { // complete async. processing
+            (prec)->rset->process(prec);
+
+        } else {
+            // maybe the result of "cancellation" or some record support logic error?
+            errlogPrintf("%s : not PACT when async PVA link completed.  Logic error?\n", prec->name);
+        }
+        dbScanUnlock(prec);
+    }
+
 }
 
 void pvaLinkChannel::monitorEvent(const pvac::MonitorEvent& evt)
@@ -334,6 +383,10 @@ void pvaLinkChannel::run()
                 assert(link && link->alive);
 
                 if(!link->plink) continue;
+
+                // only scan on monitor update for input links
+                if(link->type!=DBF_INLINK)
+                    continue;
 
                 // NPP and none/Default don't scan
                 // PP, CP, and CPP do scan

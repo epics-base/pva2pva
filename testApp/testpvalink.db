@@ -19,3 +19,32 @@ record(int64in, "target:i2") {
 record(int64out, "src:o2") {
     field(OUT, {"pva":"target:i2"})
 }
+
+# used by testPutAsync()
+record(calc, "async:seq") {
+    field(CALC, "VAL+1")
+    field(VAL , "0")
+}
+
+record(longout, "async:trig") {
+    field(OMSL, "closed_loop")
+    field(DOL , "async:seq PP")
+    field(DTYP, "Async Soft Channel")
+    field(OUT , { "pva":{"pv":"async:slow.A", "proc":true} })
+    field(FLNK, "async:after")
+}
+
+record(calcout, "async:slow") {
+    field(ODLY, "1")
+    field(CALC, "A")
+    field(FLNK, "async:slow2")
+}
+
+record(longin, "async:slow2") {
+    field(INP , "async:seq PP")
+}
+
+record(longin, "async:after") {
+    field(INP , "async:seq PP")
+    field(MDEL, "-1")
+}
