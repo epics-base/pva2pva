@@ -251,7 +251,7 @@ void dbpvar(const char *precordname, int level)
                        chan->connected_latched?'T':'F',
                        chan->num_disconnect,
                        chan->num_type_change);
-                if(chan->op_put.valid()) {
+                if(chan->put_in_progress) {
                     printf(" Put");
                 }
 

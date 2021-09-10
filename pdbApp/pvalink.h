@@ -150,6 +150,7 @@ struct pvaLinkChannel : public pvac::ClientChannel::MonitorCallback,
     size_t num_disconnect, num_type_change;
     bool connected;
     bool connected_latched; // connection status at the run()
+    bool put_in_progress;
     bool isatomic;
     bool queued; // added to WorkQueue
     bool debug; // set if any jlink::debug is set

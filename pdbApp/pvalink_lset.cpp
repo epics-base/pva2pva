@@ -457,7 +457,7 @@ long pvaPutValueX(DBLINK *plink, short dbrType,
 
         if(!self->defer) self->lchan->put();
 
-        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->op_put.valid());
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->put_in_progress);
         return 0;
     }CATCH()
     return -1;
@@ -487,7 +487,7 @@ void pvaScanForward(DBLINK *plink)
         // FWD_LINK is never deferred, and always results in a Put
         self->lchan->put(true);
 
-        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->op_put.valid());
+        DEBUG(self, <<plink->precord->name<<" "<<CURRENT_FUNCTION<<" "<<self->channelName<<" "<<self->lchan->put_in_progress);
     }CATCH()
 }
 

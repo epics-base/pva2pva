@@ -43,6 +43,7 @@ pvaLinkChannel::pvaLinkChannel(const pvaGlobal_t::channels_key_t &key, const pvd
     ,num_type_change(0u)
     ,connected(false)
     ,connected_latched(false)
+    ,put_in_progress(false)
     ,isatomic(false)
     ,queued(false)
     ,debug(false)
@@ -154,6 +155,7 @@ void pvaLinkChannel::put(bool force)
     if(doit) {
         // start net Put, cancels in-progress put
         op_put = chan.put(this, pvReq);
+        put_in_progress = true;
     }
 }
 
@@ -216,7 +218,7 @@ void pvaLinkChannel::putDone(const pvac::PutEvent& evt)
         DEBUG(this, <<key.first<<" Put result "<<evt.event);
 
         needscans = !after_put.empty();
-        op_put = pvac::Operation();
+        put_in_progress = false;
 
         if(evt.event==pvac::PutEvent::Success) {
             // see if we need start a queue'd put
@@ -341,7 +343,7 @@ void pvaLinkChannel::run()
             num_disconnect++;
 
             // cancel pending put operations
-            op_put = pvac::Operation();
+            put_in_progress = false;
 
             for(links_t::iterator it(links.begin()), end(links.end()); it!=end; ++it)
             {

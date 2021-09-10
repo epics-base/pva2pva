@@ -271,7 +271,7 @@ void pva_report(const jlink *rpjlink, int lvl, int indent)
             Guard G(pval->lchan->lock);
 
             printf(" conn=%c", pval->lchan->connected ? 'T' : 'F');
-            if(pval->lchan->op_put.valid()) {
+            if(pval->lchan->put_in_progress) {
                 printf(" Put");
             }
 
