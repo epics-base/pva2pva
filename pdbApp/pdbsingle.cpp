@@ -278,11 +278,6 @@ void single_done_callback(struct processNotify *notify)
     PDBSinglePut *self = (PDBSinglePut*)notify->usrPvt;
     pvd::Status sts;
 
-    // busy state should be 1 (normal completion) or 2 (if cancel in progress)
-    if(epics::atomic::compareAndSwap(self->notifyBusy, 1, 0)==0) {
-        std::cerr<<"PDBSinglePut dbNotify state error?\n";
-    }
-
     switch(notify->status) {
     case notifyOK:
         break;
@@ -299,6 +294,11 @@ void single_done_callback(struct processNotify *notify)
     PDBSinglePut::requester_type::shared_pointer req(self->requester.lock());
     if(req)
         req->putDone(sts, self->shared_from_this());
+
+    // busy state should be 1 (normal completion) or 2 (if cancel in progress)
+    if(epics::atomic::compareAndSwap(self->notifyBusy, 1, 0)==0) {
+        std::cerr<<"PDBSinglePut dbNotify state error?\n";
+    }
 }
 
 PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
@@ -337,6 +337,7 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
     }
 
     memset((void*)&notify, 0, sizeof(notify));
+    // sets notify->state == notifyNotActive
     notify.usrPvt = (void*)this;
     notify.chan = chan;
     notify.putCallback = &single_put_callback;
@@ -346,6 +347,8 @@ PDBSinglePut::PDBSinglePut(const PDBSingleChannel::shared_pointer &channel,
 PDBSinglePut::~PDBSinglePut()
 {
     cancel();
+    // always cleanup/sync with callback before we delete 'notify'
+    dbNotifyCancel(&notify);
     epics::atomic::decrement(num_instances);
 }
 
@@ -414,6 +417,8 @@ void PDBSinglePut::put(pvd::PVStructure::shared_pointer const & value,
 void PDBSinglePut::cancel()
 {
     if(epics::atomic::compareAndSwap(notifyBusy, 1, 2)==1) {
+        // note: dbNotifyCancelI() may sync with the callback threads,
+        //       which will deadlock if we are on such a thread
         dbNotifyCancel(&notify);
         wait_changed.reset();
         wait_pvif.reset();
