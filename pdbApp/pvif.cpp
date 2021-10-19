@@ -1175,6 +1175,47 @@ struct ProcBuilder : public PVIFBuilder
     }
 };
 
+struct PVIFNoOp : public PVIF
+{
+    PVIFNoOp(dbChannel *channel) :PVIF(channel) {}
+
+    virtual void put(epics::pvData::BitSet& mask, unsigned dbe, db_field_log *pfl) OVERRIDE FINAL
+    {}
+
+    virtual pvd::Status get(const epics::pvData::BitSet& mask, proc_t proc, bool permit) OVERRIDE FINAL
+    {
+        return pvd::Status();
+    }
+
+    virtual unsigned dbe(const epics::pvData::BitSet& mask) OVERRIDE FINAL
+    {
+        return 0;
+    }
+};
+
+struct IDBuilder : public PVIFBuilder
+{
+    explicit IDBuilder(dbChannel* chan) :PVIFBuilder(chan) {}
+    virtual ~IDBuilder() {}
+
+    // fetch the structure description
+    virtual epics::pvData::FieldConstPtr dtype() OVERRIDE FINAL {
+        throw std::logic_error("Don't call me");
+    }
+
+    virtual epics::pvData::FieldBuilderPtr dtype(epics::pvData::FieldBuilderPtr& builder,
+                                                 const std::string& fld) OVERRIDE FINAL
+    {
+        // caller has already done builder->setId(...)
+        return builder;
+    }
+    virtual PVIF* attach(const epics::pvData::PVStructurePtr& root,
+                         const FieldName& fldname) OVERRIDE FINAL
+    {
+        return new PVIFNoOp(channel);
+    }
+};
+
 }//namespace
 
 pvd::Status PVIF::get(const epics::pvData::BitSet& mask, proc_t proc, bool permit)
@@ -1240,6 +1281,8 @@ PVIFBuilder* PVIFBuilder::create(const std::string& type, dbChannel* chan)
         return new MetaBuilder(chan);
     else if(type=="proc")
         return new ProcBuilder(chan);
+    else if(type=="structure")
+        return new IDBuilder(chan);
     else
         throw std::runtime_error(std::string("Unknown +type=")+type);
 }
