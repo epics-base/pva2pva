@@ -87,7 +87,6 @@ record(...) {
     info(Q:group, {
         "<group_name>":{
             +id:"some/NT:1.0",  # top level ID
-            +meta:"FLD",        # map top level alarm/timeStamp
             +atomic:true,       # whether monitors default to multi-locking atomicity
             "<field.name>":{
                 +type:"scalar", # controls how map VAL mapped onto <field.name>
@@ -118,7 +117,7 @@ The "any" mapping places a variant union into which the "value" is placed.
 
 The "meta" mapping ignores the "value" and places only the alarm and time
 meta-data as sub-fields.
-The special group level tag 'meta:""' allows these meta-data fields to be
+Placing an entry in a blank field name '"": {+type:"meta"}' allows these meta-data fields to be
 placed in the top-level structure.
 
 The "proc" mapping uses neither "value" nor meta-data.
