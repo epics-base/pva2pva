@@ -108,6 +108,7 @@ record(...) {
 @li "any"
 @li "meta"
 @li "proc"
+@li "structure"
 
 The "scalar" mapping places an NTScalar or NTScalarArray as a sub-structure.
 
@@ -123,6 +124,9 @@ placed in the top-level structure.
 
 The "proc" mapping uses neither "value" nor meta-data.
 Instead the target record is processed during a put.
+
+The "structure" mapping allows an "+id" to be attached without a "+channel".
+So none of "+channel", "+trigger", nor "+putorder" are meaningful for a "structure" mapping.
 
 @subsubsection qsrv_group_map_trig Field Update Triggers
 
