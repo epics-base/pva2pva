@@ -777,6 +777,9 @@ short PVD2DBR(pvd::ScalarType pvt)
 epics::pvData::FieldConstPtr
 ScalarBuilder::dtype()
 {
+    if(!channel)
+        throw std::runtime_error("+type:\"scalar\" requires +channel:");
+
     short dbr = dbChannelFinalFieldType(channel);
     const long maxelem = dbChannelFinalElements(channel);
     const pvd::ScalarType pvt = DBR2PVD(dbr);
@@ -955,6 +958,9 @@ struct PlainBuilder : public PVIFBuilder
 
     // fetch the structure description
     virtual epics::pvData::FieldConstPtr dtype() OVERRIDE FINAL {
+        if(!channel)
+            throw std::runtime_error("+type:\"plain\" requires +channel:");
+
         const short dbr = dbChannelFinalFieldType(channel);
         const long maxelem = dbChannelFinalElements(channel);
         const pvd::ScalarType pvt = DBR2PVD(dbr);
