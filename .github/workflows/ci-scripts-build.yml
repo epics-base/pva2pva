@@ -19,7 +19,7 @@ env:
     EPICS_TEST_IMPRECISE_TIMING: YES
 
 jobs:
-  build-base:
+  native:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     # Set environment variables from matrix parameters
@@ -64,12 +64,6 @@ jobs:
             extra: "CMD_CXXFLAGS=-std=c++11"
             name: "7.0 Ub-20 gcc-9 C++11, static"
 
-          - os: ubuntu-16.04
-            cmp: clang
-            configuration: default
-            base: "7.0"
-            name: "7.0 Ub-16 clang-9"
-
           - os: ubuntu-20.04
             cmp: clang
             configuration: default
@@ -90,27 +84,6 @@ jobs:
             base: "7.0"
             rtems: "4.9"
             name: "7.0 Ub-20 gcc-9 + RT-4.9"
-
-          - os: ubuntu-16.04
-            cmp: gcc-4.8
-            utoolchain: "4.8"
-            configuration: default
-            base: "7.0"
-            name: "7.0 Ub-16 gcc-4.8"
-
-          - os: ubuntu-16.04
-            cmp: gcc-4.9
-            utoolchain: "4.9"
-            configuration: default
-            base: "7.0"
-            name: "7.0 Ub-16 gcc-4.9"
-
-          - os: ubuntu-20.04
-            cmp: gcc-8
-            utoolchain: "8"
-            configuration: default
-            base: "7.0"
-            name: "7.0 Ub-20 gcc-8"
 
           - os: ubuntu-20.04
             cmp: clang
@@ -146,24 +119,92 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: true
-    - name: Cache Dependencies
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache
-        key: ${{ matrix.base }}/${{ matrix.os }}/${{ matrix.cmp }}/${{ matrix.configuration }}/${{ matrix.wine }}${{ matrix.rtems }}/${{ matrix.extra }}/${{ hashFiles('.github/workflows/ci-scripts-build.yml') }}
     - name: "apt-get install"
       run: |
         sudo apt-get update
         sudo apt-get -y install qemu-system-x86 g++-mingw-w64-x86-64 gdb
       if: runner.os == 'Linux'
-    - name: "apt-get install gcc-${{ matrix.utoolchain }}"
+    - name: Prepare and compile dependencies
+      run: python .ci/cue.py prepare
+    - name: Build main module
+      run: python .ci/cue.py build
+    - name: Run main module tests
+      run: python .ci/cue.py test
+    - name: Upload tapfiles Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: tapfiles ${{ matrix.name }}
+        path: '**/O.*/*.tap'
+    - name: Collect and show test results
+      run: python .ci/cue.py test-results
+
+  docker:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+    # Set environment variables from matrix parameters
+    env:
+      BASE: ${{ matrix.base }}
+      CMP: ${{ matrix.cmp }}
+      BCFG: ${{ matrix.configuration }}
+      WINE: ${{ matrix.wine }}
+      RTEMS: ${{ matrix.rtems }}
+      EXTRA: ${{ matrix.extra }}
+      TEST: ${{ matrix.test }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Job names also name artifacts, character limitations apply
+        include:
+          - name: Linux centos 7
+            image: centos:7
+            cmp: gcc
+            configuration: default
+            base: "7.0"
+
+          - name: Linux centos 8
+            image: centos:8
+            cmp: gcc
+            configuration: default
+            base: "7.0"
+
+          - name: Linux fedora 34
+            image: fedora:34
+            cmp: gcc
+            configuration: default
+            base: "7.0"
+
+    steps:
+    - name: "Build newer Git"
+      # actions/checkout@v2 wants git >=2.18
+      # centos:7 has 1.8
+      if: matrix.image=='centos:7'
       run: |
-        sudo apt-get update
-        sudo apt-get -y install software-properties-common
-        sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        sudo apt-get update
-        sudo apt-get -y install g++-${{ matrix.utoolchain }}
-      if: matrix.utoolchain
+        yum -y install curl make gcc curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-ExtUtils-MakeMaker
+        curl https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.29.0.tar.gz | tar -xz
+        cd git-*
+        make -j2 prefix=/usr/local all
+        make prefix=/usr/local install
+        cd ..
+        rm -rf git-*
+        type -a git
+        git --version
+    - name: "Redhat setup"
+      run: |
+        dnfyum() {
+            dnf -y "$@" || yum -y "$@"
+            return $?
+        }
+        dnfyum install python3 gdb make perl gcc-c++ glibc-devel readline-devel ncurses-devel perl-devel libevent-devel net-tools
+        git --version || dnfyum install git
+        # rather than just bite the bullet and link python3 -> python,
+        # people would rather just break all existing scripts...
+        [ -e /usr/bin/python ] || ln -sf /usr/bin/python3 /usr/bin/python
+        python --version
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: Prepare and compile dependencies
       run: python .ci/cue.py prepare
     - name: Build main module
