@@ -350,22 +350,23 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
     // assume value may be a different struct each time... lot of wasted prep work
     const size_t npvs = channel->pv->members.size();
     std::vector<std::tr1::shared_ptr<PVIF> > putpvif(npvs);
-    std::vector<AsWritePvt> asWritePvt;
+    pvd::shared_vector<AsWritePvt> asWritePvt(npvs);
 
     for(size_t i=0; i<npvs; i++)
     {
         PDBGroupPV::Info& info = channel->pv->members[i];
 
-        asWritePvt.push_back(AsWritePvt(
-            asTrapWriteWithData(channel->aspvt.at(i).aspvt,
-                            std::string(channel->cred.user.begin(), channel->cred.user.end()).c_str(),
-                            std::string(channel->cred.host.begin(), channel->cred.host.end()).c_str(),
-                            info.chan,
-                            info.chan->final_type,
-                            info.chan->final_no_elements,
-                            NULL
-                            )
-        ));
+        AsWritePvt wrt(asTrapWriteWithData(
+                           channel->aspvt.at(i).aspvt,
+                           &channel->cred.user[0],
+                           &channel->cred.host[0],
+                           info.chan.chan,
+                           info.chan->final_type,
+                           info.chan->final_no_elements,
+                           NULL
+                           )
+                       );
+        asWritePvt[i].swap(wrt);
 
         if(!info.allowProc) continue;
         putpvif[i].reset(info.builder->attach(value, info.attachment));

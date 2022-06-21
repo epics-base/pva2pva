@@ -74,13 +74,20 @@ struct QSRV_API PDBProvider : public epics::pvAccess::ChannelProvider,
 QSRV_API
 void QSRVRegistrar_counters();
 
-class QSRV_API AsWritePvt {
+class AsWritePvt {
     void * pvt;
 public:
+    AsWritePvt() :pvt(NULL) {}
     explicit AsWritePvt(void * pvt): pvt(pvt) {}
     ~AsWritePvt() {
         asTrapWriteAfterWrite(pvt);
     }
+    void swap(AsWritePvt& o) {
+        std::swap(pvt, o.pvt);
+    }
+private:
+    AsWritePvt(const AsWritePvt&);
+    AsWritePvt& operator=(const AsWritePvt&);
 };
 
 #endif // PDB_H
