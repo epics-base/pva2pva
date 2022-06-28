@@ -33,6 +33,10 @@
 
 #include <epicsExport.h> /* defines epicsExportSharedSymbols */
 
+#if EPICS_VERSION_INT>=VERSION_INT(7,0,6,0)
+#  define HAVE_SHUTDOWN_HOOKS
+#endif
+
 int pvaLinkDebug;
 int pvaLinkIsolate;
 
@@ -67,6 +71,7 @@ static void shutdownStep2()
     pvaGlobal = NULL;
 }
 
+#ifndef HAVE_SHUTDOWN_HOOKS
 static void stopPVAPool(void*)
 {
     try {
@@ -84,8 +89,7 @@ static void finalizePVA(void*)
         fprintf(stderr, "Error initializing pva link handling : %s\n", e.what());
     }
 }
-
-bool atexitInstalled;
+#endif
 
 /* The Initialization game...
  *
@@ -110,10 +114,13 @@ void initPVALink(initHookState state)
             }
             pvaGlobal = new pvaGlobal_t;
 
+#ifndef HAVE_SHUTDOWN_HOOKS
+            static bool atexitInstalled;
             if(!atexitInstalled) {
                 epicsAtExit(finalizePVA, NULL);
                 atexitInstalled = true;
             }
+#endif
 
         } else if(state==initHookAfterInitDatabase) {
             pvac::ClientProvider local("server:QSRV"),
@@ -124,7 +131,10 @@ void initPVALink(initHookState state)
         } else if(state==initHookAfterIocBuilt) {
             // after epicsExit(exitDatabase)
             // so hook registered here will be run before iocShutdown()
+
+#ifndef HAVE_SHUTDOWN_HOOKS
             epicsAtExit(stopPVAPool, NULL);
+#endif
 
             Guard G(pvaGlobal->lock);
             pvaGlobal->running = true;
@@ -137,6 +147,13 @@ void initPVALink(initHookState state)
 
                 chan->open();
             }
+#ifdef HAVE_SHUTDOWN_HOOKS
+        } else if(state==initHookAtShutdown) {
+            shutdownStep1();
+
+        } else if(state==initHookAfterShutdown) {
+            shutdownStep2();
+#endif
         }
     }catch(std::exception& e){
         cantProceed("Error initializing pva link handling : %s\n", e.what());
