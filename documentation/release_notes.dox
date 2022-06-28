@@ -5,10 +5,15 @@
 Release 1.3.2 (UNRELEASED)
 ==========================
 
+- Bug Fixes
+ - apply ACF when writing to atomic group
 - Additions
  - Add new "structure" to @ref qsrv_group_map_types
 - Changes
-  - Add Access Security hooks for single and group writes.
+ - Add Access Security hooks for single and group writes.
+ - Enable "Async Soft Channel" for output links
+ - When built against Base 7.0.6.1, set timeStamp.userTag from UTAG field.
+ - Add DTYP="QSRV Set UTag" for longin, which sets UTAG=VAL.
 
 Release 1.3.1 (June 2021)
 =========================
