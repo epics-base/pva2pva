@@ -2,9 +2,11 @@
 #include <epicsMath.h>
 #include <dbAccess.h>
 #include <dbScan.h>
+#include <dbLink.h>
 #include <recGbl.h>
 #include <alarm.h>
 
+#include <longinRecord.h>
 #include <waveformRecord.h>
 #include <menuFtype.h>
 
@@ -48,7 +50,22 @@ long process_spin(waveformRecord *prec)
 
     prec->nord = prec->nelm;
 
+#ifdef DBRutag
+    prec->utag = (prec->utag+1u)&0x7fffffff;
+#endif
+
     return 0;
+}
+
+long process_utag(longinRecord *prec)
+{
+    long status = dbGetLink(&prec->inp, DBR_LONG, &prec->val, 0, 0);
+#ifdef DBRutag
+    prec->utag = prec->val;
+#else
+    (void)recGblSetSevr(prec, COMM_ALARM, INVALID_ALARM);
+#endif
+    return status;
 }
 
 template<typename REC>
@@ -63,9 +80,11 @@ struct dset5
 };
 
 dset5<waveformRecord> devWfPDBDemo = {5,0,0,&init_spin,0,&process_spin};
+dset5<longinRecord> devLoPDBUTag = {5,0,0,0,0,&process_utag};
 
 } // namespace
 
 extern "C" {
 epicsExportAddress(dset, devWfPDBDemo);
+epicsExportAddress(dset, devLoPDBUTag);
 }
