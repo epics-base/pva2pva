@@ -378,7 +378,7 @@ void PDBGroupPut::put(pvd::PVStructure::shared_pointer const & value,
         for(size_t i=0; ret && i<npvs; i++) {
             if(!putpvif[i].get()) continue;
 
-            ret |= putpvif[i]->get(*changed, doProc);
+            ret |= putpvif[i]->get(*changed, doProc, channel->aspvt[i].canWrite());
         }
 
     } else {
