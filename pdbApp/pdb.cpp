@@ -438,6 +438,9 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
                         else
                             builder = builder->addNestedStructure(parts[j].name);
                     }
+                    if(parts.back().isArray()) {
+                        builder = builder->addNestedStructureArray(parts.back().name);
+                    }
                 }
 
                 if(!mem.structID.empty())
@@ -457,13 +460,15 @@ PDBProvider::PDBProvider(const epics::pvAccess::Configuration::const_shared_poin
 
                 std::tr1::shared_ptr<PVIFBuilder> pvifbuilder(PVIFBuilder::create(mem.type, chan.chan));
 
-                if(!parts.empty())
+                if(!parts.empty() && !parts.back().isArray())
                     builder = pvifbuilder->dtype(builder, parts.back().name);
                 else
                     builder = pvifbuilder->dtype(builder, "");
 
                 if(!parts.empty()) {
                     for(size_t j=0; j<parts.size()-1; j++)
+                        builder = builder->endNested();
+                    if(parts.back().isArray())
                         builder = builder->endNested();
                 }
 
@@ -744,8 +749,6 @@ FieldName::FieldName(const std::string& pv)
     }
     if(parts.empty())
         throw std::runtime_error("Empty field name");
-    if(parts.back().isArray())
-        throw std::runtime_error("leaf field may not have sub-script : "+pv);
 }
 
 epics::pvData::PVFieldPtr
