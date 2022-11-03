@@ -239,7 +239,7 @@ struct PDBProcessor
 
 #ifdef USE_MULTILOCK
             try {
-                GroupConfig::parse(json, "", conf);
+                GroupConfig::parse(json, NULL, conf);
                 if(!conf.warning.empty())
                     fprintf(stderr, "warning(s) from dbGroup file \"%s\"\n%s", it->c_str(), conf.warning.c_str());
             }catch(std::exception& e){
