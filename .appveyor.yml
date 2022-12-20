@@ -47,16 +47,13 @@ environment:
   matrix:
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
     CMP: vs2019
-    BASE: 7.0
+    BASE: vfield
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
     CMP: gcc
-    BASE: 7.0
+    BASE: vfield
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
     CMP: vs2017
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-    CMP: vs2019
-    BASE: 3.15
+    BASE: vfield
 
 # Platform: processor architecture
 platform:

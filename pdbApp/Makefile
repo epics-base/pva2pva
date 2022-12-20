@@ -1,6 +1,10 @@
 TOP=..
 
 include $(TOP)/configure/CONFIG
+# cfg/ sometimes isn't correctly included due to a Base bug
+# so we do here (maybe again) as workaround
+include $(TOP)/configure/CONFIG_QSRV_VERSION
+
 #----------------------------------------
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
@@ -21,6 +25,18 @@ USR_CPPFLAGS += -I$(TOP)/common -I$(TOP)/p2pApp
 
 INC += pv/qsrv.h
 INC += pv/qsrvVersionNum.h
+
+DBD += menuMultiArrayLayout.dbd
+
+DBDINC += svectorinRecord
+DBDINC += svectoroutRecord
+DBDINC += pvstructinRecord
+DBDINC += columnarinRecord
+DBDINC += columnaroutRecord
+DBDINC += statBinRecord
+DBDINC += ndainRecord
+DBDINC += tableAggRecord
+DBDINC += multiArrayCommon
 
 EXPANDVARS += EPICS_QSRV_MAJOR_VERSION
 EXPANDVARS += EPICS_QSRV_MINOR_VERSION
@@ -55,6 +71,25 @@ else
 qsrv_SRCS += pvalink_null.cpp
 endif
 
+qsrv_SRCS += vfield.cpp
+qsrv_SRCS += svectorinRecord.cpp
+qsrv_SRCS += svectoroutRecord.cpp
+qsrv_SRCS += devSVInSoft.cpp
+qsrv_SRCS += devSVOutSoft.cpp
+
+qsrv_SRCS += pvstructinRecord.cpp
+qsrv_SRCS += devPVSInSoft.cpp
+
+qsrv_SRCS += columnarinRecord.cpp
+qsrv_SRCS += columnaroutRecord.cpp
+
+qsrv_SRCS += statBinRecord.cpp
+qsrv_SRCS += ndainRecord.cpp
+qsrv_SRCS += tableAggRecord.cpp
+
+qsrv_SRCS += multiArrayCommon.cpp
+qsrv_SRCS += devNDAInSoft.cpp
+
 qsrv_LIBS += pvAccess pvData
 qsrv_LIBS += $(EPICS_BASE_IOC_LIBS)
 
@@ -76,6 +111,14 @@ softIocPVA_LIBS += $(EPICS_BASE_IOC_LIBS)
 DBD += softIocPVA.dbd
 DBD += qsrv.dbd
 
+qsrv_pieces += ../qsrv-common.dbd
+ifdef BASE_3_16
+qsrv_pieces += ../qsrv-lset.dbd
+endif
+ifeq (YES,$(HAS_DBR_VFIELD))
+qsrv_pieces += ../qsrv-vfield.dbd
+endif
+
 ifneq ($(FINAL_LOCATION),$(EPICS_BASE))
 # Copy from Base if we won't be installed there
 DB_INSTALLS += $(EPICS_BASE)/db/softIocExit.db
@@ -91,6 +134,17 @@ include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
 
+# why is this not automatic!
+$(COMMON_DIR)/softIocPVA.dbd: ../svectorinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../svectoroutRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../pvstructinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../columnarinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../columnaroutRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../statBinRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../ndainRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: ../tableAggRecord.dbd
+$(COMMON_DIR)/softIocPVA.dbd: $(COMMON_DIR)/qsrv.dbd
+
 # Can't use EXPAND as generated headers must appear
 # in O.Common, but EXPAND emits rules for O.$(T_A)
 ../O.Common/pv/qsrvVersionNum.h: ../pv/qsrvVersionNum.h@
@@ -100,15 +154,20 @@ include $(TOP)/configure/RULES
 qsrv$(DEP): ../O.Common/pv/qsrvVersionNum.h
 pvalink$(DEP): ../O.Common/pv/qsrvVersionNum.h
 
-ifdef BASE_3_16
-../O.Common/qsrv.dbd: ../qsrv-new.dbd
-	$(CP) $< $@
-else
-../O.Common/qsrv.dbd: ../qsrv-old.dbd
-	$(CP) $< $@
-endif
-qsrv.dbd$(DEP):
+# cf. specials for dbCommon.h in modules/database/src/ioc/db/RULES
+
+multiArrayCommon.h$(DEP): ../multiArrayCommonRecord.dbd ../multiArrayCommon.dbd
+	@$(RM) $@
+	@$(DBTORECORDTYPEH) -D $(DBDFLAGS) -o $(COMMONDEP_TARGET) $< > $@
+
+$(COMMON_DIR)/multiArrayCommon.h: ../multiArrayCommonRecord.dbd ../multiArrayCommon.dbd
+	@$(RM) $(notdir $@)
+	$(DBTORECORDTYPEH) $(DBDFLAGS) -o $(notdir $@) $<
+	@$(MV) $(notdir $@) $@
+
+qsrv.dbd$(DEP): $(qsrv_pieces)
 	@$(RM) $@
 	@echo "$(COMMONDEP_TARGET): ../Makefile" > $@
 
-../O.Common/softIocPVA.dbd: ../O.Common/qsrv.dbd
+$(COMMON_DIR)/qsrv.dbd: $(qsrv_pieces)
+	$(CAT) $(filter %.dbd,$^) > $@

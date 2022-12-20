@@ -1,0 +1,31 @@
+#*************************************************************************
+# Copyright (c) 2020 Michael Davidsaver
+# EPICS BASE is distributed subject to a Software License Agreement found
+# in file LICENSE that is included with this distribution.
+#*************************************************************************
+
+include "menuMultiArrayLayout.dbd"
+
+recordtype(columnarout) {
+    include "multiArrayCommon.dbd"
+    %#include <pv/sharedVector.h>
+    %#include <pv/qsrv.h>
+    %struct columnaroutRecord;
+    %#ifdef __cplusplus
+    %extern "C" {
+    %#endif
+    %struct columnaroutdset {
+    %    dset common; /*init_record returns: (-1,0)=>(failure,success)*/
+    %    long (*write_tbl)(struct columnaroutRecord *prec); /*returns: (-1,0)=>(failure,success)*/
+    %};
+    %#ifdef __cplusplus
+    %} // extern "C"
+    %#endif
+    field(OUT,DBF_INLINK) {
+        prompt("Output Specification")
+        promptgroup("50 - Output")
+        interest(1)
+    }
+}
+
+device(columnarout, CONSTANT, devCOLOSoft, "Soft Channel")

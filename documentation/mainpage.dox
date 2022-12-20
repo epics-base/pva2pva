@@ -15,6 +15,9 @@ Documentation of @ref qsrv_config including @ref qsrv_group_def ,
 @ref qsrv_aslib
 and @ref qsrv_link configuration.
 
+Beginning with UNRELEASED, several @ref qsrv_pvd_records are available
+when build against Base with the DBR_VFIELD (UNMERGED) feature.
+
 - @ref release_notes
 
 @subsection qsrv_build Building
