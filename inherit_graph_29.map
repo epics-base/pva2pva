@@ -1,0 +1,15 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node2" href="$struct_base_channel.html" title="BaseChannel" alt="" coords="159,284,259,311"/>
+<area shape="rect" id="node6" href="$struct_g_w_channel.html" title="GWChannel" alt="" coords="163,5,256,32"/>
+<area shape="rect" id="node3" href="$struct_p_d_b_group_channel.html" title="PDBGroupChannel" alt="" coords="364,259,497,285"/>
+<area shape="rect" id="node4" href="$struct_p_d_b_single_channel.html" title="PDBSingleChannel" alt="" coords="363,309,498,336"/>
+<area shape="rect" id="node5" href="$struct_test_p_v_channel.html" title="TestPVChannel" alt="" coords="375,360,487,387"/>
+<area shape="rect" id="node8" href="$struct_g_w_server_channel_provider.html" title="GWServerChannelProvider" alt="" coords="341,5,520,32"/>
+<area shape="rect" id="node9" href="$struct_p_d_b_provider.html" title="PDBProvider" alt="" coords="381,56,480,83"/>
+<area shape="rect" id="node11" href="$struct_test_provider.html" title="TestProvider" alt="" coords="383,107,478,133"/>
+<area shape="rect" id="node13" href="$struct_p_d_b_group_put.html" title="PDBGroupPut" alt="" coords="378,157,483,184"/>
+<area shape="rect" id="node14" href="$struct_p_d_b_single_put.html" title="PDBSinglePut" alt="" coords="377,208,484,235"/>
+<area shape="rect" id="node16" href="$structpvalink_1_1pva_link_channel.html" title="pvalink::pvaLinkChannel" alt="" coords="349,411,513,437"/>
+<area shape="rect" id="node18" href="$structpvalink_1_1pva_link_channel_1_1_after_put.html" title="pvalink::pvaLinkChannel\l::AfterPut" alt="" coords="349,513,513,554"/>
+<area shape="rect" id="node19" href="$struct_work_queue.html" title="WorkQueue" alt="" coords="385,461,476,488"/>
+</map>

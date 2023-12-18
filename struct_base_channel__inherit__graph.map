@@ -1,0 +1,5 @@
+<map id="BaseChannel" name="BaseChannel">
+<area shape="rect" id="node3" href="$struct_p_d_b_group_channel.html" title="PDBGroupChannel" alt="" coords="5,155,139,181"/>
+<area shape="rect" id="node4" href="$struct_p_d_b_single_channel.html" title="PDBSingleChannel" alt="" coords="163,155,297,181"/>
+<area shape="rect" id="node5" href="$struct_test_p_v_channel.html" title="TestPVChannel" alt="" coords="323,155,437,181"/>
+</map>

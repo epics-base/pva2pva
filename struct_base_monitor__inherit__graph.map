@@ -1,0 +1,4 @@
+<map id="BaseMonitor" name="BaseMonitor">
+<area shape="rect" id="node3" href="$struct_p_d_b_group_monitor.html" title="PDBGroupMonitor" alt="" coords="5,155,133,181"/>
+<area shape="rect" id="node4" href="$struct_p_d_b_single_monitor.html" title="PDBSingleMonitor" alt="" coords="158,155,287,181"/>
+</map>

@@ -1,0 +1,8 @@
+<map id="MonitorCacheEntry" name="MonitorCacheEntry">
+<area shape="rect" id="node3" href="$classweak__set.html" title="weak_set\&lt; MonitorUser \&gt;" alt="" coords="329,56,503,83"/>
+<area shape="rect" id="node4" href="$struct_channel_cache_entry.html" title="ChannelCacheEntry" alt="" coords="347,107,485,133"/>
+<area shape="rect" id="node5" href="$classweak__set.html" title="weak_set\&lt; GWChannel \&gt;" alt="" coords="15,48,188,75"/>
+<area shape="rect" id="node6" href="$struct_channel_cache.html" title="ChannelCache" alt="" coords="47,197,155,224"/>
+<area shape="rect" id="node7" href="$struct_channel_cache_1_1cache_clean.html" title="ChannelCache::cacheClean" alt="" coords="323,243,509,269"/>
+<area shape="rect" id="node9" href="$classweak__value__map.html" title="weak_value_map\&lt; pvrequest\l_t, MonitorCacheEntry \&gt;" alt="" coords="5,99,197,141"/>
+</map>
