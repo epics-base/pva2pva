@@ -73,6 +73,9 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
     while( (opt=getopt(argc, argv, "qvhiIC"))!=-1)
     {
         switch(opt) {
+        case 'h':
+            usage(argv[0]);
+            exit(0);
         case 'q':
             arg.debug--;
             break;
@@ -90,7 +93,6 @@ void getargs(ServerConfig& arg, int argc, char *argv[])
             break;
         default:
             std::cerr<<"Unknown argument -"<<char(opt)<<"\n";
-        case 'h':
             usage(argv[0]);
             exit(1);
         }
