@@ -34,7 +34,7 @@ namespace pva = epics::pvAccess;
 
 extern int p2pReadOnly;
 
-namespace {
+namespace p2pgw {
 
 pvd::StructureConstPtr schema(pvd::getFieldCreate()->createFieldBuilder()
                               ->add("version", pvd::pvUInt)
@@ -235,10 +235,12 @@ void gwcr(int lvl, const char *client, const char *channel)
     }
 }
 
-}// namespace
+} // namespace p2pgw
+
 
 int main(int argc, char *argv[])
 {
+    using namespace p2pgw;
     try {
         pva::refTrackRegistrar();
 
@@ -280,7 +282,7 @@ int main(int argc, char *argv[])
             lvl = pva::logLevelDebug;
         else if(arg.debug==3)
             lvl = pva::logLevelTrace;
-        else if(arg.debug>=4)
+        else // arg.debug>=4
             lvl = pva::logLevelAll;
         SET_LOG_LEVEL(lvl);
 
