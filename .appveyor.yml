@@ -3,17 +3,14 @@
 
 # This is YAML - indentation levels are crucial
 
+#---------------------------------#
+#       build cache               #
+#---------------------------------#
+# The AppVeyor cache allowance is way too small (1GB per account across all
+# projects, branches and jobs) to be used for the dependency builds.
+
 cache:
   - C:\Users\appveyor\.tools
-
-#---------------------------------#
-#       additional packages       #
-#---------------------------------#
-
-install:
-# for the sequencer
-  - cinst re2c
-  - cmd: git submodule update --init --recursive
 
 #---------------------------------#
 #       repository cloning        #
@@ -23,14 +20,18 @@ init:
   # Set autocrlf to make batch files work
   - git config --global core.autocrlf true
 
-clone_depth: 50
+clone_depth: 5
 
-# Skipping commits affecting only specific files
-skip_commits:
-  files:
-    - 'documentation/*'
-    - '**/*.md'
-    - '.github/**'
+#---------------------------------#
+#       additional packages       #
+#---------------------------------#
+
+install:
+  - cmd: git submodule update --init --recursive
+
+#---------------------------------#
+#   build matrix configuration    #
+#---------------------------------#
 
 # Build Configurations: dll/static, regular/debug
 configuration:
@@ -43,20 +44,21 @@ configuration:
 environment:
   # common / default variables for all jobs
   SETUP_PATH: .ci-local:.ci
+  EPICS_TEST_IMPRECISE_TIMING: YES
 
   matrix:
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+  - BASE: 3.15
     CMP: vs2019
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+  - BASE: 7.0
     CMP: gcc
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+  - BASE: 7.0
     CMP: vs2017
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+  - BASE: 7.0
     CMP: vs2019
-    BASE: 3.15
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
 # Platform: processor architecture
 platform:
@@ -94,10 +96,8 @@ on_finish:
 #---------------------------------#
 
 notifications:
-
   - provider: Email
     to:
       - core-talk@aps.anl.gov
     on_build_success: false
-
   - provider: GitHubPullRequest

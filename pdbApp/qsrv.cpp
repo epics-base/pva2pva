@@ -82,7 +82,7 @@ long dbLoadGroup(const char* fname)
     }
 }
 
-namespace {
+namespace qsrv {
 
 void dbLoadGroupWrap(const char* fname)
 {
@@ -124,15 +124,17 @@ void dbgl(int lvl, const char *pattern)
     }
 }
 
-void QSRVRegistrar()
+} // namespace qsrv
+
+static void QSRVRegistrar()
 {
+    using namespace qsrv;
+
     QSRVRegistrar_counters();
     pva::ChannelProviderRegistry::servers()->addSingleton<PDBProvider>("QSRV");
     epics::iocshRegister<int, const char*, &dbgl>("dbgl", "level", "pattern");
     epics::iocshRegister<const char*, &dbLoadGroupWrap>("dbLoadGroup", "jsonfile");
 }
-
-} // namespace
 
 unsigned qsrvVersion(void)
 {

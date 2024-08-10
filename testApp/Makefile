@@ -24,7 +24,6 @@ PROD_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 TESTPROD_HOST += testweak
 testweak_SRCS += testweak.cpp
-testweak_LIBS += Com
 TESTS += testweak
 
 TESTPROD_HOST += testtest
@@ -57,14 +56,12 @@ testpvalink_LIBS += qsrv
 
 TESTPROD_HOST += testgroupconfig
 testgroupconfig_SRCS += testgroupconfig
-testgroupconfig_LIBS += qsrv pvAccess pvData
-testgroupconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
+testgroupconfig_LIBS += qsrv
 TESTS += testgroupconfig
 
 TESTPROD_HOST += testdbf_copy
 testdbf_copy_SRCS += testdbf_copy
-testdbf_copy_LIBS += qsrv pvAccess pvData
-testdbf_copy_LIBS += $(EPICS_BASE_IOC_LIBS)
+testdbf_copy_LIBS += qsrv
 TESTS += testdbf_copy
 endif
 

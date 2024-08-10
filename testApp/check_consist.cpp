@@ -7,11 +7,14 @@ namespace pvd = epics::pvData;
 namespace pva = epics::pvAccess;
 
 namespace {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 struct Destroyer {
     pvd::Destroyable::shared_pointer D;
     Destroyer(const pvd::Destroyable::shared_pointer& d) : D(d) {}
     ~Destroyer() { if(D) D->destroy(); }
 };
+#pragma GCC diagnostic pop
 
 struct Releaser {
     pva::Monitor::shared_pointer& mon;
