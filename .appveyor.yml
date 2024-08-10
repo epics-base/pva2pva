@@ -23,6 +23,13 @@ init:
 clone_depth: 5
 
 #---------------------------------#
+#       additional packages       #
+#---------------------------------#
+
+install:
+  - cmd: git submodule update --init --recursive
+
+#---------------------------------#
 #   build matrix configuration    #
 #---------------------------------#
 
@@ -40,18 +47,18 @@ environment:
   EPICS_TEST_IMPRECISE_TIMING: YES
 
   matrix:
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+  - BASE: 3.15
     CMP: vs2019
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+  - BASE: 7.0
     CMP: gcc
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+  - BASE: 7.0
     CMP: vs2017
-    BASE: 7.0
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+  - BASE: 7.0
     CMP: vs2019
-    BASE: 3.15
+    APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
 # Platform: processor architecture
 platform:
@@ -61,10 +68,8 @@ platform:
 #     building & testing          #
 #---------------------------------#
 
-install:
-  - cmd: python .ci/cue.py prepare
-
 build_script:
+  - cmd: python .ci/cue.py prepare
   - cmd: python .ci/cue.py build
 
 test_script:
@@ -91,10 +96,8 @@ on_finish:
 #---------------------------------#
 
 notifications:
-
   - provider: Email
     to:
       - core-talk@aps.anl.gov
     on_build_success: false
-
   - provider: GitHubPullRequest
