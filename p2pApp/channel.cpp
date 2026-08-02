@@ -197,11 +197,9 @@ GWChannel::createMonitor(
 
         Guard G(ment->mutex());
 
-        mon.reset(new MonitorUser(ment));
+        mon.reset(new MonitorUser(ment, monitorRequester, shared_pointer(weakref)));
         ment->interested.insert(mon);
         mon->weakref = mon;
-        mon->srvchan = shared_pointer(weakref);
-        mon->req = monitorRequester;
 
         typedesc = ment->typedesc;
         startresult = ment->startresult;

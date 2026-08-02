@@ -66,13 +66,14 @@ struct MonitorUser : public epics::pvData::Monitor
 {
     POINTER_DEFINITIONS(MonitorUser);
     static size_t num_instances;
+    // const after construction
     weak_pointer weakref;
 
-    inline epicsMutex& mutex() const { return entry->mutex(); }
+    const MonitorCacheEntry::shared_pointer entry;
+    const epics::pvData::MonitorRequester::weak_pointer req;
+    const std::tr1::weak_ptr<GWChannel> srvchan;
 
-    MonitorCacheEntry::shared_pointer entry;
-    epics::pvData::MonitorRequester::weak_pointer req;
-    std::tr1::weak_ptr<GWChannel> srvchan;
+    inline epicsMutex& mutex() const { return entry->mutex(); }
 
     // guards queues and member variables
     bool initial;
@@ -87,7 +88,9 @@ struct MonitorUser : public epics::pvData::Monitor
 
     epics::pvData::MonitorElementPtr overflowElement;
 
-    MonitorUser(const MonitorCacheEntry::shared_pointer&);
+    MonitorUser(const MonitorCacheEntry::shared_pointer&,
+                const epics::pvData::MonitorRequester::shared_pointer&,
+                const std::tr1::shared_ptr<GWChannel>&);
     virtual ~MonitorUser();
 
     virtual void destroy();

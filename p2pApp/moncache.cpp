@@ -241,8 +241,12 @@ MonitorCacheEntry::getRequesterName()
     return "MonitorCacheEntry";
 }
 
-MonitorUser::MonitorUser(const MonitorCacheEntry::shared_pointer &e)
+MonitorUser::MonitorUser(const MonitorCacheEntry::shared_pointer &e,
+                         const pvd::MonitorRequester::shared_pointer &req,
+                         const std::tr1::shared_ptr<GWChannel> &srvchan)
     :entry(e)
+    ,req(req)
+    ,srvchan(srvchan)
     ,initial(true)
     ,running(false)
     ,inoverflow(false)
