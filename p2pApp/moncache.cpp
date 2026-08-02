@@ -137,6 +137,18 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
         {
             epicsAtomicIncrSizeT(&nevents);
 
+            if(*lastelem->pvStructurePtr->getStructure() != *update->pvStructurePtr->getStructure()) {
+                // Upstream promised (in monitorConnect()) to keep delivering
+                // this Structure type.  A buggy or malicious server that
+                // breaks this promise would corrupt memory via the
+                // copyUnchecked() below, so drop the update and tear down
+                // the monitor instead of trusting it.
+                errlogPrintf("pva2pva: upstream monitor delivered unexpected type, closing monitor\n");
+                monitor->release(update);
+                monitor->stop();
+                break;
+            }
+
             lastelem->pvStructurePtr->copyUnchecked(*update->pvStructurePtr,
                                                     *update->changedBitSet);
             *lastelem->changedBitSet = *update->changedBitSet;
