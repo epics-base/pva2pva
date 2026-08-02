@@ -932,7 +932,7 @@ struct PVIFPlain : public PVIF
 
     PVIFPlain(dbChannel *channel, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
         :PVIF(channel)
-        ,field(std::tr1::static_pointer_cast<PVD>(fld))
+        ,field(std::tr1::dynamic_pointer_cast<PVD>(fld))
         ,channel(channel)
     {
         if(!field)
@@ -1067,6 +1067,21 @@ struct AnyScalarBuilder : public PVIFBuilder
             else
                 arr = create->createPVScalarArray(pvt);
             value->set(arr);
+        } else {
+            // client put a value into the union at put() time.  Its type is
+            // whatever the client chose, so it must be validated against
+            // what PVIFPlain below will assume before attaching (cf. the
+            // unchecked static_pointer_cast this used to feed).
+            bool ok = false;
+            if(maxelem==1) {
+                pvd::PVScalar *scalar = dynamic_cast<pvd::PVScalar*>(arr.get());
+                ok = scalar && scalar->getScalar()->getScalarType()==pvt;
+            } else {
+                pvd::PVScalarArray *sarray = dynamic_cast<pvd::PVScalarArray*>(arr.get());
+                ok = sarray && sarray->getScalarArray()->getElementType()==pvt;
+            }
+            if(!ok)
+                throw std::logic_error("Union value type mis-match for +type:\"any\" field");
         }
 
         if(maxelem==1)

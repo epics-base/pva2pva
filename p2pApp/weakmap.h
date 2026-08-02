@@ -208,6 +208,7 @@ public:
         value_pointer ret = find(k);
         if(!ret)
             throw std::runtime_error("Bad key");
+        return ret;
     }
 
     //! Lookup key 'k'
@@ -247,7 +248,7 @@ public:
         for(typename store_t::const_iterator it = _data->store.begin(),
             end = _data->store.end(); it!=end; ++it)
         {
-            value_pointer P(it->second.lock);
+            value_pointer P(it->second.lock());
             if(P) ret[it->first] = P;
         }
         return ret;
