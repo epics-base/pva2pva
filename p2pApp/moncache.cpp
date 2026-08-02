@@ -230,8 +230,11 @@ MonitorCacheEntry::unlisten(pvd::MonitorPtr const & monitor)
     FOREACH(interested_t::vector_type::iterator, it, end, tonotify) {
         MonitorUser *usr = it->get();
         pvd::MonitorRequester::shared_pointer req(usr->req);
-        if(usr->inuse.empty()) // TODO: what about stopped?
+        Guard G(usr->mutex());
+        if(usr->inuse.empty()) { // TODO: what about stopped?
+            UnGuard U(G);
             req->unlisten(*it);
+        }
     }
 }
 
