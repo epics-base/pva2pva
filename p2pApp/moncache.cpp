@@ -203,7 +203,9 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
     FOREACH(dsnotify_t::iterator, it,end,dsnotify) {
         MonitorUser *usr = (*it).get();
-        pvd::MonitorRequester::shared_pointer req(usr->req);
+        pvd::MonitorRequester::shared_pointer req(usr->req.lock());
+        if(!req)
+            continue; // downstream requester has already been destroyed
         epicsAtomicIncrSizeT(&usr->nwakeups);
         req->monitorEvent(*it); // notify when first item added to empty queue, may call poll(), release(), and others
     }
