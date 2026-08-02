@@ -932,7 +932,7 @@ struct PVIFPlain : public PVIF
 
     PVIFPlain(dbChannel *channel, const epics::pvData::PVFieldPtr& fld, epics::pvData::PVField* enclosing=0)
         :PVIF(channel)
-        ,field(std::tr1::static_pointer_cast<PVD>(fld))
+        ,field(std::tr1::dynamic_pointer_cast<PVD>(fld))
         ,channel(channel)
     {
         if(!field)
