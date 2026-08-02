@@ -203,7 +203,9 @@ MonitorCacheEntry::monitorEvent(pvd::MonitorPtr const & monitor)
 
     FOREACH(dsnotify_t::iterator, it,end,dsnotify) {
         MonitorUser *usr = (*it).get();
-        pvd::MonitorRequester::shared_pointer req(usr->req);
+        pvd::MonitorRequester::shared_pointer req(usr->req.lock());
+        if(!req)
+            continue; // downstream requester has already been destroyed
         epicsAtomicIncrSizeT(&usr->nwakeups);
         req->monitorEvent(*it); // notify when first item added to empty queue, may call poll(), release(), and others
     }
@@ -229,8 +231,17 @@ MonitorCacheEntry::unlisten(pvd::MonitorPtr const & monitor)
     }
     FOREACH(interested_t::vector_type::iterator, it, end, tonotify) {
         MonitorUser *usr = it->get();
-        pvd::MonitorRequester::shared_pointer req(usr->req);
-        if(usr->inuse.empty()) // TODO: what about stopped?
+        pvd::MonitorRequester::shared_pointer req;
+        bool inuseEmpty;
+        {
+            // usr->req and usr->inuse may be concurrently mutated by
+            // poll()/release()/destroy(), which take this same lock
+            // (MonitorUser::mutex() aliases the MonitorCacheEntry's).
+            Guard G(usr->mutex());
+            req = usr->req.lock();
+            inuseEmpty = usr->inuse.empty(); // TODO: what about stopped?
+        }
+        if(req && inuseEmpty)
             req->unlisten(*it);
     }
 }
