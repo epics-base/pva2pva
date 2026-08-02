@@ -203,13 +203,6 @@ public:
         return element_proxy(*this, k);
     }
 
-    value_pointer operator[](const K& k) const
-    {
-        value_pointer ret = find(k);
-        if(!ret)
-            throw std::runtime_error("Bad key");
-    }
-
     //! Lookup key 'k'
     //! @returns a strong reference or nullptr if 'k' is not present
     value_pointer find(const K& k) const
@@ -235,21 +228,6 @@ public:
         if(it!=_data->store.end())
             ret = it->second.lock();
         (*this)[k] = v;
-        return ret;
-    }
-
-    typedef std::map<K, value_pointer, C> lock_map_type;
-    //! Return an equivalent map with strong value references
-    lock_map_type lock_map() const
-    {
-        lock_map_type ret;
-        guard_type G(_data->mutex);
-        for(typename store_t::const_iterator it = _data->store.begin(),
-            end = _data->store.end(); it!=end; ++it)
-        {
-            value_pointer P(it->second.lock);
-            if(P) ret[it->first] = P;
-        }
         return ret;
     }
 
