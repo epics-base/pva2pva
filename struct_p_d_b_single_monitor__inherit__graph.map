@@ -1,0 +1,7 @@
+<map id="PDBSingleMonitor" name="PDBSingleMonitor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="26,153,154,178"/>
+<area shape="rect" id="Node000002" href="$struct_base_monitor.html" title=" " alt="" coords="43,79,137,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="92,118,92,153,88,151,88,122"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,5,175,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="91,44,93,79,87,78,89,49"/>
+</map>

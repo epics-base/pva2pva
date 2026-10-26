@@ -1,0 +1,8 @@
+<map id="ChannelCache" name="ChannelCache">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,113,31"/>
+<area shape="rect" id="Node000002" href="$struct_channel_cache_1_1cache_clean.html" title=" " alt="" coords="36,102,220,128"/>
+<area shape="poly" id="edge3_Node000002_Node000001" title=" " alt="" coords="49,43,49,62,53,77,65,90,82,101,77,102,62,94,48,79,43,62,47,48"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="115,87,97,57,75,34,76,29,101,53,121,88"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="139,5,259,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="190,44,170,80,146,104,143,99,166,76,186,47"/>
+</map>

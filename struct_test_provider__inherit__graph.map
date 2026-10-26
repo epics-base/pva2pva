@@ -1,0 +1,7 @@
+<map id="TestProvider" name="TestProvider">
+<area shape="rect" id="Node000001" title=" " alt="" coords="233,46,327,72"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="8,5,182,46"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="197,42,235,50,230,51,197,47"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,71,185,111"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="200,70,235,67,230,68,201,75"/>
+</map>

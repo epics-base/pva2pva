@@ -1,0 +1,20 @@
+<map id="MonitorCacheEntry" name="MonitorCacheEntry">
+<area shape="rect" id="Node000001" title=" " alt="" coords="650,61,783,87"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="324,13,537,39"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="552,32,627,44,681,61,676,61,625,49,553,37"/>
+<area shape="rect" id="Node000003" href="$struct_channel_cache_entry.html" title=" " alt="" coords="361,63,500,88"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="514,72,652,74,647,75,515,78"/>
+<area shape="rect" id="Node000004" href="$struct_channel_cache.html" title=" " alt="" coords="47,169,155,195"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="149,161,323,100,374,88,369,90,324,105,151,166"/>
+<area shape="rect" id="Node000005" href="$struct_channel_cache_1_1cache_clean.html" title=" " alt="" coords="338,223,522,248"/>
+<area shape="poly" id="edge6_Node000005_Node000004" title=" " alt="" coords="170,189,300,209,362,222,356,222,299,214,170,194"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="320,244,271,244,220,237,167,220,125,198,125,193,169,215,221,232,272,239,326,243"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="41,267,161,292"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="176,272,299,258,364,249,369,249,300,263,177,277"/>
+<area shape="rect" id="Node000007" href="$classweak__set.html" title=" " alt="" coords="15,5,187,31"/>
+<area shape="poly" id="edge7_Node000003_Node000007" title=" " alt="" coords="202,29,300,45,374,61,369,63,299,50,203,34"/>
+<area shape="rect" id="Node000008" href="$classweak__value__map.html" title=" " alt="" coords="5,55,197,96"/>
+<area shape="poly" id="edge8_Node000003_Node000008" title=" " alt="" coords="212,73,363,74,359,77,213,78"/>
+<area shape="rect" id="Node000009" href="$classweak__set.html" title=" " alt="" coords="344,115,516,140"/>
+<area shape="poly" id="edge9_Node000001_Node000009" title=" " alt="" coords="531,117,625,101,683,87,678,88,627,106,533,122"/>
+</map>

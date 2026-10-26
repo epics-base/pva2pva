@@ -1,0 +1,9 @@
+<map id="BaseMonitor" name="BaseMonitor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="98,79,192,105"/>
+<area shape="rect" id="Node000003" href="$struct_p_d_b_group_monitor.html" title=" " alt="" coords="5,153,133,178"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="124,115,83,154,80,150,118,116"/>
+<area shape="rect" id="Node000004" href="$struct_p_d_b_single_monitor.html" title=" " alt="" coords="157,153,285,178"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="170,113,211,152,206,152,168,118"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="60,5,230,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="146,44,148,79,142,78,144,49"/>
+</map>

@@ -1,0 +1,14 @@
+<map id="ChannelCacheEntry" name="ChannelCacheEntry">
+<area shape="rect" id="Node000001" title=" " alt="" coords="347,63,485,88"/>
+<area shape="rect" id="Node000002" href="$struct_channel_cache.html" title=" " alt="" coords="47,169,155,195"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="154,162,376,86,375,92,156,167"/>
+<area shape="rect" id="Node000003" href="$struct_channel_cache_1_1cache_clean.html" title=" " alt="" coords="324,223,508,248"/>
+<area shape="poly" id="edge4_Node000003_Node000002" title=" " alt="" coords="170,189,300,209,356,222,351,222,299,214,170,194"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="306,243,264,243,220,237,167,219,125,198,125,193,169,215,221,232,264,238,311,243"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="41,267,161,292"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="176,272,299,258,357,249,362,249,300,263,177,277"/>
+<area shape="rect" id="Node000005" href="$classweak__set.html" title=" " alt="" coords="15,5,187,31"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="202,29,300,45,366,61,361,63,299,50,203,34"/>
+<area shape="rect" id="Node000006" href="$classweak__value__map.html" title=" " alt="" coords="5,55,197,96"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="212,73,348,74,344,77,213,78"/>
+</map>

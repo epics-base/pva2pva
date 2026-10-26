@@ -1,0 +1,9 @@
+<map id="TestPVChannel" name="TestPVChannel">
+<area shape="rect" id="Node000001" title=" " alt="" coords="120,177,233,203"/>
+<area shape="rect" id="Node000002" href="$struct_base_channel.html" title=" " alt="" coords="43,80,142,106"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="114,115,168,176,163,177,112,120"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,5,180,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="94,44,95,81,90,80,91,49"/>
+<area shape="rect" id="Node000004" href="$classweak__set.html" title=" " alt="" coords="167,80,354,106"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="243,117,189,179,186,174,237,118"/>
+</map>

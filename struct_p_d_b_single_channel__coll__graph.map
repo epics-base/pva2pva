@@ -1,0 +1,13 @@
+<map id="PDBSingleChannel" name="PDBSingleChannel">
+<area shape="rect" id="Node000001" title=" " alt="" coords="291,192,424,218"/>
+<area shape="rect" id="Node000002" href="$struct_base_channel.html" title=" " alt="" coords="43,88,142,114"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="139,117,328,190,324,193,138,122"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,5,180,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="94,44,95,88,90,87,91,49"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="166,80,384,121"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="302,131,351,192,346,191,299,135"/>
+<area shape="rect" id="Node000005" href="$struct_a_s_cred.html" title=" " alt="" coords="408,88,476,114"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="425,125,369,194,366,189,420,127"/>
+<area shape="rect" id="Node000006" href="$struct_a_s_c_l_i_e_n_t.html" title=" " alt="" coords="500,88,587,114"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="517,122,444,170,392,194,390,189,442,166,512,124"/>
+</map>

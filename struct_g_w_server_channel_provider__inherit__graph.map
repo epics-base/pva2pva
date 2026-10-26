@@ -1,0 +1,9 @@
+<map id="GWServerChannelProvider" name="GWServerChannelProvider">
+<area shape="rect" id="Node000001" title=" " alt="" coords="317,70,495,96"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="50,5,224,46"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="239,45,345,69,340,70,239,50"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="37,70,237,96"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="252,80,319,82,313,84,253,86"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="5,120,269,161"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="250,114,339,97,345,96,251,119"/>
+</map>

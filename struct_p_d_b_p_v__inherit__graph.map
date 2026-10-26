@@ -1,0 +1,7 @@
+<map id="PDBPV" name="PDBPV">
+<area shape="rect" id="Node000001" title=" " alt="" coords="86,5,153,31"/>
+<area shape="rect" id="Node000002" href="$struct_p_d_b_group_p_v.html" title=" " alt="" coords="5,79,108,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="101,42,69,80,65,77,96,43"/>
+<area shape="rect" id="Node000003" href="$struct_p_d_b_single_p_v.html" title=" " alt="" coords="132,79,235,105"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="141,40,175,79,170,78,139,45"/>
+</map>

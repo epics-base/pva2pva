@@ -1,0 +1,9 @@
+<map id="PDBSingleChannel" name="PDBSingleChannel">
+<area shape="rect" id="Node000001" title=" " alt="" coords="116,168,250,193"/>
+<area shape="rect" id="Node000002" href="$struct_base_channel.html" title=" " alt="" coords="43,86,142,112"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="118,120,172,167,167,168,116,125"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,5,180,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="94,44,95,87,90,85,91,49"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="166,79,384,120"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="243,129,199,169,196,165,238,131"/>
+</map>

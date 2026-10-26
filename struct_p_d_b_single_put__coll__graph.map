@@ -1,0 +1,7 @@
+<map id="PDBSinglePut" name="PDBSinglePut">
+<area shape="rect" id="Node000001" title=" " alt="" coords="158,94,263,120"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,13,200,38"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="132,45,197,93,191,94,130,50"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="223,5,414,46"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="282,54,228,96,226,91,277,56"/>
+</map>
